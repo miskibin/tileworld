@@ -8,13 +8,13 @@ import * as THREE from 'three'
  * write per frame updates the whole world.
  */
 export const playerPosUniform = { value: new THREE.Vector3(0, 0, 0) }
-// Tuned so the area around the player reads as "fully lit", a generous ring
-// transitions to dim, and the far horizon is heavily — but not totally —
-// shadowed. The aerial/zoomed-out view still shows shapes; the up-close
-// view still feels like a clear sight bubble.
+// Player-centric darkening is disabled by default — daylight + the
+// camera-centric FogExp2 already handle distance. Bump
+// viewMaxDarkenUniform.value to something > 0 if you ever want a
+// LoL-style sight bubble back.
 export const viewRadiusUniform = { value: 18 }
 export const viewFalloffUniform = { value: 22 }
-export const viewMaxDarkenUniform = { value: 0.55 }
+export const viewMaxDarkenUniform = { value: 0 }
 
 export function setVisionPlayerPos(x: number, y: number, z: number): void {
   playerPosUniform.value.set(x, y, z)

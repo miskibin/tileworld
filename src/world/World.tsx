@@ -39,11 +39,11 @@ export function World() {
 
   return (
     <>
-      <hemisphereLight args={['#c2d2e2', '#3a5a2a', 0.55]} />
-      <ambientLight intensity={0.22} />
+      <hemisphereLight args={['#dfe9f4', '#4a6a3a', 0.75]} />
+      <ambientLight intensity={0.5} />
       <directionalLight
         position={[34, 50, 26]}
-        intensity={1.45}
+        intensity={1.6}
         color="#fff4d8"
         castShadow
         shadow-mapSize-width={1024}
@@ -57,10 +57,10 @@ export function World() {
         shadow-bias={-0.0005}
       />
 
-      {/* Atmospheric fog — exponential falloff toward a dark cool color
-          (not gray) so the horizon reads as mysterious distance, not
-          overcast haze. */}
-      <fogExp2 attach="fog" args={['#0c1220', 0.018]} />
+      {/* Day fog — exponential falloff in the sky colour so the horizon
+          fades into atmospheric haze and the map isn't fully visible all
+          at once. */}
+      <fogExp2 attach="fog" args={['#bccad6', 0.024]} />
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
