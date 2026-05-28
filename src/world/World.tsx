@@ -79,10 +79,10 @@ export function World() {
         shadow-bias={-0.0005}
       />
 
-      {/* Atmospheric fog — exponential falloff in a desaturated cool gray-blue
-          that matches the sky background. Distant terrain fades softly into
-          the horizon rather than getting clipped against a hard plane. */}
-      <fogExp2 attach="fog" args={['#a8b6c4', 0.014]} />
+      {/* Atmospheric fog — exponential falloff toward a dark cool color
+          (not gray) so the horizon reads as mysterious distance, not
+          overcast haze. */}
+      <fogExp2 attach="fog" args={['#0c1220', 0.018]} />
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>

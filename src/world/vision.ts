@@ -8,9 +8,13 @@ import * as THREE from 'three'
  * write per frame updates the whole world.
  */
 export const playerPosUniform = { value: new THREE.Vector3(0, 0, 0) }
-export const viewRadiusUniform = { value: 11 }
-export const viewFalloffUniform = { value: 9 }
-export const viewMaxDarkenUniform = { value: 0.72 }
+// Tuned so the area around the player reads as "fully lit", a generous ring
+// transitions to dim, and the far horizon is heavily — but not totally —
+// shadowed. The aerial/zoomed-out view still shows shapes; the up-close
+// view still feels like a clear sight bubble.
+export const viewRadiusUniform = { value: 18 }
+export const viewFalloffUniform = { value: 22 }
+export const viewMaxDarkenUniform = { value: 0.55 }
 
 export function setVisionPlayerPos(x: number, y: number, z: number): void {
   playerPosUniform.value.set(x, y, z)
@@ -56,7 +60,10 @@ export function applyVisionShader(material: THREE.Material): void {
         `#include <dithering_fragment>
          float fowD = length(vFogOfWarWorldPos.xz - uPlayerPos.xz);
          float fowDark = smoothstep(uViewRadius, uViewRadius + uViewFalloff, fowD) * uViewMaxDarken;
-         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.0), fowDark);`,
+         // Fade toward a dark cool tint, not pure black — keeps the look moody
+         // and matches the atmospheric fog colour, so distant terrain reads as
+         // "far away" rather than "desaturated".
+         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.04, 0.05, 0.10), fowDark);`,
       )
   }
   material.needsUpdate = true
