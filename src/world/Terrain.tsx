@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { buildTiles, type Biome } from './tileMap'
+import { applyVisionShader } from './vision'
 
 // ─── Materials per biome ─────────────────────────────────────────────
 const SIDE_DIRT = new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 1 })
@@ -23,6 +24,30 @@ const TOP_SNOW = new THREE.MeshStandardMaterial({ color: '#eef3f8', roughness: 0
 const TOP_DESERT = new THREE.MeshStandardMaterial({ color: '#e8c585', roughness: 0.95 })
 const TOP_PLAINS = new THREE.MeshStandardMaterial({ color: '#a8c45a', roughness: 0.92 })
 const TOP_SWAMP = new THREE.MeshStandardMaterial({ color: '#587a36', roughness: 1, flatShading: true })
+
+// Inject the player-centred darkening shader into every terrain material so
+// distance from the player fades the ground to black, LoL-style.
+;[
+  SIDE_DIRT,
+  SIDE_DIRT_DARK,
+  SIDE_SAND,
+  SIDE_SAND_DARK,
+  SIDE_ROCK,
+  SIDE_ROCK_DARK,
+  SIDE_SNOW,
+  SIDE_SNOW_DARK,
+  SIDE_SWAMP,
+  SIDE_SWAMP_DARK,
+  TOP_GRASS,
+  TOP_GRASS_DARK,
+  TOP_SAND,
+  TOP_FOREST,
+  TOP_ROCK,
+  TOP_SNOW,
+  TOP_DESERT,
+  TOP_PLAINS,
+  TOP_SWAMP,
+].forEach(applyVisionShader)
 
 // Box face order: +x, -x, +y (top), -y (bottom), +z, -z
 function matsFor(biome: Biome, height: number): THREE.Material[] {

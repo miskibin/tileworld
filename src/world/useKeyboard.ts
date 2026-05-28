@@ -6,6 +6,7 @@ export interface KeyState {
   left: boolean
   right: boolean
   jump: boolean
+  sprint: boolean
 }
 
 export function useKeyboard() {
@@ -15,6 +16,7 @@ export function useKeyboard() {
     left: false,
     right: false,
     jump: false,
+    sprint: false,
   })
 
   useEffect(() => {
@@ -38,6 +40,10 @@ export function useKeyboard() {
           break
         case 'Space':
           keys.current.jump = down
+          break
+        case 'ShiftLeft':
+        case 'ShiftRight':
+          keys.current.sprint = down
           break
         default:
           return

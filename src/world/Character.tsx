@@ -1,7 +1,7 @@
 import { useRef, useMemo, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { tileAt } from './tileMap'
+import { tileAt, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
@@ -17,6 +17,7 @@ import {
   setPlayerPos,
 } from './playerStore'
 import { isPaused } from './pauseStore'
+import { setVisionPlayerPos } from './vision'
 
 const ARMOR = '#d6d8df'
 const ARMOR_LIGHT = '#e6e8ed'
@@ -31,6 +32,7 @@ const SHIELD_RIM = '#6a3a22'
 const SHIELD_EMBLEM = '#d3b14c'
 
 const SPEED = 3.5 // grid units per second
+const SPRINT_MULT = 1.75 // shift-held speed multiplier
 const TURN_RATE = 12 // higher = snappier rotation
 const STEP_FREQ = 7 // walk-cycle radians per second
 const GRAVITY = 20 // y units / sec^2
@@ -178,8 +180,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     movingAmt.current += (targetMoving - movingAmt.current) * Math.min(1, dt * 10)
 
     // ─── Apply motion with axis-separated collision (tile + props) ──
+    const sprinting = moving && k.sprint
     if (moving) {
-      const step = SPEED * dt
+      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * dt
       const nx = pos.current.x + moveDir.x * step
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
@@ -222,7 +225,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
 
     // ─── Animation drivers ──────────────────────────────────────
     const t = performance.now() * 0.001
-    if (moving) walkPhase.current += dt * STEP_FREQ
+    if (moving) walkPhase.current += dt * STEP_FREQ * (sprinting ? SPRINT_MULT : 1)
     const wp = walkPhase.current
     const m = movingAmt.current
 
@@ -387,6 +390,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     }
     // Publish to module store so ork AI can read it.
     setPlayerPos(pos.current.x, pos.current.y, pos.current.z, moving)
+    // World-space player position drives the terrain fog-of-war shader.
+    // We render inside an offset group (-CENTER_X, 0, -CENTER_Z), so subtract
+    // those center offsets to get the actual world coords the shader expects.
+    setVisionPlayerPos(
+      pos.current.x - CENTER_X,
+      pos.current.y,
+      pos.current.z - CENTER_Z,
+    )
   })
 
   return (
