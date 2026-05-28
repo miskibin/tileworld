@@ -1,9 +1,8 @@
 import { useRef } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, PositionalAudio, Sparkles } from '@react-three/drei'
+import { useThree } from '@react-three/fiber'
+import { PositionalAudio, Sparkles } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
 import { KernelSize } from 'postprocessing'
-import * as THREE from 'three'
 import { Perf } from 'r3f-perf'
 import { SoundScape } from '../audio/SoundScape'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
@@ -22,6 +21,7 @@ import { Village, VillagerCrowd } from './Village'
 import { Birds } from './Birds'
 import { Cat } from './Cat'
 import { Shop } from './Shop'
+import { MouseLookCamera } from './MouseLookCamera'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
 function DebugExpose() {
@@ -29,31 +29,6 @@ function DebugExpose() {
   if (typeof window !== 'undefined') {
     ;(window as unknown as { __r3f: unknown }).__r3f = state
   }
-  return null
-}
-
-function CameraFollow({ posRef }: { posRef: React.MutableRefObject<PlayerStateRef> }) {
-  const controls = useThree((s) => s.controls) as unknown as { target: THREE.Vector3; update: () => void } | null
-  const camera = useThree((s) => s.camera)
-
-  useFrame((_, dt) => {
-    if (!controls?.target) return
-    const wx = posRef.current.x - CENTER_X
-    const wz = posRef.current.z - CENTER_Z
-    const wy = posRef.current.y + 0.5
-    const t = controls.target
-    const k = Math.min(1, dt * 5)
-    const dxT = (wx - t.x) * k
-    const dyT = (wy - t.y) * k
-    const dzT = (wz - t.z) * k
-    t.x += dxT
-    t.y += dyT
-    t.z += dzT
-    camera.position.x += dxT
-    camera.position.y += dyT
-    camera.position.z += dzT
-    controls.update()
-  })
   return null
 }
 
@@ -179,17 +154,7 @@ export function World() {
         <Vignette offset={0.4} darkness={0.55} eskil={false} />
       </EffectComposer>
 
-      <OrbitControls
-        makeDefault
-        target={[0, 0.8, 0]}
-        enableDamping
-        minPolarAngle={0.2}
-        maxPolarAngle={Math.PI / 2 - 0.05}
-        minDistance={6}
-        maxDistance={80}
-        keys={{ LEFT: '', UP: '', RIGHT: '', BOTTOM: '' }}
-      />
-      <CameraFollow posRef={posRef} />
+      <MouseLookCamera posRef={posRef} />
       <SoundScape />
       <DebugExpose />
       <Perf position="top-left" />
