@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { PositionalAudio, Sparkles } from '@react-three/drei'
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
@@ -22,6 +22,8 @@ import { Birds } from './Birds'
 import { Cat } from './Cat'
 import { Shop } from './Shop'
 import { MouseLookCamera } from './MouseLookCamera'
+import { Paths } from './Paths'
+import { DebugBindings } from './DebugBindings'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
 function DebugExpose() {
@@ -36,14 +38,16 @@ export function World() {
   // Knight spawn near map center of the larger 96×72 map.
   const posRef = useRef<PlayerStateRef>({ x: 48, y: 1, z: 36, moving: false })
   const audioEnabled = useAudioEnabled()
+  const [lights, setLights] = useState({ ambient: 0.5, hemi: 0.75, dir: 1.6 })
 
   return (
     <>
-      <hemisphereLight args={['#dfe9f4', '#4a6a3a', 0.75]} />
-      <ambientLight intensity={0.5} />
+      <DebugBindings onLights={setLights} />
+      <hemisphereLight args={['#dfe9f4', '#4a6a3a', lights.hemi]} />
+      <ambientLight intensity={lights.ambient} />
       <directionalLight
         position={[34, 50, 26]}
-        intensity={1.6}
+        intensity={lights.dir}
         color="#fff4d8"
         castShadow
         shadow-mapSize-width={1024}
@@ -65,6 +69,7 @@ export function World() {
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
         <Terrain />
+        <Paths />
         <Scatter />
         <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
 
