@@ -1,6 +1,7 @@
 export const PLAYER_MAX_HP = 100
 export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
+export const PLAYER_STARTING_GOLD = 30
 
 export interface PlayerLive {
   x: number
@@ -10,6 +11,7 @@ export interface PlayerLive {
   hp: number
   hurtFlashUntil: number
   deadSince: number | null
+  gold: number
 }
 
 const state: PlayerLive = {
@@ -20,10 +22,13 @@ const state: PlayerLive = {
   hp: PLAYER_MAX_HP,
   hurtFlashUntil: 0,
   deadSince: null,
+  gold: PLAYER_STARTING_GOLD,
 }
 
 type HpListener = (hp: number, max: number, dead: boolean) => void
 const hpSubs = new Set<HpListener>()
+type GoldListener = (gold: number) => void
+const goldSubs = new Set<GoldListener>()
 
 export function getPlayer(): PlayerLive {
   return state
@@ -68,4 +73,38 @@ export function subscribeHp(fn: HpListener): () => void {
 
 function notifyHp(): void {
   hpSubs.forEach((fn) => fn(state.hp, PLAYER_MAX_HP, state.deadSince !== null))
+}
+
+export function getGold(): number {
+  return state.gold
+}
+
+export function addGold(n: number): void {
+  state.gold += n
+  notifyGold()
+}
+
+/** Returns true if the spend succeeded. */
+export function spendGold(n: number): boolean {
+  if (state.gold < n) return false
+  state.gold -= n
+  notifyGold()
+  return true
+}
+
+export function healPlayer(n: number): void {
+  state.hp = Math.min(PLAYER_MAX_HP, state.hp + n)
+  notifyHp()
+}
+
+export function subscribeGold(fn: GoldListener): () => void {
+  goldSubs.add(fn)
+  fn(state.gold)
+  return () => {
+    goldSubs.delete(fn)
+  }
+}
+
+function notifyGold(): void {
+  goldSubs.forEach((fn) => fn(state.gold))
 }

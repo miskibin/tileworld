@@ -5,6 +5,7 @@ import {
   subscribePaused,
   togglePaused,
 } from '../world/pauseStore'
+import { isShopOpen } from '../world/shopStore'
 import {
   isEnabled as isAudioEnabled,
   setEnabled as setAudioEnabled,
@@ -25,10 +26,11 @@ export function PauseMenu() {
   useEffect(() => subscribeAudio(setAudioState), [])
   useEffect(() => subscribeShowPaths(setPathsState), [])
 
-  // Esc toggles pause.
+  // Esc toggles pause — but defer to the shop panel if it's open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
+        if (isShopOpen()) return
         e.preventDefault()
         togglePaused()
       }

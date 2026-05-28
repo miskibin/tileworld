@@ -4,6 +4,7 @@ import { AudioToggle } from './AudioToggle'
 import { DebugToggle } from './DebugToggle'
 import { PauseMenu } from './PauseMenu'
 import { PlayerHud } from './PlayerHud'
+import { ShopPanel } from './ShopPanel'
 
 export function Hud() {
   return (
@@ -12,6 +13,7 @@ export function Hud() {
       <AudioToggle />
       <DebugToggle />
       <Inventory />
+      <ShopPanel />
       <PauseMenu />
     </div>
   )

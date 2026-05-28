@@ -270,3 +270,137 @@
   color: #8a8e98;
   text-align: center;
 }
+
+.inv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.inv-gold {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ffd58c;
+}
+
+.shop-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 14, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: auto;
+  z-index: 11;
+}
+
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 320px;
+  padding: 22px 26px 18px;
+  background: rgba(22, 28, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+.shop-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.shop-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #f3f3f5;
+}
+
+.shop-gold {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffd58c;
+}
+
+.shop-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shop-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #d8dae0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.shop-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.shop-item.is-poor {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.shop-item-icon { font-size: 18px; text-align: center; }
+.shop-item-name { font-weight: 600; }
+.shop-item-price { font-weight: 700; color: #ffd58c; letter-spacing: 0.06em; }
+
+.shop-item-pop {
+  position: absolute;
+  right: 8px;
+  top: -8px;
+  color: #71e07a;
+  font-weight: 800;
+  font-size: 22px;
+  pointer-events: none;
+  animation: shop-pop 600ms ease-out;
+}
+
+@keyframes shop-pop {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-22px); }
+}
+
+.shop-close {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  padding: 8px 10px;
+  margin-top: 4px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #c8cbd1;
+  cursor: pointer;
+}
+
+.shop-close:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}

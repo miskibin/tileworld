@@ -10,6 +10,7 @@ import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
+  addGold,
   getPlayer,
   PLAYER_RESPAWN_DELAY,
   PLAYER_SPAWN,
@@ -326,7 +327,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
             const died = damageOrk(ork, ATTACK_DAMAGE, t)
-            if (died) killedAny = true
+            if (died) {
+              killedAny = true
+              addGold(8) // bounty for an ork
+            }
           }
           if (killedAny) void playSfx('/audio/sword-swing.mp3', 0.3, 0.05)
         }

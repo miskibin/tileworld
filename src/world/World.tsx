@@ -19,6 +19,9 @@ import { Wildlife } from './Wildlife'
 import { Mobs } from './Mobs'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
+import { Birds } from './Birds'
+import { Cat } from './Cat'
+import { Shop } from './Shop'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
 function DebugExpose() {
@@ -106,6 +109,13 @@ export function World() {
         <Village position={[26, 30]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
         <VillagerCrowd />
 
+        {/* Shop next to the eastern village */}
+        <Shop position={[52, 1, 42]} rotation={0.6} />
+
+        {/* A cat hangs around each village */}
+        <Cat home={[58, 1, 46]} seed={0.7} />
+        <Cat home={[26, 1, 32]} seed={2.1} />
+
         {/* Bridges over rivers — coords use tile-row centers (x+0.5 / z+0.5) so
             the collision span lines up with where the player actually walks. */}
         <Bridge from={[getRiverX(30) - 3.5, 30.5]} to={[getRiverX(30) + 3.5, 30.5]} y={1.0} />
@@ -141,6 +151,10 @@ export function World() {
 
       <WaterFloor />
       <Water />
+
+      {/* Birds circling above the map — placed in world-space, outside the
+          grid-offset group. */}
+      <Birds />
 
       {/* Drifting atmospheric motes across the island */}
       <Sparkles

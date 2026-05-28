@@ -36,8 +36,8 @@ const RESERVED = new Set<string>(
     for (let z = 47; z <= 53; z++) for (let x = 17; x <= 23; x++) r.push(`${x},${z}`)
     // Ork camp 2 (NE)
     for (let z = 19; z <= 25; z++) for (let x = 73; x <= 79; x++) r.push(`${x},${z}`)
-    // Village 1 footprint
-    for (let z = 41; z <= 47; z++) for (let x = 55; x <= 63; x++) r.push(`${x},${z}`)
+    // Village 1 footprint (incl. shop just to the south-west)
+    for (let z = 39; z <= 47; z++) for (let x = 49; x <= 63; x++) r.push(`${x},${z}`)
     // Village 2 footprint
     for (let z = 27; z <= 33; z++) for (let x = 23; x <= 31; x++) r.push(`${x},${z}`)
     // Bridge approaches — keep clear so the player can walk on
