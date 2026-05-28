@@ -19,7 +19,8 @@ const VEG_RED = '#c64238'
 const SOIL_MAT = new THREE.MeshStandardMaterial({ color: SOIL, roughness: 1 })
 const FENCE_MAT = new THREE.MeshStandardMaterial({ color: FENCE, roughness: 1 })
 const FENCE_POST_GEO = new THREE.BoxGeometry(0.08, 0.4, 0.08)
-const FENCE_RAIL_GEO = new THREE.BoxGeometry(1.0, 0.04, 0.04)
+// Unit-length rail box; we scale by rail length via instance matrix.
+const FENCE_RAIL_GEO = new THREE.BoxGeometry(1, 0.04, 0.04)
 
 const VEG_GEO = new THREE.IcosahedronGeometry(0.13, 0)
 const VEG_MATS = [
@@ -43,6 +44,8 @@ function pseudoRand(seed: number, n: number): number {
 
 export function Garden({ position, rotation = 0, size = 1.4, seed = 0 }: GardenProps) {
   const vegRefs = useRef<(THREE.InstancedMesh | null)[]>([null, null, null, null])
+  const postRef = useRef<THREE.InstancedMesh>(null!)
+  const railRef = useRef<THREE.InstancedMesh>(null!)
 
   const vegs = useMemo(() => {
     const arr: Veg[] = []
@@ -86,7 +89,10 @@ export function Garden({ position, rotation = 0, size = 1.4, seed = 0 }: GardenP
   }, [vegs, seed])
 
   // Fence posts and rails along perimeter
-  const fenceItems = useMemo(() => {
+  const fenceItems = useMemo<{
+    posts: { x: number; z: number }[]
+    rails: { x: number; z: number; rot: number; len: number }[]
+  }>(() => {
     const posts: { x: number; z: number }[] = []
     const rails: { x: number; z: number; rot: number; len: number }[] = []
     const ext = size + 0.18
@@ -114,6 +120,35 @@ export function Garden({ position, rotation = 0, size = 1.4, seed = 0 }: GardenP
     return { posts, rails }
   }, [size])
 
+  // Bake fence instance matrices once fenceItems is known.
+  useEffect(() => {
+    const dummy = new THREE.Object3D()
+    const pm = postRef.current
+    if (pm) {
+      fenceItems.posts.forEach((p, i) => {
+        dummy.position.set(p.x, 0.2, p.z)
+        dummy.rotation.set(0, 0, 0)
+        dummy.scale.set(1, 1, 1)
+        dummy.updateMatrix()
+        pm.setMatrixAt(i, dummy.matrix)
+      })
+      pm.instanceMatrix.needsUpdate = true
+      pm.computeBoundingSphere()
+    }
+    const rm = railRef.current
+    if (rm) {
+      fenceItems.rails.forEach((r, i) => {
+        dummy.position.set(r.x, 0.3, r.z)
+        dummy.rotation.set(0, r.rot, 0)
+        dummy.scale.set(r.len, 1, 1)
+        dummy.updateMatrix()
+        rm.setMatrixAt(i, dummy.matrix)
+      })
+      rm.instanceMatrix.needsUpdate = true
+      rm.computeBoundingSphere()
+    }
+  }, [fenceItems])
+
   return (
     <group position={position} rotation={[0, rotation, 0]}>
       {/* Soil patch */}
@@ -133,28 +168,18 @@ export function Garden({ position, rotation = 0, size = 1.4, seed = 0 }: GardenP
         />
       ))}
 
-      {/* Fence posts */}
-      {fenceItems.posts.map((p, i) => (
-        <mesh
-          key={`p${i}`}
-          position={[p.x, 0.2, p.z]}
-          castShadow
-          material={FENCE_MAT}
-          geometry={FENCE_POST_GEO}
-        />
-      ))}
-      {/* Fence rails */}
-      {fenceItems.rails.map((r, i) => (
-        <mesh
-          key={`r${i}`}
-          position={[r.x, 0.3, r.z]}
-          rotation={[0, r.rot, 0]}
-          castShadow
-          material={FENCE_MAT}
-        >
-          <boxGeometry args={[r.len, 0.04, 0.04]} />
-        </mesh>
-      ))}
+      {/* Fence posts — single InstancedMesh */}
+      <instancedMesh
+        ref={postRef}
+        args={[FENCE_POST_GEO, FENCE_MAT, fenceItems.posts.length]}
+        castShadow
+      />
+      {/* Fence rails — single InstancedMesh; scale.x = rail length */}
+      <instancedMesh
+        ref={railRef}
+        args={[FENCE_RAIL_GEO, FENCE_MAT, fenceItems.rails.length]}
+        castShadow
+      />
     </group>
   )
 }
