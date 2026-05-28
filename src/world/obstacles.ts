@@ -23,23 +23,27 @@ export interface Obstacle {
   variant: number
 }
 
-// Hand-placed structure footprints to keep clear of scatter (camps).
-// Positions chosen for the new 64x48 procedural map; adjust if camps move.
+// Hand-placed structure footprints to keep clear of scatter (camps + villages).
+// Positions chosen for the 96x72 procedural map; adjust if camps move.
 const RESERVED = new Set<string>(
   (() => {
     const r: string[] = []
-    // Knight spawn area + friendly camp 1 (center)
-    for (let z = 22; z <= 28; z++) for (let x = 28; x <= 36; x++) r.push(`${x},${z}`)
+    // Knight spawn + friendly camp 1 (center of map)
+    for (let z = 32; z <= 38; z++) for (let x = 44; x <= 52; x++) r.push(`${x},${z}`)
     // Friendly camp 2 (east of center)
-    for (let z = 22; z <= 26; z++) for (let x = 40; x <= 46; x++) r.push(`${x},${z}`)
+    for (let z = 31; z <= 36; z++) for (let x = 55; x <= 60; x++) r.push(`${x},${z}`)
     // Ork camp 1 (SW)
-    for (let z = 32; z <= 37; z++) for (let x = 14; x <= 20; x++) r.push(`${x},${z}`)
+    for (let z = 47; z <= 53; z++) for (let x = 17; x <= 23; x++) r.push(`${x},${z}`)
     // Ork camp 2 (NE)
-    for (let z = 12; z <= 17; z++) for (let x = 44; x <= 50; x++) r.push(`${x},${z}`)
-    // Bridge approaches — keep clear of trees/bushes so the player can walk on
-    for (let z = 24; z <= 27; z++) for (let x = 14; x <= 24; x++) r.push(`${x},${z}`)
-    for (let z = 34; z <= 37; z++) for (let x = 17; x <= 27; x++) r.push(`${x},${z}`)
-    for (let z = 10; z <= 17; z++) for (let x = 39; x <= 42; x++) r.push(`${x},${z}`)
+    for (let z = 19; z <= 25; z++) for (let x = 73; x <= 79; x++) r.push(`${x},${z}`)
+    // Village 1 footprint
+    for (let z = 41; z <= 47; z++) for (let x = 55; x <= 63; x++) r.push(`${x},${z}`)
+    // Village 2 footprint
+    for (let z = 27; z <= 33; z++) for (let x = 23; x <= 31; x++) r.push(`${x},${z}`)
+    // Bridge approaches — keep clear so the player can walk on
+    for (let z = 29; z <= 32; z++) for (let x = 30; x <= 50; x++) r.push(`${x},${z}`)
+    for (let z = 49; z <= 52; z++) for (let x = 30; x <= 50; x++) r.push(`${x},${z}`)
+    for (let z = 12; z <= 22; z++) for (let x = 63; x <= 66; x++) r.push(`${x},${z}`)
     return r
   })(),
 )
@@ -133,6 +137,30 @@ const ROLLS: Record<Biome, Roll[]> = {
     { kind: 'rock', until: 0.24 },
     { kind: 'mushroom', until: 0.25 },
     { kind: 'tuft', until: 0.32 },
+  ],
+  snow: [
+    { kind: 'deadTree', until: 0.06 },
+    { kind: 'birch', until: 0.1 },
+    { kind: 'rock', until: 0.16 },
+    { kind: 'boulder', until: 0.18 },
+  ],
+  desert: [
+    { kind: 'cactus', until: 0.08 },
+    { kind: 'deadTree', until: 0.1 },
+    { kind: 'rock', until: 0.14 },
+    { kind: 'tuft', until: 0.16 },
+  ],
+  plains: [
+    { kind: 'flower', until: 0.18, clusterMin: 2, clusterMax: 4 },
+    { kind: 'tuft', until: 0.55, clusterMin: 1, clusterMax: 3 },
+    { kind: 'rock', until: 0.58 },
+    { kind: 'tree', until: 0.6 },
+  ],
+  swamp: [
+    { kind: 'deadTree', until: 0.18 },
+    { kind: 'bush', until: 0.32 },
+    { kind: 'mushroom', until: 0.5, clusterMin: 2, clusterMax: 4 },
+    { kind: 'tuft', until: 0.7, clusterMin: 2, clusterMax: 4 },
   ],
 }
 

@@ -9,15 +9,24 @@ const SIDE_SAND = new THREE.MeshStandardMaterial({ color: '#c4a86a', roughness: 
 const SIDE_SAND_DARK = new THREE.MeshStandardMaterial({ color: '#8a784a', roughness: 1 })
 const SIDE_ROCK = new THREE.MeshStandardMaterial({ color: '#80808a', roughness: 1 })
 const SIDE_ROCK_DARK = new THREE.MeshStandardMaterial({ color: '#5d5d68', roughness: 1 })
+const SIDE_SNOW = new THREE.MeshStandardMaterial({ color: '#b4bdcb', roughness: 1 })
+const SIDE_SNOW_DARK = new THREE.MeshStandardMaterial({ color: '#7d8694', roughness: 1 })
+const SIDE_SWAMP = new THREE.MeshStandardMaterial({ color: '#3a3a26', roughness: 1 })
+const SIDE_SWAMP_DARK = new THREE.MeshStandardMaterial({ color: '#26261a', roughness: 1 })
 
 const TOP_GRASS = new THREE.MeshStandardMaterial({ color: '#6cb14a', roughness: 0.92 })
 const TOP_GRASS_DARK = new THREE.MeshStandardMaterial({ color: '#52923a', roughness: 0.92 })
 const TOP_SAND = new THREE.MeshStandardMaterial({ color: '#e6cf94', roughness: 0.95 })
 const TOP_FOREST = new THREE.MeshStandardMaterial({ color: '#3f8a3a', roughness: 0.95 })
 const TOP_ROCK = new THREE.MeshStandardMaterial({ color: '#a8a8b0', roughness: 0.95, flatShading: true })
+const TOP_SNOW = new THREE.MeshStandardMaterial({ color: '#eef3f8', roughness: 0.85, flatShading: true })
+const TOP_DESERT = new THREE.MeshStandardMaterial({ color: '#e8c585', roughness: 0.95 })
+const TOP_PLAINS = new THREE.MeshStandardMaterial({ color: '#a8c45a', roughness: 0.92 })
+const TOP_SWAMP = new THREE.MeshStandardMaterial({ color: '#587a36', roughness: 1, flatShading: true })
 
 // Box face order: +x, -x, +y (top), -y (bottom), +z, -z
 function matsFor(biome: Biome, height: number): THREE.Material[] {
+  void height
   switch (biome) {
     case 'grass':
       return [SIDE_DIRT, SIDE_DIRT, TOP_GRASS, SIDE_DIRT_DARK, SIDE_DIRT, SIDE_DIRT]
@@ -27,9 +36,15 @@ function matsFor(biome: Biome, height: number): THREE.Material[] {
       return [SIDE_SAND, SIDE_SAND, TOP_SAND, SIDE_SAND_DARK, SIDE_SAND, SIDE_SAND]
     case 'rock':
       return [SIDE_ROCK, SIDE_ROCK, TOP_ROCK, SIDE_ROCK_DARK, SIDE_ROCK, SIDE_ROCK]
+    case 'snow':
+      return [SIDE_SNOW, SIDE_SNOW, TOP_SNOW, SIDE_SNOW_DARK, SIDE_SNOW, SIDE_SNOW]
+    case 'desert':
+      return [SIDE_SAND, SIDE_SAND, TOP_DESERT, SIDE_SAND_DARK, SIDE_SAND, SIDE_SAND]
+    case 'plains':
+      return [SIDE_DIRT, SIDE_DIRT, TOP_PLAINS, SIDE_DIRT_DARK, SIDE_DIRT, SIDE_DIRT]
+    case 'swamp':
+      return [SIDE_SWAMP, SIDE_SWAMP, TOP_SWAMP, SIDE_SWAMP_DARK, SIDE_SWAMP, SIDE_SWAMP]
   }
-  // Should never hit but TS exhaustive fallback
-  void height
   return [SIDE_DIRT, SIDE_DIRT, TOP_GRASS, SIDE_DIRT_DARK, SIDE_DIRT, SIDE_DIRT]
 }
 

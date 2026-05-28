@@ -1,5 +1,5 @@
 export const PLAYER_MAX_HP = 100
-export const PLAYER_SPAWN = { x: 32, y: 1, z: 26 } as const
+export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
 
 export interface PlayerLive {

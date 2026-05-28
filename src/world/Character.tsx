@@ -8,6 +8,7 @@ import { playSfx } from '../audio/audio'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { bridgeAt } from './bridges'
+import { houseBlocksAt } from './houseBlockers'
 import {
   getPlayer,
   PLAYER_RESPAWN_DELAY,
@@ -186,11 +187,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       const canMoveX =
         (tileAt(Math.floor(nx), czFloor) !== null || bridgeAt(nx, pos.current.z) !== null) &&
         !obstacleCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
-        !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS)
+        !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
+        !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
         (tileAt(cxFloor, Math.floor(nz)) !== null || bridgeAt(pos.current.x, nz) !== null) &&
         !obstacleCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
-        !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS)
+        !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
+        !houseBlocksAt(pos.current.x, nz)
       if (canMoveX) pos.current.x = nx
       if (canMoveZ) pos.current.z = nz
 

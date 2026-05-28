@@ -6,6 +6,7 @@ import type { OrkState } from './orkStore'
 import { tileAt } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
+import { houseBlocksAt } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isPaused } from './pauseStore'
@@ -157,10 +158,12 @@ export function OrkView({ state }: OrkViewProps) {
             tileAt(cx, cz) !== null || bridgeAt(cx + 0.5, cz + 0.5) !== null
           const canMoveX =
             standingOk(Math.floor(nx), czFloor) &&
-            !obstacleCollidesAt(nx, state.z, state.collisionRadius)
+            !obstacleCollidesAt(nx, state.z, state.collisionRadius) &&
+            !houseBlocksAt(nx, state.z)
           const canMoveZ =
             standingOk(cxFloor, Math.floor(nz)) &&
-            !obstacleCollidesAt(state.x, nz, state.collisionRadius)
+            !obstacleCollidesAt(state.x, nz, state.collisionRadius) &&
+            !houseBlocksAt(state.x, nz)
           if (canMoveX) state.x = nx
           if (canMoveZ) state.z = nz
           if (!canMoveX && !canMoveZ) {

@@ -17,7 +17,7 @@ export default function App() {
         }}
         camera={{ position: [36, 40, 40], fov: 32 }}
       >
-        <color attach="background" args={['#173a6b']} />
+        <color attach="background" args={['#a8b6c4']} />
         <World />
       </Canvas>
       <Hud />
