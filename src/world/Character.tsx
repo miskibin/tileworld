@@ -349,17 +349,18 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     }
 
     // Sword "tap" cycle — only while idle and not attacking
-    // NOTE: base sword orientation is rotation.x = π/2 from JSX. Preserve it.
+    // NOTE: base sword orientation is rotation.x = -π/2 so the blade
+    // extends forward (arm-local +Z) instead of backward.
     if (swordRef.current) {
       if (attackSwordZ !== null) {
-        swordRef.current.rotation.x = Math.PI / 2
+        swordRef.current.rotation.x = -Math.PI / 2
         swordRef.current.rotation.z = attackSwordZ
       } else {
         let lift = 0
         const cyc = (t % 4) / 4
         if (cyc < 0.2) lift = (cyc / 0.2) * 0.18
         else if (cyc < 0.6) lift = (1 - (cyc - 0.2) / 0.4) * 0.18
-        swordRef.current.rotation.x = Math.PI / 2 - lift * (1 - m)
+        swordRef.current.rotation.x = -Math.PI / 2 + lift * (1 - m)
         swordRef.current.rotation.z = 0
       }
     }
@@ -426,7 +427,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           <boxGeometry args={[0.13, 0.08, 0.23]} />
         </mesh>
         {/* Sword — held forward in hand, blade extending out front */}
-        <group ref={swordRef} position={[0, -0.5, 0.06]} rotation={[Math.PI / 2, 0, 0]}>
+        <group ref={swordRef} position={[0, -0.5, 0.06]} rotation={[-Math.PI / 2, 0, 0]}>
           {/* Pommel (rear, behind hand) */}
           <mesh position={[0, 0.14, 0]} castShadow material={hiltMat}>
             <sphereGeometry args={[0.05, 10, 8]} />

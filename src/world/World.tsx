@@ -18,6 +18,7 @@ import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
 import { Mobs } from './Mobs'
 import { DebugPaths } from './DebugPaths'
+import { Village, VillagerCrowd } from './Village'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
 function DebugExpose() {
@@ -96,6 +97,11 @@ export function World() {
         {/* Ork camps */}
         <OrkCamp position={[17, 1, 34]} rotation={0.3} seed={3.3} />
         <OrkCamp position={[47, 1, 14]} rotation={-0.8} seed={7.7} />
+
+        {/* Friendly villages */}
+        <Village position={[42, 32]} rotation={-0.4} seed={1.7} wallColor="#d3b78b" roofColor="#6b3322" />
+        <Village position={[12, 20]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        <VillagerCrowd />
 
         {/* Bridges over rivers — coords use tile-row centers (x+0.5 / z+0.5) so
             the collision span lines up with where the player actually walks. */}
