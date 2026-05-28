@@ -1,0 +1,247 @@
+import { useEffect, useMemo, useRef } from 'react'
+import * as THREE from 'three'
+import { getObstacles, type Obstacle } from './obstacles'
+
+// ─── Shared materials (module singletons) ───────────────────────────────────
+const TRUNK_MAT = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 1 })
+const FOLIAGE_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#2f7a36', roughness: 0.95, flatShading: true })
+const FOLIAGE_MID_MAT = new THREE.MeshStandardMaterial({ color: '#3a9442', roughness: 0.95, flatShading: true })
+const FOLIAGE_LIGHT_MAT = new THREE.MeshStandardMaterial({ color: '#4cb358', roughness: 0.95, flatShading: true })
+
+const BIRCH_TRUNK_MAT = new THREE.MeshStandardMaterial({ color: '#ece8d8', roughness: 0.9 })
+const BIRCH_MARK_MAT = new THREE.MeshStandardMaterial({ color: '#2a261e', roughness: 1 })
+const BIRCH_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#3a8c34', roughness: 0.95, flatShading: true })
+const BIRCH_LIGHT_MAT = new THREE.MeshStandardMaterial({ color: '#7dc04a', roughness: 0.95, flatShading: true })
+
+const DEAD_MAT = new THREE.MeshStandardMaterial({ color: '#6e6258', roughness: 1, flatShading: true })
+const DEAD_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#4a4238', roughness: 1, flatShading: true })
+
+const ROCK_MAT = new THREE.MeshStandardMaterial({ color: '#d3d3d3', roughness: 0.85, flatShading: true })
+const BOULDER_MAT = new THREE.MeshStandardMaterial({ color: '#a8a8b0', roughness: 0.95, flatShading: true })
+const BOULDER_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#7c7c84', roughness: 0.95, flatShading: true })
+const MOSS_MAT = new THREE.MeshStandardMaterial({ color: '#4a7a2a', roughness: 1, flatShading: true })
+
+const BUSH_MATS = [
+  new THREE.MeshStandardMaterial({ color: '#3a8a3a', roughness: 0.95, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: '#4aa84a', roughness: 0.95, flatShading: true }),
+  new THREE.MeshStandardMaterial({ color: '#65bb55', roughness: 0.95, flatShading: true }),
+]
+
+const TUFT_MAT = new THREE.MeshStandardMaterial({ color: '#3aa044', roughness: 1, flatShading: true })
+
+const CACTUS_MAT = new THREE.MeshStandardMaterial({ color: '#3e8b3e', roughness: 0.85, flatShading: true })
+const CACTUS_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#2f6a2f', roughness: 0.9, flatShading: true })
+
+const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#f0e8d0', roughness: 0.9 })
+const RED_CAP_MAT = new THREE.MeshStandardMaterial({ color: '#c83838', roughness: 0.9, flatShading: true })
+const BROWN_CAP_MAT = new THREE.MeshStandardMaterial({ color: '#8a5a3a', roughness: 0.9, flatShading: true })
+const DOT_MAT = new THREE.MeshStandardMaterial({ color: '#f8f6e8', roughness: 0.9 })
+
+const FLOWER_STEM_MAT = new THREE.MeshStandardMaterial({ color: '#3a7a2a', roughness: 1 })
+const FLOWER_CENTER_MAT = new THREE.MeshStandardMaterial({ color: '#e8c84a', roughness: 0.9 })
+const FLOWER_PETAL_MATS = [
+  new THREE.MeshStandardMaterial({ color: '#d63a3a', roughness: 0.9 }),
+  new THREE.MeshStandardMaterial({ color: '#e6c84a', roughness: 0.9 }),
+  new THREE.MeshStandardMaterial({ color: '#6abadf', roughness: 0.9 }),
+  new THREE.MeshStandardMaterial({ color: '#e88ad6', roughness: 0.9 }),
+]
+
+// ─── Part geometry helpers (pre-translated / pre-rotated to bake local offset)
+interface Part {
+  geo: THREE.BufferGeometry
+  mat: THREE.Material
+  castShadow?: boolean
+}
+
+function bake(
+  factory: () => THREE.BufferGeometry,
+  translate?: [number, number, number],
+  rotate?: [number, number, number],
+): THREE.BufferGeometry {
+  const g = factory()
+  if (rotate) {
+    g.rotateX(rotate[0])
+    g.rotateY(rotate[1])
+    g.rotateZ(rotate[2])
+  }
+  if (translate) g.translate(translate[0], translate[1], translate[2])
+  return g
+}
+
+function bushParts(mat: THREE.Material): Part[] {
+  return [
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 0), [0, 0.18, 0]), mat, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.2, 0), [0.2, 0.15, 0.05]), mat, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [-0.17, 0.13, 0.1]), mat, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.19, 0), [0.05, 0.22, -0.16]), mat, castShadow: true },
+  ]
+}
+
+function mushroomRedParts(): Part[] {
+  return [
+    { geo: bake(() => new THREE.CylinderGeometry(0.028, 0.04, 0.1, 6), [0, 0.05, 0]), mat: STEM_MAT, castShadow: true },
+    { geo: bake(() => new THREE.SphereGeometry(0.09, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), [0, 0.12, 0]), mat: RED_CAP_MAT, castShadow: true },
+    { geo: bake(() => new THREE.SphereGeometry(0.018, 6, 5), [0.045, 0.165, 0.02]), mat: DOT_MAT },
+    { geo: bake(() => new THREE.SphereGeometry(0.014, 6, 5), [-0.035, 0.155, -0.04]), mat: DOT_MAT },
+    { geo: bake(() => new THREE.SphereGeometry(0.012, 6, 5), [0.01, 0.18, 0.05]), mat: DOT_MAT },
+  ]
+}
+
+function mushroomBrownParts(): Part[] {
+  return [
+    { geo: bake(() => new THREE.CylinderGeometry(0.028, 0.04, 0.1, 6), [0, 0.05, 0]), mat: STEM_MAT, castShadow: true },
+    { geo: bake(() => new THREE.SphereGeometry(0.09, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), [0, 0.12, 0]), mat: BROWN_CAP_MAT, castShadow: true },
+  ]
+}
+
+function flowerParts(petalMat: THREE.Material): Part[] {
+  const parts: Part[] = [
+    { geo: bake(() => new THREE.CylinderGeometry(0.008, 0.008, 0.14, 4), [0, 0.07, 0]), mat: FLOWER_STEM_MAT },
+    { geo: bake(() => new THREE.SphereGeometry(0.02, 5, 4), [0, 0.15, 0]), mat: FLOWER_CENTER_MAT },
+  ]
+  for (let i = 0; i < 4; i++) {
+    parts.push({
+      geo: bake(
+        () => new THREE.SphereGeometry(0.028, 5, 4),
+        [Math.cos((i * Math.PI) / 2) * 0.04, 0.15, Math.sin((i * Math.PI) / 2) * 0.04],
+      ),
+      mat: petalMat,
+    })
+  }
+  return parts
+}
+
+const PARTS: Record<string, Part[]> = {
+  tree: [
+    { geo: bake(() => new THREE.CylinderGeometry(0.08, 0.1, 0.36, 6), [0, 0.18, 0]), mat: TRUNK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.5, 0.45, 7), [0, 0.48, 0]), mat: FOLIAGE_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.38, 0.42, 7), [0, 0.78, 0]), mat: FOLIAGE_MID_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.26, 0.4, 7), [0, 1.06, 0]), mat: FOLIAGE_LIGHT_MAT, castShadow: true },
+  ],
+  birch: [
+    { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.075, 0.8, 6), [0, 0.4, 0]), mat: BIRCH_TRUNK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.BoxGeometry(0.005, 0.04, 0.08), [0.075, 0.55, 0]), mat: BIRCH_MARK_MAT },
+    { geo: bake(() => new THREE.BoxGeometry(0.005, 0.03, 0.06), [-0.075, 0.32, 0.02]), mat: BIRCH_MARK_MAT },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.34, 0), [0, 0.95, 0]), mat: BIRCH_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.22, 0), [0.18, 1.05, 0.1]), mat: BIRCH_LIGHT_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 0), [-0.16, 1.0, -0.1]), mat: BIRCH_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [0.05, 1.18, 0]), mat: BIRCH_LIGHT_MAT, castShadow: true },
+  ],
+  deadTree: [
+    { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.095, 0.9, 6), [0, 0.45, 0]), mat: DEAD_MAT, castShadow: true },
+    {
+      geo: bake(() => new THREE.CylinderGeometry(0.025, 0.04, 0.42, 5), [0.2, 0.7, 0.08], [0, 0, -0.8]),
+      mat: DEAD_DARK_MAT,
+      castShadow: true,
+    },
+    {
+      geo: bake(() => new THREE.CylinderGeometry(0.022, 0.035, 0.36, 5), [-0.17, 0.82, -0.04], [0, 0, 0.7]),
+      mat: DEAD_DARK_MAT,
+      castShadow: true,
+    },
+    {
+      geo: bake(() => new THREE.CylinderGeometry(0.018, 0.028, 0.3, 5), [0.06, 1.0, 0.13], [0.4, 0, 0.2]),
+      mat: DEAD_MAT,
+      castShadow: true,
+    },
+    {
+      geo: bake(() => new THREE.CylinderGeometry(0.016, 0.024, 0.26, 5), [-0.08, 1.05, -0.1], [-0.3, 0, -0.4]),
+      mat: DEAD_MAT,
+      castShadow: true,
+    },
+  ],
+  rock: [{ geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [0, 0.05, 0]), mat: ROCK_MAT, castShadow: true }],
+  boulder: [
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.55, 0), [0, 0.28, 0]), mat: BOULDER_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.22, 0), [0.38, 0.12, 0.12]), mat: BOULDER_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.16, 0), [-0.05, 0.62, 0.1]), mat: MOSS_MAT, castShadow: true },
+  ],
+  'bush-0': bushParts(BUSH_MATS[0]),
+  'bush-1': bushParts(BUSH_MATS[1]),
+  'bush-2': bushParts(BUSH_MATS[2]),
+  'mushroom-0': mushroomRedParts(),
+  'mushroom-1': mushroomBrownParts(),
+  'flower-0': flowerParts(FLOWER_PETAL_MATS[0]),
+  'flower-1': flowerParts(FLOWER_PETAL_MATS[1]),
+  'flower-2': flowerParts(FLOWER_PETAL_MATS[2]),
+  'flower-3': flowerParts(FLOWER_PETAL_MATS[3]),
+  tuft: [
+    { geo: bake(() => new THREE.ConeGeometry(0.05, 0.18, 4), [0, 0.05, 0]), mat: TUFT_MAT },
+    { geo: bake(() => new THREE.ConeGeometry(0.04, 0.14, 4), [0.07, 0.04, 0.02], [0, 0.5, 0.2]), mat: TUFT_MAT },
+    { geo: bake(() => new THREE.ConeGeometry(0.04, 0.14, 4), [-0.06, 0.04, -0.03], [0, -0.4, -0.15]), mat: TUFT_MAT },
+  ],
+  cactus: [
+    // Main column
+    { geo: bake(() => new THREE.CylinderGeometry(0.13, 0.15, 0.7, 7), [0, 0.35, 0]), mat: CACTUS_MAT, castShadow: true },
+    // Top cap
+    { geo: bake(() => new THREE.SphereGeometry(0.13, 8, 6), [0, 0.7, 0]), mat: CACTUS_DARK_MAT, castShadow: true },
+    // Right arm (horizontal segment + vertical extension)
+    { geo: bake(() => new THREE.CylinderGeometry(0.07, 0.08, 0.22, 6), [0.18, 0.4, 0], [0, 0, Math.PI / 2]), mat: CACTUS_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.07, 0.08, 0.24, 6), [0.29, 0.52, 0]), mat: CACTUS_MAT, castShadow: true },
+    { geo: bake(() => new THREE.SphereGeometry(0.07, 6, 5), [0.29, 0.64, 0]), mat: CACTUS_DARK_MAT, castShadow: true },
+    // Left arm (lower)
+    { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.07, 0.2, 6), [-0.17, 0.28, 0], [0, 0, Math.PI / 2]), mat: CACTUS_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.07, 0.2, 6), [-0.27, 0.38, 0]), mat: CACTUS_MAT, castShadow: true },
+    { geo: bake(() => new THREE.SphereGeometry(0.06, 6, 5), [-0.27, 0.48, 0]), mat: CACTUS_DARK_MAT, castShadow: true },
+  ],
+}
+
+function obstacleSubKind(o: Obstacle): string {
+  if (o.kind === 'bush') return `bush-${o.variant % 3}`
+  if (o.kind === 'mushroom') return `mushroom-${o.variant % 2}`
+  if (o.kind === 'flower') return `flower-${o.variant % 4}`
+  return o.kind
+}
+
+function InstancedPart({ part, obstacles }: { part: Part; obstacles: Obstacle[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null!)
+
+  useEffect(() => {
+    const m = ref.current
+    if (!m) return
+    const dummy = new THREE.Object3D()
+    obstacles.forEach((o, i) => {
+      dummy.position.set(o.x, o.y, o.z)
+      dummy.rotation.set(0, o.rot, 0)
+      dummy.scale.setScalar(o.scale)
+      dummy.updateMatrix()
+      m.setMatrixAt(i, dummy.matrix)
+    })
+    m.instanceMatrix.needsUpdate = true
+    m.computeBoundingSphere()
+  }, [obstacles])
+
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[part.geo, part.mat, obstacles.length]}
+      castShadow={part.castShadow ?? false}
+      receiveShadow
+    />
+  )
+}
+
+export function Scatter() {
+  const groups = useMemo(() => {
+    const obstacles = getObstacles()
+    const map = new Map<string, Obstacle[]>()
+    for (const o of obstacles) {
+      const key = obstacleSubKind(o)
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(o)
+    }
+    return map
+  }, [])
+
+  return (
+    <group>
+      {Array.from(groups.entries()).flatMap(([key, list]) => {
+        const parts = PARTS[key]
+        if (!parts) return []
+        return parts.map((part, i) => (
+          <InstancedPart key={`${key}-${i}`} part={part} obstacles={list} />
+        ))
+      })}
+    </group>
+  )
+}
