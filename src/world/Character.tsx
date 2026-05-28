@@ -15,6 +15,7 @@ import {
   respawnPlayer,
   setPlayerPos,
 } from './playerStore'
+import { isPaused } from './pauseStore'
 
 const ARMOR = '#d6d8df'
 const ARMOR_LIGHT = '#e6e8ed'
@@ -116,6 +117,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const moveDir = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((_, dt) => {
+    if (isPaused()) {
+      // Discard any clicks queued while paused so user doesn't auto-swing on resume.
+      attackProcessed.current = attackClickCount
+      return
+    }
     const tNow = performance.now() * 0.001
     const player = getPlayer()
 
@@ -361,9 +367,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // Apply group transform
     if (groupRef.current) {
       groupRef.current.position.set(pos.current.x, pos.current.y + bobY, pos.current.z)
-      // Add tiny facing sway when idle + body twist during attack
+      // Add tiny facing sway when idle + body twist during attack.
+      // Explicitly clear X/Z so the death-tilt rotation can't bleed into the
+      // upright state after respawn.
       const sway = Math.sin(t * 0.55) * 0.04 * (1 - m)
-      groupRef.current.rotation.y = facing.current + sway + attackBodyTwist
+      groupRef.current.rotation.set(0, facing.current + sway + attackBodyTwist, 0)
     }
 
     // Publish position to parent for camera follow

@@ -8,6 +8,7 @@ import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
+import { isPaused } from './pauseStore'
 
 const ORK_AGGRO = 9 // grid units to start chase
 const ORK_MELEE = 1.5 // grid units to attempt swing
@@ -71,6 +72,7 @@ export function OrkView({ state }: OrkViewProps) {
   const deadFadeFrom = useRef<number | null>(null)
 
   useFrame(({ clock }, dtFrame) => {
+    if (isPaused()) return
     const t = clock.getElapsedTime() + state.seed
     const tNow = clock.getElapsedTime()
     const dt = Math.min(0.05, dtFrame)

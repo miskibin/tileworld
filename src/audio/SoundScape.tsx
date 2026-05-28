@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { setListener, getListener, loadBuffer } from './audio'
 import { useAudioEnabled } from './useAudioEnabled'
+import { subscribePaused } from '../world/pauseStore'
 
 export function SoundScape() {
   const camera = useThree((s) => s.camera)
@@ -18,6 +19,19 @@ export function SoundScape() {
       setListener(null)
     }
   }, [camera])
+
+  // Pause/resume the AudioContext when game pause state flips.
+  useEffect(() => {
+    return subscribePaused((paused) => {
+      const l = getListener()
+      if (!l) return
+      if (paused) {
+        if (l.context.state === 'running') void l.context.suspend()
+      } else {
+        if (l.context.state === 'suspended') void l.context.resume()
+      }
+    })
+  }, [])
 
   // Play/stop forest ambient + bg music in response to enabled flag
   useEffect(() => {
