@@ -4,6 +4,7 @@ import { House } from './House'
 import { Garden } from './Garden'
 import { VillagerView } from './Villager'
 import { createVillager, getVillagers, resetVillagers, type VillagerState } from './villagerStore'
+import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 
 interface VillageProps {
   /** centre grid coords */
@@ -32,6 +33,17 @@ export function Village({ position, rotation = 0, seed = 0, wallColor, roofColor
   const groundY = tile ? tile.height : 1
 
   useEffect(() => {
+    // Register the house footprint (axis-aligned bounding box, ignoring
+    // rotation — close enough at the small angles we use) so pathfinding
+    // routes around it.
+    const halfW = 2.8 / 2 + 0.3
+    const halfD = 2.2 / 2 + 0.3
+    registerHouseBlocker({
+      minX: houseX - halfW,
+      maxX: houseX + halfW,
+      minZ: houseZ - halfD,
+      maxZ: houseZ + halfD,
+    })
     // Register one villager per house
     createVillager({
       x: doorX,
@@ -57,6 +69,8 @@ export function Village({ position, rotation = 0, seed = 0, wallColor, roofColor
         seed={seed}
         wallColor={wallColor}
         roofColor={roofColor}
+        ownerVillagerHomeX={houseX}
+        ownerVillagerHomeZ={houseZ}
       />
       <Garden position={[gardenX, groundY, gardenZ]} rotation={rotation} seed={seed + 3} />
     </group>
@@ -72,6 +86,7 @@ export function VillagerCrowd() {
     return () => {
       cancelAnimationFrame(handle)
       resetVillagers()
+      resetHouseBlockers()
     }
   }, [])
 

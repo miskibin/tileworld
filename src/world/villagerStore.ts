@@ -1,4 +1,4 @@
-export type VillagerStateName = 'idle' | 'wander' | 'tend' | 'rest'
+export type VillagerStateName = 'idle' | 'wander' | 'tend' | 'rest' | 'home'
 
 export interface VillagerState {
   id: number
@@ -25,13 +25,31 @@ export interface VillagerState {
   doorZ: number
   seed: number
   paletteIndex: number
+  // pathfinding
+  path: { x: number; z: number }[]
+  pathIndex: number
+  pathRecomputeAt: number
+  /** sim time until which the door of this villager's house should stay open */
+  doorOpenUntil: number
 }
 
 const villagers: VillagerState[] = []
 let nextId = 0
 
 export function createVillager(
-  init: Omit<VillagerState, 'id' | 'state' | 'stateSince' | 'stateUntil' | 'targetX' | 'targetZ'>,
+  init: Omit<
+    VillagerState,
+    | 'id'
+    | 'state'
+    | 'stateSince'
+    | 'stateUntil'
+    | 'targetX'
+    | 'targetZ'
+    | 'path'
+    | 'pathIndex'
+    | 'pathRecomputeAt'
+    | 'doorOpenUntil'
+  >,
 ): VillagerState {
   const v: VillagerState = {
     id: nextId++,
@@ -40,6 +58,10 @@ export function createVillager(
     stateUntil: 0,
     targetX: init.x,
     targetZ: init.z,
+    path: [],
+    pathIndex: 0,
+    pathRecomputeAt: 0,
+    doorOpenUntil: 0,
     ...init,
   }
   villagers.push(v)

@@ -1,5 +1,6 @@
 import { COLS, ROWS, tileAt } from './tileMap'
 import { bridgeAt } from './bridges'
+import { houseBlocksAt } from './houseBlockers'
 
 export interface PathPoint {
   x: number
@@ -8,6 +9,8 @@ export interface PathPoint {
 
 function isWalkable(cx: number, cz: number): boolean {
   if (cx < 0 || cz < 0 || cx >= COLS || cz >= ROWS) return false
+  // House footprints block pathing even if the tile beneath is land.
+  if (houseBlocksAt(cx + 0.5, cz + 0.5)) return false
   if (tileAt(cx, cz)) return true
   // Sample cell center to catch bridge spans that cover this tile.
   return bridgeAt(cx + 0.5, cz + 0.5) !== null

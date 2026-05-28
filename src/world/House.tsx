@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
+import { getVillagers } from './villagerStore'
 
 interface HouseProps {
   position: [number, number, number]
@@ -9,6 +10,10 @@ interface HouseProps {
   seed?: number
   wallColor?: string
   roofColor?: string
+  /** villager whose `homeX`/`homeZ` triggers the door — used to know when
+      to open it. */
+  ownerVillagerHomeX?: number
+  ownerVillagerHomeZ?: number
 }
 
 // House dimensions — keep these explicit so the parts line up.
@@ -33,6 +38,8 @@ export function House({
   seed = 0,
   wallColor = DEFAULT_WALL,
   roofColor = DEFAULT_ROOF,
+  ownerVillagerHomeX,
+  ownerVillagerHomeZ,
 }: HouseProps) {
   const doorRef = useRef<THREE.Group>(null!)
   const windowMatRef = useRef<THREE.MeshStandardMaterial | null>(null)
@@ -75,14 +82,28 @@ export function House({
     windowMatRef.current = windowMat
   }, [windowMat])
 
-  useFrame(({ clock }) => {
+  // Smooth open-amount tracker so the door can ease open/closed.
+  const doorOpenAmt = useRef(0)
+
+  useFrame(({ clock }, dt) => {
     const t = clock.getElapsedTime() + seed
-    const cyc = (t * 0.18) % 1
-    let openAmt = 0
-    if (cyc < 0.15) openAmt = cyc / 0.15
-    else if (cyc < 0.5) openAmt = 1
-    else if (cyc < 0.7) openAmt = 1 - (cyc - 0.5) / 0.2
-    if (doorRef.current) doorRef.current.rotation.y = -openAmt * (Math.PI / 2.2)
+    const tNow = clock.getElapsedTime()
+
+    // Find owning villager (matched by their homeX/homeZ).
+    let targetOpen = 0
+    if (ownerVillagerHomeX !== undefined && ownerVillagerHomeZ !== undefined) {
+      const owner = getVillagers().find(
+        (v) =>
+          Math.abs(v.homeX - ownerVillagerHomeX) < 0.05 &&
+          Math.abs(v.homeZ - ownerVillagerHomeZ) < 0.05,
+      )
+      if (owner && tNow < owner.doorOpenUntil) targetOpen = 1
+    }
+    // Smooth toward target.
+    doorOpenAmt.current += (targetOpen - doorOpenAmt.current) * Math.min(1, dt * 4)
+    if (doorRef.current) {
+      doorRef.current.rotation.y = -doorOpenAmt.current * (Math.PI / 2.2)
+    }
 
     if (windowMatRef.current) {
       const f = 0.45 + Math.sin(t * 4.7) * 0.08 + Math.sin(t * 11.3) * 0.05
@@ -147,15 +168,26 @@ export function House({
         <boxGeometry args={[0.3, 0.06, 0.3]} />
       </mesh>
 
+      {/* Chimney smoke — two layered Sparkles for a denser, drifting plume. */}
       <Sparkles
-        position={[WALL_W / 2 - 0.4, wallTopY + 1.2, 0.25]}
-        scale={[0.35, 1.2, 0.35]}
-        count={14}
-        size={6}
-        speed={0.4}
-        opacity={0.35}
+        position={[WALL_W / 2 - 0.4, wallTopY + 0.95, 0.25]}
+        scale={[0.55, 0.6, 0.55]}
+        count={30}
+        size={14}
+        speed={0.25}
+        opacity={0.55}
+        color={'#9da3a8'}
+        noise={1.2}
+      />
+      <Sparkles
+        position={[WALL_W / 2 - 0.4, wallTopY + 1.7, 0.25]}
+        scale={[1.0, 1.4, 1.0]}
+        count={22}
+        size={20}
+        speed={0.18}
+        opacity={0.25}
         color={'#c9cdd4'}
-        noise={1.6}
+        noise={2.4}
       />
     </group>
   )
