@@ -343,16 +343,17 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     }
 
     // Sword "tap" cycle — only while idle and not attacking
+    // NOTE: base sword orientation is rotation.x = π/2 from JSX. Preserve it.
     if (swordRef.current) {
       if (attackSwordZ !== null) {
-        swordRef.current.rotation.x = 0
+        swordRef.current.rotation.x = Math.PI / 2
         swordRef.current.rotation.z = attackSwordZ
       } else {
         let lift = 0
         const cyc = (t % 4) / 4
         if (cyc < 0.2) lift = (cyc / 0.2) * 0.18
         else if (cyc < 0.6) lift = (1 - (cyc - 0.2) / 0.4) * 0.18
-        swordRef.current.rotation.x = -lift * (1 - m)
+        swordRef.current.rotation.x = Math.PI / 2 - lift * (1 - m)
         swordRef.current.rotation.z = 0
       }
     }

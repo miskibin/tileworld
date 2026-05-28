@@ -89,6 +89,42 @@
   outline-offset: 2px;
 }
 
+.debug-toggle {
+  position: absolute;
+  top: 14px;
+  right: 56px;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #c8cbd1;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.debug-toggle:hover {
+  color: #fff;
+  background: rgba(28, 36, 52, 0.88);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.debug-toggle.is-on {
+  color: #ff8a8a;
+  border-color: rgba(255, 80, 80, 0.45);
+}
+
+.debug-toggle:focus-visible {
+  outline: 2px solid #6ea8ff;
+  outline-offset: 2px;
+}
+
 .hp-bar {
   position: absolute;
   top: 14px;

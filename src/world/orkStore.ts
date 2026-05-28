@@ -21,6 +21,12 @@ export interface OrkState {
   attackReadyAt: number
   /** whether the current swing already dealt damage */
   attackHitDealt: boolean
+  /** waypoints toward current goal, in world grid coords (tile centers) */
+  path: { x: number; z: number }[]
+  /** index into path[] of the next waypoint to walk toward */
+  pathIndex: number
+  /** time (sec) when path should be recomputed */
+  pathRecomputeAt: number
 }
 
 const orks: OrkState[] = []
@@ -50,6 +56,9 @@ export function createOrk(
     attackingSince: 0,
     attackReadyAt: 0,
     attackHitDealt: false,
+    path: [],
+    pathIndex: 0,
+    pathRecomputeAt: 0,
   }
   orks.push(o)
   return o

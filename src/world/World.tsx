@@ -17,6 +17,7 @@ import { Bridge } from './Bridge'
 import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
 import { Mobs } from './Mobs'
+import { DebugPaths } from './DebugPaths'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
 function DebugExpose() {
@@ -107,6 +108,8 @@ export function World() {
 
         {/* Orks rendered from shared store (registered by OrkCamps) */}
         <Mobs />
+
+        <DebugPaths />
 
         {/* Shoreline water loops — positional for stereo */}
         {audioEnabled && (

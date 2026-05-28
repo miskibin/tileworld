@@ -5,15 +5,19 @@ import * as THREE from 'three'
 import type { OrkState } from './orkStore'
 import { tileAt } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
+import { bridgeAt } from './bridges'
+import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 
-const ORK_AGGRO = 8 // grid units to start chase
+const ORK_AGGRO = 9 // grid units to start chase
 const ORK_MELEE = 1.5 // grid units to attempt swing
 const ORK_SPEED = 2.0 // grid units / sec
 const ORK_TURN_RATE = 6
 const ORK_ATTACK_DURATION = 0.7 // seconds total swing
 const ORK_ATTACK_COOLDOWN = 1.6 // seconds between swings
 const ORK_ATTACK_DAMAGE = 12 // hp per landed hit
+const ORK_PATH_RECOMPUTE = 0.55 // seconds between A* refreshes
+const ORK_WAYPOINT_RADIUS = 0.45 // close enough to advance to next waypoint
 
 const SKIN = '#3a6a2a'
 const SKIN_ALT = '#4a7a32'
@@ -112,25 +116,66 @@ export function OrkView({ state }: OrkViewProps) {
       state.attackHitDealt = false
     }
 
-    // Chase: walk toward player when aggroed and not yet in melee and not currently attacking
+    // Chase: walk toward player via A* path
     let walking = false
     if (inAggro && !inMelee && !attacking) {
-      const step = ORK_SPEED * dt
-      const nx = state.x + (vx / Math.max(dist, 0.0001)) * step
-      const nz = state.z + (vz / Math.max(dist, 0.0001)) * step
-      const cxFloor = Math.floor(state.x)
-      const czFloor = Math.floor(state.z)
-      const canMoveX =
-        tileAt(Math.floor(nx), czFloor) !== null &&
-        !obstacleCollidesAt(nx, state.z, state.collisionRadius)
-      const canMoveZ =
-        tileAt(cxFloor, Math.floor(nz)) !== null &&
-        !obstacleCollidesAt(state.x, nz, state.collisionRadius)
-      if (canMoveX) state.x = nx
-      if (canMoveZ) state.z = nz
-      const tileNow = tileAt(Math.floor(state.x), Math.floor(state.z))
-      if (tileNow) state.y = tileNow.height
-      walking = canMoveX || canMoveZ
+      // Refresh path on a timer (or when current path is empty / consumed)
+      if (
+        tNow >= state.pathRecomputeAt ||
+        state.path.length === 0 ||
+        state.pathIndex >= state.path.length
+      ) {
+        state.path = findPath({ x: state.x, z: state.z }, { x: player.x, z: player.z })
+        state.pathIndex = 0
+        state.pathRecomputeAt = tNow + ORK_PATH_RECOMPUTE
+      }
+
+      // Pick the current waypoint; skip ones we've already reached.
+      while (state.pathIndex < state.path.length) {
+        const wp = state.path[state.pathIndex]
+        const dxw = wp.x - state.x
+        const dzw = wp.z - state.z
+        if (Math.hypot(dxw, dzw) < ORK_WAYPOINT_RADIUS) {
+          state.pathIndex++
+        } else break
+      }
+
+      if (state.pathIndex < state.path.length) {
+        const wp = state.path[state.pathIndex]
+        const dxw = wp.x - state.x
+        const dzw = wp.z - state.z
+        const lenW = Math.hypot(dxw, dzw)
+        if (lenW > 0.001) {
+          const step = ORK_SPEED * dt
+          const nx = state.x + (dxw / lenW) * step
+          const nz = state.z + (dzw / lenW) * step
+          const cxFloor = Math.floor(state.x)
+          const czFloor = Math.floor(state.z)
+          const standingOk = (cx: number, cz: number) =>
+            tileAt(cx, cz) !== null || bridgeAt(cx + 0.5, cz + 0.5) !== null
+          const canMoveX =
+            standingOk(Math.floor(nx), czFloor) &&
+            !obstacleCollidesAt(nx, state.z, state.collisionRadius)
+          const canMoveZ =
+            standingOk(cxFloor, Math.floor(nz)) &&
+            !obstacleCollidesAt(state.x, nz, state.collisionRadius)
+          if (canMoveX) state.x = nx
+          if (canMoveZ) state.z = nz
+          if (!canMoveX && !canMoveZ) {
+            // Stuck — force a recompute next frame
+            state.pathRecomputeAt = 0
+          }
+          // Use bridge surface y when on a bridge, else tile height.
+          const bridge = bridgeAt(state.x, state.z)
+          if (bridge) {
+            state.y = bridge.y
+          } else {
+            const tileNow = tileAt(Math.floor(state.x), Math.floor(state.z))
+            if (tileNow) state.y = tileNow.height
+          }
+          walking = canMoveX || canMoveZ
+        }
+      }
     }
 
     // Finalize swing: deal damage at mid-swing, end at ATTACK_DURATION

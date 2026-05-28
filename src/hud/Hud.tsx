@@ -1,6 +1,7 @@
 import './hud.css'
 import { Inventory } from './Inventory'
 import { AudioToggle } from './AudioToggle'
+import { DebugToggle } from './DebugToggle'
 import { PlayerHud } from './PlayerHud'
 
 export function Hud() {
@@ -8,6 +9,7 @@ export function Hud() {
     <div className="hud">
       <PlayerHud />
       <AudioToggle />
+      <DebugToggle />
       <Inventory />
     </div>
   )
