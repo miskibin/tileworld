@@ -10,7 +10,7 @@ interface Props {
 }
 
 const SENSITIVITY_X = 0.0035
-const SENSITIVITY_Y = 0.0028
+const SENSITIVITY_Y = 0.0014
 const ZOOM_SENS = 0.04
 const MIN_DIST = 8
 const MAX_DIST = 70
@@ -40,7 +40,7 @@ export function MouseLookCamera({ posRef }: Props) {
       azimuth.current -= e.movementX * SENSITIVITY_X
       polar.current = Math.max(
         MIN_POLAR,
-        Math.min(MAX_POLAR, polar.current - e.movementY * SENSITIVITY_Y),
+        Math.min(MAX_POLAR, polar.current + e.movementY * SENSITIVITY_Y),
       )
     }
     const onMouseDown = (e: MouseEvent) => {
