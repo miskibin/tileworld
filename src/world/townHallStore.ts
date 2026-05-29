@@ -23,6 +23,7 @@ export function closeTree(): void {
 
 export function subscribeTree(fn: (open: boolean) => void): () => void {
   subs.add(fn)
+  fn(open) // emit current value on subscribe, matching the other stores
   return () => {
     subs.delete(fn)
   }

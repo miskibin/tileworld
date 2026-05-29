@@ -45,7 +45,12 @@ export function OrkCamp({ position, rotation = 0, seed = 0 }: Props) {
       createOrk(spawn.x, spawn.z, wFacing, s.variant, seed + s.seedOff)
     }
     // No cleanup here — Mobs handles a global reset on remount.
-  }, [position, rotation, seed])
+    // NB: depend on primitive values, not the `position` array — a fresh array
+    // literal is passed on every World re-render, and an array dep would re-run
+    // this effect (with no cleanup) and re-spawn the camp's orks each time,
+    // stacking them (the "16 / 8 remaining" bug).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [position[0], position[1], position[2], rotation, seed])
 
   useEffect(() => {
     const pm = poleRef.current

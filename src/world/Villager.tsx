@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { VillagerState, VillagerStateName } from './villagerStore'
-import { isPaused } from './pauseStore'
+import { isFrozen } from './pauseStore'
 import { getCity, subscribeCity } from './cityStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
@@ -141,7 +141,7 @@ export function VillagerView({ state }: Props) {
   const armorMat = armorTier >= 2 ? ARMOR_STEEL : ARMOR_IRON
 
   useFrame(({ clock }, dt) => {
-    if (isPaused()) return
+    if (isFrozen()) return
     const tNow = clock.getElapsedTime()
 
     // Distance cull: far villagers are fog-hidden — hide + skip update work.

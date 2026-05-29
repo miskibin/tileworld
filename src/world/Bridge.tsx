@@ -37,7 +37,10 @@ export function Bridge({ from, to, y }: Props) {
       width: 1.6,
       y,
     })
-  }, [from, to, y])
+    // Depend on primitive coords, not the array props (fresh literals each
+    // render), so the effect doesn't re-run needlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from[0], from[1], to[0], to[1], y])
 
   return (
     <group position={[cx, y, cz]} rotation={[0, -angle, 0]}>

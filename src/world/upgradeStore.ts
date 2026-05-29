@@ -156,7 +156,7 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'def_gate',
     branch: 'defense',
     name: 'Gatehouse',
-    desc: 'Add a fortified gate on the south wall.',
+    desc: 'Add fortified gates to all four walls.',
     icon: '🚪',
     cost: 35,
     prereqId: 'def_walls',

@@ -15,7 +15,10 @@ function isWalkable(cx: number, cz: number): boolean {
   // Tiles holding a collidable prop (tree/boulder/…) are impassable, so paths
   // route around them instead of wedging the walker against the trunk.
   if (isObstacleTile(cx, cz)) return false
-  if (tileAt(cx, cz)) return true
+  const tile = tileAt(cx, cz)
+  // Elevated terrain (snow plateaus h3, rock highlands h2) is treated as a
+  // cliff — walkers route around it instead of scaling the vertical step.
+  if (tile) return tile.height < 2
   // Sample cell center to catch bridge spans that cover this tile.
   return bridgeAt(cx + 0.5, cz + 0.5) !== null
 }

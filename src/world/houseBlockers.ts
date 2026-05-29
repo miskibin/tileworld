@@ -8,22 +8,35 @@ export interface HouseBlocker {
   minZ: number
   maxX: number
   maxZ: number
+  /** which component registered this (so resets are scoped, not global) */
+  owner?: string
 }
 
 const blockers: HouseBlocker[] = []
 
-export function registerHouseBlocker(b: HouseBlocker): void {
+export function registerHouseBlocker(b: HouseBlocker, owner = ''): void {
   for (let i = 0; i < blockers.length; i++) {
     const e = blockers[i]
-    if (e.minX === b.minX && e.minZ === b.minZ && e.maxX === b.maxX && e.maxZ === b.maxZ) {
+    if (e.minX === b.minX && e.minZ === b.minZ && e.maxX === b.maxX && e.maxZ === b.maxZ && e.owner === owner) {
       return
     }
   }
-  blockers.push(b)
+  blockers.push({ ...b, owner })
 }
 
-export function resetHouseBlockers(): void {
-  blockers.length = 0
+/**
+ * Clear blockers. With no owner, clears everything; with an owner, clears only
+ * that owner's entries — so two independent components (City, VillagerCrowd)
+ * don't wipe each other's footprints on unmount.
+ */
+export function resetHouseBlockers(owner?: string): void {
+  if (owner === undefined) {
+    blockers.length = 0
+    return
+  }
+  for (let i = blockers.length - 1; i >= 0; i--) {
+    if (blockers[i].owner === owner) blockers.splice(i, 1)
+  }
 }
 
 export function houseBlocksAt(x: number, z: number): boolean {

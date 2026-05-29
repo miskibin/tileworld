@@ -2,12 +2,14 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
+import { isPaused } from './pauseStore'
 
 const W = COLS + 8
 const H = ROWS + 8
 
 export function Water() {
   const meshRef = useRef<THREE.Mesh>(null!)
+  const frame = useRef(0)
 
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(W, H, 32, 24)
@@ -21,6 +23,7 @@ export function Water() {
   }, [geo])
 
   useFrame(({ clock }) => {
+    if (isPaused()) return
     const t = clock.getElapsedTime()
     const pos = geo.attributes.position.array as Float32Array
     for (let i = 0; i < pos.length; i += 3) {
@@ -31,7 +34,9 @@ export function Water() {
         Math.cos(bz * 0.7 + t * 1.1) * 0.05
     }
     geo.attributes.position.needsUpdate = true
-    geo.computeVertexNormals()
+    // Recompute normals only every 4th frame — the gentle ripple doesn't need
+    // per-frame normals and computeVertexNormals is the expensive part.
+    if (frame.current++ % 4 === 0) geo.computeVertexNormals()
   })
 
   return (

@@ -24,7 +24,7 @@ import {
   setPlayerPos,
   XP_PER_ORK,
 } from './playerStore'
-import { isPaused } from './pauseStore'
+import { isFrozen } from './pauseStore'
 import { setVisionPlayerPos } from './vision'
 
 const ARMOR = '#d6d8df'
@@ -128,7 +128,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const moveDir = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((_, dt) => {
-    if (isPaused()) {
+    if (isFrozen()) {
       // Discard any clicks queued while paused so user doesn't auto-swing on resume.
       attackProcessed.current = attackClickCount
       return

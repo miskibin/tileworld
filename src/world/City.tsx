@@ -34,17 +34,20 @@ export function City() {
   // registerHouseBlocker dedupes by exact bounds, so re-running is safe and
   // never touches other blockers (resetHouseBlockers is global — unmount only).
   useEffect(() => {
-    registerHouseBlocker({
-      minX: KEEP_SLOT.x - KEEP_HALF.x,
-      maxX: KEEP_SLOT.x + KEEP_HALF.x,
-      minZ: KEEP_SLOT.z - KEEP_HALF.z,
-      maxZ: KEEP_SLOT.z + KEEP_HALF.z,
-    })
+    registerHouseBlocker(
+      {
+        minX: KEEP_SLOT.x - KEEP_HALF.x,
+        maxX: KEEP_SLOT.x + KEEP_HALF.x,
+        minZ: KEEP_SLOT.z - KEEP_HALF.z,
+        maxZ: KEEP_SLOT.z + KEEP_HALF.z,
+      },
+      'city',
+    )
     for (let i = 0; i < city.housesBuilt && i < HOUSE_SLOTS.length; i++) {
       const s = HOUSE_SLOTS[i]
       const halfW = 2.8 / 2 + 0.3
       const halfD = 2.2 / 2 + 0.3
-      registerHouseBlocker({ minX: s.x - halfW, maxX: s.x + halfW, minZ: s.z - halfD, maxZ: s.z + halfD })
+      registerHouseBlocker({ minX: s.x - halfW, maxX: s.x + halfW, minZ: s.z - halfD, maxZ: s.z + halfD }, 'city')
     }
   }, [city.housesBuilt])
 
@@ -58,14 +61,14 @@ export function City() {
       const isX = Math.abs(Math.sin(w.rotation)) < 0.5 // rotation 0/180 → runs along X
       const halfW = isX ? along : half
       const halfD = isX ? half : along
-      registerHouseBlocker({ minX: w.x - halfW, maxX: w.x + halfW, minZ: w.z - halfD, maxZ: w.z + halfD })
+      registerHouseBlocker({ minX: w.x - halfW, maxX: w.x + halfW, minZ: w.z - halfD, maxZ: w.z + halfD }, 'city')
     }
   }, [city.wallsBuilt])
 
   useEffect(() => {
     if (!city.towersBuilt) return
     for (const t of TOWER_SLOTS) {
-      registerHouseBlocker({ minX: t.x - TOWER_HALF, maxX: t.x + TOWER_HALF, minZ: t.z - TOWER_HALF, maxZ: t.z + TOWER_HALF })
+      registerHouseBlocker({ minX: t.x - TOWER_HALF, maxX: t.x + TOWER_HALF, minZ: t.z - TOWER_HALF, maxZ: t.z + TOWER_HALF }, 'city')
     }
   }, [city.towersBuilt])
 
@@ -76,7 +79,7 @@ export function City() {
       resetCity()
       resetUpgrades()
       resetUnlocks()
-      resetHouseBlockers()
+      resetHouseBlockers('city')
     }
   }, [])
 

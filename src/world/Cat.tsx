@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { isPaused } from './pauseStore'
+import { isFrozen } from './pauseStore'
 import { getBirds } from './Birds'
 import { CENTER_X, CENTER_Z } from './tileMap'
 
@@ -61,7 +61,7 @@ export function Cat({ home, seed = 0 }: CatProps) {
   )
 
   useFrame(({ clock }, dt) => {
-    if (isPaused()) return
+    if (isFrozen()) return
     const t = clock.getElapsedTime()
     const st = s.current
 

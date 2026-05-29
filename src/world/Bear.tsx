@@ -7,7 +7,7 @@ import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { houseBlocksAt } from './houseBlockers'
 import { bridgeAt } from './bridges'
 import { findPath } from './pathfinding'
-import { isPaused } from './pauseStore'
+import { isFrozen } from './pauseStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
 import { playRoar } from '../audio/sfx'
@@ -70,7 +70,7 @@ function BearView({ state }: { state: BearState }) {
   }, [state.seed])
 
   useFrame(({ clock }, dtFrame) => {
-    if (isPaused()) return
+    if (isFrozen()) return
     const tNow = clock.getElapsedTime()
     const t = tNow + state.seed
     const dt = Math.min(0.05, dtFrame)
