@@ -25,6 +25,10 @@ export interface BearState {
   attackHitDealt: boolean
   /** time of last roar so we don't spam it */
   lastRoarAt: number
+  // Chase pathfinding (A*), mirrors the ork fields.
+  path: { x: number; z: number }[]
+  pathIndex: number
+  pathRecomputeAt: number
 }
 
 const bears: BearState[] = []
@@ -52,6 +56,9 @@ export function createBear(x: number, z: number, seed: number): BearState {
     attackReadyAt: 0,
     attackHitDealt: false,
     lastRoarAt: 0,
+    path: [],
+    pathIndex: 0,
+    pathRecomputeAt: 0,
   }
   bears.push(b)
   return b

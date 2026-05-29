@@ -1,6 +1,7 @@
 import { COLS, ROWS, tileAt } from './tileMap'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
+import { isObstacleTile } from './obstacles'
 
 export interface PathPoint {
   x: number
@@ -11,6 +12,9 @@ function isWalkable(cx: number, cz: number): boolean {
   if (cx < 0 || cz < 0 || cx >= COLS || cz >= ROWS) return false
   // House footprints block pathing even if the tile beneath is land.
   if (houseBlocksAt(cx + 0.5, cz + 0.5)) return false
+  // Tiles holding a collidable prop (tree/boulder/…) are impassable, so paths
+  // route around them instead of wedging the walker against the trunk.
+  if (isObstacleTile(cx, cz)) return false
   if (tileAt(cx, cz)) return true
   // Sample cell center to catch bridge spans that cover this tile.
   return bridgeAt(cx + 0.5, cz + 0.5) !== null

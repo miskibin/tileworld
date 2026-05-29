@@ -205,27 +205,30 @@ export function OrkView({ state }: OrkViewProps) {
       }
     }
 
-    // Hit recoil: brief flinch (lean back + flash) right after taking damage.
+    // Hit recoil: brief upper-body flinch right after taking damage. Kept on
+    // the torso/head (NOT the whole group) so it reads as a stagger, not a
+    // topple/death.
     const hurtRemain = state.hurtFlashUntil - tNow
     const recoil = hurtRemain > 0 ? Math.max(0, hurtRemain / 0.25) : 0
 
-    // Position + sway
+    // Position + sway — body stays upright (no group-level lean).
     g.position.set(state.x, state.y, state.z)
     g.rotation.y = state.facing + Math.sin(t * 0.55) * 0.04
     g.rotation.z = 0
-    // Lean away from the player on recoil for a snappy reaction.
-    if (recoil > 0) g.rotation.x = -recoil * 0.35
-    else g.rotation.x = 0
+    g.rotation.x = 0
 
     if (bodyRef.current) {
       const s = 1 + Math.sin(t * 1.2) * 0.04
       bodyRef.current.scale.set(s, 1 + Math.sin(t * 1.2) * 0.025, s)
+      // Small backward jolt of the torso on recoil.
+      bodyRef.current.rotation.x = 0.2 - recoil * 0.3
     }
     if (headRef.current) {
       headRef.current.rotation.y = inAggro
         ? 0
         : Math.sin(t * 0.3 + state.seed) * 0.32
-      headRef.current.rotation.x = Math.sin(t * 0.4) * 0.06
+      // Snap the head back briefly when struck.
+      headRef.current.rotation.x = Math.sin(t * 0.4) * 0.06 - recoil * 0.4
     }
     if (rightArmRef.current) {
       if (attacking) {

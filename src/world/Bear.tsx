@@ -3,8 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 import { tileAt } from './tileMap'
-import { obstacleCollidesAt } from './obstacles'
+import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { houseBlocksAt } from './houseBlockers'
+import { findPath } from './pathfinding'
 import { isPaused } from './pauseStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
@@ -20,6 +21,8 @@ const BEAR_ATTACK_DURATION = 0.7
 const BEAR_ATTACK_COOLDOWN = 1.3
 const BEAR_ATTACK_DAMAGE = 22 // hits harder than an ork
 const ROAR_COOLDOWN = 4
+const BEAR_PATH_RECOMPUTE = 0.5 // seconds between A* refreshes while chasing
+const BEAR_WAYPOINT_RADIUS = 0.5
 
 const FUR = new THREE.MeshStandardMaterial({ color: '#5a4030', roughness: 1, flatShading: true })
 const FUR_DARK = new THREE.MeshStandardMaterial({ color: '#3e2c20', roughness: 1, flatShading: true })
@@ -139,7 +142,26 @@ function BearView({ state }: { state: BearState }) {
     }
 
     if (state.aggro && !inMelee && !attacking) {
-      moving = moveToward(player.x, player.z, BEAR_SPEED)
+      // Chase via A* so the bear routes around trees/walls instead of wedging.
+      if (
+        tNow >= state.pathRecomputeAt ||
+        state.path.length === 0 ||
+        state.pathIndex >= state.path.length
+      ) {
+        state.path = findPath({ x: state.x, z: state.z }, { x: player.x, z: player.z })
+        state.pathIndex = 0
+        state.pathRecomputeAt = tNow + BEAR_PATH_RECOMPUTE
+      }
+      while (state.pathIndex < state.path.length) {
+        const wp = state.path[state.pathIndex]
+        if (Math.hypot(wp.x - state.x, wp.z - state.z) < BEAR_WAYPOINT_RADIUS) state.pathIndex++
+        else break
+      }
+      // Follow the next waypoint, or close the final gap directly when adjacent.
+      const wp = state.pathIndex < state.path.length ? state.path[state.pathIndex] : { x: player.x, z: player.z }
+      const moved = moveToward(wp.x, wp.z, BEAR_SPEED)
+      moving = moved
+      if (!moved) state.pathRecomputeAt = 0 // stuck — recompute next frame
     } else if (!state.aggro) {
       if (!state.target && tNow >= state.idleUntil) {
         for (let i = 0; i < 10; i++) {
@@ -305,7 +327,12 @@ export function Bears() {
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       resetBears()
-      setBears(BEAR_SPAWNS.map((b) => createBear(b.pos[0], b.pos[1], b.seed)))
+      setBears(
+        BEAR_SPAWNS.map((b) => {
+          const s = findSpawnNear(b.pos[0], b.pos[1])
+          return createBear(s.x, s.z, b.seed)
+        }),
+      )
     })
     return () => {
       cancelAnimationFrame(handle)

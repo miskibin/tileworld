@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { Tent } from './Tent'
 import { Campfire } from './Campfire'
 import { createOrk } from './orkStore'
+import { findSpawnNear } from './obstacles'
 
 interface Props {
   position: [number, number, number]
@@ -38,7 +39,10 @@ export function OrkCamp({ position, rotation = 0, seed = 0 }: Props) {
       const wx = position[0] + s.lx * cos - s.lz * sin
       const wz = position[2] + s.lx * sin + s.lz * cos
       const wFacing = rotation + s.localFacing
-      createOrk(wx, wz, wFacing, s.variant, seed + s.seedOff)
+      // Snap to the nearest standable, prop-free tile so orks never spawn on
+      // water or wedged inside a tree.
+      const spawn = findSpawnNear(wx, wz)
+      createOrk(spawn.x, spawn.z, wFacing, s.variant, seed + s.seedOff)
     }
     // No cleanup here — Mobs handles a global reset on remount.
   }, [position, rotation, seed])
