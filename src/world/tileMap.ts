@@ -59,8 +59,11 @@ function lakeAt(x: number, z: number): number {
   )
 }
 
-const islandRx = COLS / 2 - 8
-const islandRz = ROWS / 2 - 6
+// Push the coastline closer to the grid edge so more of the 96×72 grid is
+// walkable land (was −8/−6). Existing camps/villages sit well inside, so this
+// only adds land around them — no hardcoded placement needs to move.
+const islandRx = COLS / 2 - 3
+const islandRz = ROWS / 2 - 3
 
 function isLandShape(x: number, z: number): boolean {
   const dx = (x - CENTER_X) / islandRx

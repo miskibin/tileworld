@@ -10,6 +10,7 @@ import { houseBlocksAt } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isPaused } from './pauseStore'
+import { isCulled } from './cull'
 
 const ORK_AGGRO = 9 // grid units to start chase
 const ORK_MELEE = 1.5 // grid units to attempt swing
@@ -79,6 +80,14 @@ export function OrkView({ state }: OrkViewProps) {
     const dt = Math.min(0.05, dtFrame)
     const g = groupRef.current
     if (!g) return
+
+    // Distance cull: far orks are fog-hidden — hide + skip AI/animation work.
+    if (state.hp > 0 && isCulled(state.x, state.z)) {
+      if (g.visible) g.visible = false
+      return
+    } else if (!g.visible) {
+      g.visible = true
+    }
 
     // Death fade
     if (state.hp <= 0) {
