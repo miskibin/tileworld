@@ -125,10 +125,43 @@
   outline-offset: 2px;
 }
 
-.hp-bar {
+/* ---- Vitals: level badge + HP + XP, bottom-left ---- */
+.vitals {
   position: absolute;
   bottom: 18px;
   left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-badge {
+  flex: none;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 213, 140, 0.5);
+  border-radius: 6px;
+  color: #ffd58c;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hp-bar {
+  position: relative;
   width: 240px;
   height: 20px;
   background: rgba(20, 26, 38, 0.78);
@@ -158,6 +191,88 @@
   letter-spacing: 0.08em;
   color: #fff;
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- XP bar ---- */
+.xp-bar {
+  position: relative;
+  width: 240px;
+  height: 12px;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.xp-bar-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #62c6e8 0%, #3a7bd5 100%);
+  transition: width 180ms ease;
+}
+
+.xp-bar-text {
+  position: relative;
+  z-index: 1;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #eaf4ff;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
+}
+
+/* ---- Level-up flash ---- */
+.levelup-flash {
+  position: absolute;
+  left: 18px;
+  bottom: 80px;
+  color: #ffe79a;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 210, 80, 0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Objective banner, top-center ---- */
+.objective-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 16px;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.objective-label {
+  color: #ffd58c;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.objective-count {
+  color: #d8dae0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }
 
 .damage-overlay {
@@ -197,6 +312,65 @@
   font-size: 14px;
   letter-spacing: 0.18em;
   color: #d8dae0;
+}
+
+/* ---- Victory screen ---- */
+.victory-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(8, 10, 8, 0.6);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  pointer-events: auto;
+  z-index: 12;
+}
+
+.victory-title {
+  font-size: 64px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #ffe79a;
+  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 26px rgba(255, 210, 80, 0.55);
+}
+
+.victory-sub {
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  color: #e6e9ef;
+}
+
+.victory-stats {
+  display: flex;
+  gap: 22px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #ffd58c;
+}
+
+.victory-again {
+  margin-top: 8px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 11px 26px;
+  background: #4a6fc8;
+  color: #fff;
+  border: 1px solid #5a7fd6;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transition: background 120ms ease;
+}
+
+.victory-again:hover {
+  background: #557fde;
 }
 
 .pause-screen {

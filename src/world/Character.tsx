@@ -11,11 +11,14 @@ import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
   addGold,
+  addXp,
+  getAttackDamage,
   getPlayer,
   PLAYER_RESPAWN_DELAY,
   PLAYER_SPAWN,
   respawnPlayer,
   setPlayerPos,
+  XP_PER_ORK,
 } from './playerStore'
 import { isPaused } from './pauseStore'
 import { setVisionPlayerPos } from './vision'
@@ -42,7 +45,7 @@ const PLAYER_RADIUS = 0.22 // collision radius for obstacle blocking
 const ATTACK_DURATION = 0.45 // seconds for full swing
 const ATTACK_RANGE = 1.8 // grid units reach
 const ATTACK_CONE_DOT = 0.5 // cos(60°) — front cone width
-const ATTACK_DAMAGE = 25 // hp per swing (dog has 60 → dies in 3)
+// Attack damage scales with level — see getAttackDamage() in playerStore.
 
 // Module-level click counter — survives React strict-mode double-mount.
 let attackClickCount = 0
@@ -306,6 +309,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
+          const dmg = getAttackDamage()
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
           let killedAny = false
@@ -316,7 +320,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageDog(dog, ATTACK_DAMAGE, t)
+            const died = damageDog(dog, dmg, t)
             if (died) killedAny = true
           }
           for (const ork of getAliveOrks()) {
@@ -326,10 +330,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageOrk(ork, ATTACK_DAMAGE, t)
+            const died = damageOrk(ork, dmg, t)
             if (died) {
               killedAny = true
               addGold(8) // bounty for an ork
+              addXp(XP_PER_ORK)
             }
           }
           if (killedAny) void playSfx('/audio/sword-swing.mp3', 0.3, 0.05)

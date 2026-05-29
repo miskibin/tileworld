@@ -83,6 +83,7 @@ export function World() {
         {/* Ork camps spread to the far corners of the larger map */}
         <OrkCamp position={[20, 1, 50]} rotation={0.3} seed={3.3} />
         <OrkCamp position={[76, 1, 22]} rotation={-0.8} seed={7.7} />
+        <OrkCamp position={[74, 1, 58]} rotation={1.1} seed={5.1} />
 
         {/* Friendly villages */}
         <Village position={[58, 44]} rotation={-0.4} seed={1.7} wallColor="#d3b78b" roofColor="#6b3322" />
