@@ -5,17 +5,22 @@ import { tileAt, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
+import { playSwing, playHit, playKill } from '../audio/sfx'
+import { addShake, spawnFloat } from './fxStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
   addGold,
+  addXp,
+  getAttackDamage,
   getPlayer,
   PLAYER_RESPAWN_DELAY,
   PLAYER_SPAWN,
   respawnPlayer,
   setPlayerPos,
+  XP_PER_ORK,
 } from './playerStore'
 import { isPaused } from './pauseStore'
 import { setVisionPlayerPos } from './vision'
@@ -42,7 +47,7 @@ const PLAYER_RADIUS = 0.22 // collision radius for obstacle blocking
 const ATTACK_DURATION = 0.45 // seconds for full swing
 const ATTACK_RANGE = 1.8 // grid units reach
 const ATTACK_CONE_DOT = 0.5 // cos(60°) — front cone width
-const ATTACK_DAMAGE = 25 // hp per swing (dog has 60 → dies in 3)
+// Attack damage scales with level — see getAttackDamage() in playerStore.
 
 // Module-level click counter — survives React strict-mode double-mount.
 let attackClickCount = 0
@@ -261,7 +266,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       attacking.current = true
       attackStart.current = t
       attackHitDealt.current = false
-      void playSfx('/audio/sword-swing.mp3', 0.45, 0.1)
+      playSwing()
     }
 
     // Attack drive — horizontal slash that's clearly visible.
@@ -306,8 +311,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
+          const dmg = getAttackDamage()
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
+          let hitAny = false
           let killedAny = false
           for (const dog of getAliveDogs()) {
             const vx = dog.x - pos.current.x
@@ -316,7 +323,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageDog(dog, ATTACK_DAMAGE, t)
+            const died = damageDog(dog, dmg, t)
+            hitAny = true
             if (died) killedAny = true
           }
           for (const ork of getAliveOrks()) {
@@ -326,13 +334,26 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageOrk(ork, ATTACK_DAMAGE, t)
+            const died = damageOrk(ork, dmg, t)
+            hitAny = true
             if (died) {
               killedAny = true
               addGold(8) // bounty for an ork
+              addXp(XP_PER_ORK)
+              spawnFloat('+8 ★', '#ffd58c', ork.x, ork.y + 2.4, ork.z)
+              spawnFloat(`+${XP_PER_ORK} XP`, '#62c6e8', ork.x - 0.3, ork.y + 2.0, ork.z)
+            } else {
+              spawnFloat(`${dmg}`, '#ffffff', ork.x, ork.y + 2.2, ork.z)
             }
           }
-          if (killedAny) void playSfx('/audio/sword-swing.mp3', 0.3, 0.05)
+          // Combat juice: impact SFX + camera shake scaled to the outcome.
+          if (killedAny) {
+            playKill()
+            addShake(0.32, 0.32)
+          } else if (hitAny) {
+            playHit()
+            addShake(0.16, 0.2)
+          }
         }
       }
     }

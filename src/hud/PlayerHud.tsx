@@ -1,20 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
-import { PLAYER_MAX_HP, PLAYER_RESPAWN_DELAY, getPlayer, subscribeHp } from '../world/playerStore'
+import {
+  PLAYER_MAX_HP,
+  PLAYER_RESPAWN_DELAY,
+  getPlayer,
+  subscribeHp,
+  subscribeStats,
+} from '../world/playerStore'
 
 export function PlayerHud() {
   const [hp, setHp] = useState(PLAYER_MAX_HP)
+  const [maxHp, setMaxHp] = useState(PLAYER_MAX_HP)
   const [dead, setDead] = useState(false)
+  const [stats, setStats] = useState({ level: 1, xp: 0, xpToNext: 50 })
   const overlayRef = useRef<HTMLDivElement>(null)
   const respawnRef = useRef<HTMLDivElement>(null)
+  const levelUpRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    return subscribeHp((curr, _max, isDead) => {
+    return subscribeHp((curr, max, isDead) => {
       setHp(curr)
+      setMaxHp(max)
       setDead(isDead)
     })
   }, [])
 
-  // Drive the damage-flash overlay via requestAnimationFrame (avoids per-frame React rerenders).
+  useEffect(() => subscribeStats(setStats), [])
+
+  // Drive flashes via requestAnimationFrame (avoids per-frame React rerenders).
   useEffect(() => {
     let raf = 0
     const tick = () => {
@@ -23,6 +35,10 @@ export function PlayerHud() {
       const flashRemain = Math.max(0, p.hurtFlashUntil - tNow)
       if (overlayRef.current) {
         overlayRef.current.style.opacity = String(flashRemain * 1.4)
+      }
+      if (levelUpRef.current) {
+        const remain = Math.max(0, p.levelUpFlashUntil - tNow)
+        levelUpRef.current.style.opacity = String(Math.min(1, remain))
       }
       if (respawnRef.current && p.deadSince !== null) {
         const remain = Math.max(0, PLAYER_RESPAWN_DELAY - (tNow - p.deadSince))
@@ -34,17 +50,32 @@ export function PlayerHud() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  const ratio = Math.max(0, hp / PLAYER_MAX_HP)
+  const ratio = Math.max(0, hp / maxHp)
+  const xpRatio = stats.xpToNext > 0 ? Math.min(1, stats.xp / stats.xpToNext) : 0
 
   return (
     <>
-      <div className="hp-bar">
-        <div className="hp-bar-fill" style={{ width: `${ratio * 100}%` }} />
-        <div className="hp-bar-text">
-          {hp} / {PLAYER_MAX_HP}
+      <div className="vitals">
+        <div className="level-badge">Lv {stats.level}</div>
+        <div className="bars">
+          <div className="hp-bar">
+            <div className="hp-bar-fill" style={{ width: `${ratio * 100}%` }} />
+            <div className="hp-bar-text">
+              {hp} / {maxHp}
+            </div>
+          </div>
+          <div className="xp-bar">
+            <div className="xp-bar-fill" style={{ width: `${xpRatio * 100}%` }} />
+            <div className="xp-bar-text">
+              XP {stats.xp} / {stats.xpToNext}
+            </div>
+          </div>
         </div>
       </div>
       <div ref={overlayRef} className="damage-overlay" />
+      <div ref={levelUpRef} className="levelup-flash">
+        Level Up!
+      </div>
       {dead && (
         <div className="death-screen">
           <div className="death-title">You Died</div>

@@ -6,6 +6,7 @@ import {
   togglePaused,
 } from '../world/pauseStore'
 import { isShopOpen } from '../world/shopStore'
+import { isStarted } from '../world/gameStore'
 import {
   isEnabled as isAudioEnabled,
   setEnabled as setAudioEnabled,
@@ -30,7 +31,7 @@ export function PauseMenu() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
-        if (isShopOpen()) return
+        if (isShopOpen() || !isStarted()) return
         e.preventDefault()
         togglePaused()
       }
@@ -39,11 +40,12 @@ export function PauseMenu() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  if (!paused) return null
+  // Before the game starts, the StartScreen owns the overlay.
+  if (!paused || !isStarted()) return null
 
   return (
     <div className="pause-screen">
-      <div className="pause-card">
+      <div className="pause-card pause-card-anim">
         <div className="pause-title">PAUSED</div>
         <button className="pause-btn pause-btn-primary" onClick={() => setPaused(false)}>
           Resume

@@ -4,6 +4,7 @@ import type { PlayerStateRef } from './Character'
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { isShopOpen, subscribeShop } from './shopStore'
 import { isPaused, subscribePaused } from './pauseStore'
+import { getShake } from './fxStore'
 
 interface Props {
   posRef: MutableRefObject<PlayerStateRef>
@@ -92,10 +93,17 @@ export function MouseLookCamera({ posRef }: Props) {
     const a = azimuth.current
     const p = polar.current
     const r = dist.current
+    // Combat shake: jitter the camera with a quick random offset, folded into
+    // the single position write below.
+    const shake = getShake(performance.now() * 0.001)
+    const sx = shake > 0 ? (Math.random() * 2 - 1) * shake : 0
+    const sy = shake > 0 ? (Math.random() * 2 - 1) * shake : 0
+    const sz = shake > 0 ? (Math.random() * 2 - 1) * shake : 0
+
     camera.position.set(
-      tx + Math.sin(a) * Math.cos(p) * r,
-      ty + Math.sin(p) * r,
-      tz + Math.cos(a) * Math.cos(p) * r,
+      tx + Math.sin(a) * Math.cos(p) * r + sx,
+      ty + Math.sin(p) * r + sy,
+      tz + Math.cos(a) * Math.cos(p) * r + sz,
     )
     camera.lookAt(tx, ty, tz)
   })
