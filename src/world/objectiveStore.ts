@@ -28,3 +28,8 @@ export function getObjective(): Objective {
     won: total > 0 && remaining === 0,
   }
 }
+
+/** Clear the latched total so it recaptures (call alongside resetOrks). */
+export function resetObjectiveTotal(): void {
+  total = 0
+}

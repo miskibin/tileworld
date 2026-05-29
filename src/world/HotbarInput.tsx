@@ -1,7 +1,6 @@
 import { useEffect } from 'react'
 import { selectSlot, activateSelected, HOTBAR_SIZE } from './inventoryStore'
-import { isPaused } from './pauseStore'
-import { isShopOpen } from './shopStore'
+import { isFrozen } from './pauseStore'
 
 // Non-visual: binds number keys 1–5 to slot selection and right-click to "use"
 // the selected slot (consume → heal, weapon → equip). Lives in the canvas tree
@@ -22,7 +21,7 @@ export function HotbarInput() {
       const target = e.target as Element | null
       // Let the inventory HUD's own slot handlers manage right-clicks on it.
       if (target && target.closest('.hud')) return
-      if (isPaused() || isShopOpen()) return
+      if (isFrozen()) return
       activateSelected()
     }
     // Still suppress the browser context menu over the canvas.

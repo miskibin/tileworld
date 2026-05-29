@@ -38,12 +38,15 @@ export function Village({ position, rotation = 0, seed = 0, wallColor, roofColor
     // routes around it.
     const halfW = 2.8 / 2 + 0.3
     const halfD = 2.2 / 2 + 0.3
-    registerHouseBlocker({
-      minX: houseX - halfW,
-      maxX: houseX + halfW,
-      minZ: houseZ - halfD,
-      maxZ: houseZ + halfD,
-    })
+    registerHouseBlocker(
+      {
+        minX: houseX - halfW,
+        maxX: houseX + halfW,
+        minZ: houseZ - halfD,
+        maxZ: houseZ + halfD,
+      },
+      'village',
+    )
     // Register one villager per house
     createVillager({
       x: doorX,
@@ -87,7 +90,7 @@ export function VillagerCrowd() {
     return () => {
       unsub()
       resetVillagers()
-      resetHouseBlockers()
+      resetHouseBlockers('village')
     }
   }, [])
 

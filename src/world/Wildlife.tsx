@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { tileAt } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
+import { isFrozen } from './pauseStore'
 import { isCulled } from './cull'
 
 const DOG_PALETTES: { body: string; dark: string }[] = [
@@ -86,7 +87,9 @@ function DogView({ state }: DogViewProps) {
   const [visible, setVisible] = useState(true)
   const deadFadeFrom = useRef<number | null>(null)
 
-  useFrame(({ clock }, dt) => {
+  useFrame(({ clock }, dtFrame) => {
+    if (isFrozen()) return
+    const dt = Math.min(0.05, dtFrame)
     const t = clock.getElapsedTime()
     const s = state
 

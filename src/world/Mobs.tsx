@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getOrks, resetOrks, type OrkState } from './orkStore'
+import { resetObjectiveTotal } from './objectiveStore'
 import { OrkView } from './Ork'
 
 export function Mobs() {
@@ -16,6 +17,7 @@ export function Mobs() {
       cancelAnimationFrame(handle)
       // Reset on unmount so HMR + remount don't double-register.
       resetOrks()
+      resetObjectiveTotal()
     }
   }, [])
 

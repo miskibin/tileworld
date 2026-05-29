@@ -7,6 +7,7 @@ import { getPlayer, spendGold } from './playerStore'
 import { openShop, closeShop, isShopOpen, type ShopItem } from './shopStore'
 import { addItem } from './inventoryStore'
 import { getUnlockedWeapons } from './weaponUnlockStore'
+import { isUnlimitedMoney } from './debugStore'
 
 interface ShopProps {
   /** village grid-space anchor */
@@ -58,8 +59,10 @@ function gableShape(halfD: number, h: number): THREE.Shape {
 function buy(price: number, itemId: string): boolean {
   if (!spendGold(price)) return false
   if (!addItem(itemId)) {
-    // Bag full — refund and reject so gold isn't lost.
-    spendGold(-price)
+    // Bag full — refund and reject so gold isn't lost. Skip the refund under
+    // unlimited money, since spendGold didn't actually deduct (a negative spend
+    // would otherwise credit free gold).
+    if (!isUnlimitedMoney()) spendGold(-price)
     return false
   }
   return true
