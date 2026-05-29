@@ -20,20 +20,25 @@ const PATH_MAT = new THREE.MeshStandardMaterial({
 })
 const PATH_GEO = new THREE.PlaneGeometry(1, 1)
 
-/** Each path is a polyline of grid-space (x, z) waypoints. */
+/** Each path is a polyline of grid-space (x, z) waypoints. Roads branch from
+ *  the castle gates out to the biome regions, crossing rivers at the bridges. */
 const PATHS: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  // Spawn → eastern village (and shop)
-  [[48, 36], [50, 38], [52, 41], [56, 43], [58, 44]],
-  // Eastern village → shop spur
-  [[55, 43], [54, 42.5], [52, 42]],
-  // Spawn → western village
-  [[48, 36], [44, 35], [40, 33], [36, 31], [30, 30], [26, 30]],
-  // Spawn → N-S river bridge at z≈30
-  [[48, 36], [46, 33], [44, 31], [42, 30.5]],
-  // Spawn → N-S river bridge at z≈50
-  [[48, 36], [46, 40], [44, 44], [42, 50.5]],
-  // Eastern village → E-W river bridge at x=64
-  [[58, 44], [60, 38], [62, 30], [64, 22]],
+  // South gate → southern crossroads
+  [[56, 43], [56, 47], [54, 50], [52, 53]],
+  // Southern crossroads → SW swamp (via z≈50 bridge)
+  [[52, 53], [46, 52], [42, 50.5], [34, 52], [24, 55], [18, 57]],
+  // Southern crossroads → SE pine wood
+  [[52, 53], [60, 54], [68, 55], [76, 57]],
+  // North wall → northern crossroads
+  [[56, 23], [56, 18], [54, 15], [52, 12]],
+  // Northern crossroads → NW snow
+  [[52, 12], [44, 12], [34, 12], [26, 13], [20, 14]],
+  // Northern crossroads → NE desert (via E-W river bridge at x≈64)
+  [[52, 12], [60, 13], [64, 16], [70, 14], [76, 15]],
+  // West wall → W forest (via z≈30 bridge over the N-S river)
+  [[43, 33], [43, 30], [38, 30.5], [31, 31], [22, 35], [16, 38]],
+  // East wall → E stone highlands
+  [[69, 33], [74, 35], [80, 37]],
 ]
 
 function tileHeightAt(x: number, z: number): number {

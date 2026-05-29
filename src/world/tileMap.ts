@@ -35,14 +35,6 @@ function noiseB(x: number, z: number): number {
   )
 }
 
-// Broad-scale temperature: cold in NW, hot in SE.
-function temperatureAt(x: number, z: number): number {
-  return (
-    Math.sin(x * 0.035 - 0.4) * 0.55 +
-    Math.cos(z * 0.028 + 1.2) * 0.55
-  )
-}
-
 // Broad-scale moisture: wet patches scattered around.
 function moistureAt(x: number, z: number): number {
   return (
@@ -129,6 +121,42 @@ export function getRiverZ(x: number): number {
   return riverZ(x)
 }
 
+// Deliberate biome regions (centres in grid coords on the 96×72 map), laid out
+// like the reference map: snow NW, desert NE, swamp SW, pine/forest SE, dense
+// forest W, stone highlands E. The interior stays grass for the castle. Each
+// region is a soft blob (radius + noise wobble) so the edges read organically.
+interface Region {
+  x: number
+  z: number
+  r: number
+  biome: Biome
+  /** elevated terrain (snow plateau / rocky highlands) */
+  height?: number
+}
+const REGIONS: Region[] = [
+  { x: 16, z: 12, r: 12, biome: 'snow', height: 2 }, // NW
+  { x: 80, z: 13, r: 12, biome: 'desert' }, // NE
+  { x: 15, z: 58, r: 12, biome: 'swamp' }, // SW
+  { x: 80, z: 58, r: 13, biome: 'forest' }, // SE pine wood
+  { x: 11, z: 38, r: 9, biome: 'forest' }, // W forest
+  { x: 82, z: 37, r: 11, biome: 'rock', height: 2 }, // E stone highlands
+]
+
+function regionAt(x: number, z: number): Region | null {
+  const wob = 2.4 * Math.sin(x * 0.4 + 1.1) + 2.4 * Math.cos(z * 0.36 - 0.7)
+  let best: Region | null = null
+  let bestEdge = Infinity
+  for (const reg of REGIONS) {
+    const d = Math.hypot(x - reg.x, z - reg.z) + wob
+    const edge = d - reg.r // negative = inside the blob
+    if (edge < 0 && edge < bestEdge) {
+      bestEdge = edge
+      best = reg
+    }
+  }
+  return best
+}
+
 function classifyBiome(x: number, z: number): Tile | null {
   if (!isLandShape(x, z)) return null
   if (isRiverAt(x, z)) return null
@@ -139,38 +167,20 @@ function classifyBiome(x: number, z: number): Tile | null {
   // Beach ring around coastlines and lake edges.
   if (d <= 1) return { biome: 'sand', height: 1 }
 
-  const t = temperatureAt(x, z)
-  const m = moistureAt(x, z)
-
-  // Cold zones — snow plateau / taiga.
-  if (t < -0.25) {
-    return { biome: 'snow', height: t < -0.7 ? 3 : 2 }
+  // Regional biome placement.
+  const reg = regionAt(x, z)
+  if (reg) {
+    if (reg.biome === 'snow') {
+      // Higher plateau near the core for visual relief.
+      const core = Math.hypot(x - reg.x, z - reg.z) < reg.r * 0.5
+      return { biome: 'snow', height: core ? 3 : 2 }
+    }
+    return { biome: reg.biome, height: reg.height ?? 1 }
   }
 
-  // Hot + dry → desert.
-  if (t > 0.55 && m < -0.05) {
-    return { biome: 'desert', height: 1 }
-  }
-
-  // Rocky highlands where secondary noise spikes far inland.
-  const rockN = noiseB(x, z)
-  if (rockN > 1.0 && d >= 5) {
-    return { biome: 'rock', height: 2 }
-  }
-
-  // Wet patches → swamp.
-  if (m > 0.45) {
-    return { biome: 'swamp', height: 1 }
-  }
-
-  // Dry plains.
-  if (m < -0.45) {
-    return { biome: 'plains', height: 1 }
-  }
-
-  // Forest patches via blended noise.
+  // Scattered grass-belt forest clumps so the green isn't uniform.
   const forestN = noiseA(x, z) * noiseB(x + 7, z - 3)
-  if (forestN > 0.55) return { biome: 'forest', height: 1 }
+  if (forestN > 0.62) return { biome: 'forest', height: 1 }
 
   return { biome: 'grass', height: 1 }
 }

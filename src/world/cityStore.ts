@@ -8,6 +8,7 @@ export interface CityState {
   wallsBuilt: boolean
   gateBuilt: boolean
   towersBuilt: boolean
+  farmBuilt: boolean
   /** global villager armour tier (0 = none); applies to all villagers */
   villagerArmorTier: number
 }
@@ -17,6 +18,7 @@ const state: CityState = {
   wallsBuilt: false,
   gateBuilt: false,
   towersBuilt: false,
+  farmBuilt: false,
   villagerArmorTier: 0,
 }
 
@@ -58,6 +60,11 @@ export function setTowersBuilt(v: boolean): void {
   notify()
 }
 
+export function setFarmBuilt(v: boolean): void {
+  state.farmBuilt = v
+  notify()
+}
+
 export function bumpVillagerArmor(): void {
   state.villagerArmorTier += 1
   notify()
@@ -68,6 +75,7 @@ export function resetCity(): void {
   state.wallsBuilt = false
   state.gateBuilt = false
   state.towersBuilt = false
+  state.farmBuilt = false
   state.villagerArmorTier = 0
   notify()
 }

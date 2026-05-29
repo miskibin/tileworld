@@ -55,7 +55,7 @@ export function UpgradeTree() {
     <div className="shop-screen">
       <div className="shop-card upgrade-card">
         <div className="shop-header">
-          <div className="shop-title">Town Hall — Upgrades</div>
+          <div className="shop-title">Keep — Upgrades</div>
           <div className="shop-gold">{unlimited ? '∞' : gold} ★</div>
         </div>
 

@@ -1,40 +1,40 @@
 import { useEffect, useState } from 'react'
 import { House } from './House'
-import { TownHall, Wall, Tower, Gate } from './cityModels'
+import { Keep, Wall, Tower, Gate, Farm } from './cityModels'
 import { getCity, subscribeCity, resetCity, type CityState } from './cityStore'
 import { resetUpgrades } from './upgradeStore'
 import { resetUnlocks } from './weaponUnlockStore'
 import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 import {
-  TOWN_HALL_SLOT,
+  KEEP_SLOT,
+  KEEP_HALF,
   HOUSE_SLOTS,
   WALL_SLOTS,
   TOWER_SLOTS,
   GATE_SLOT,
+  FARM_SLOT,
   slotGroundY,
 } from './cityPlan'
 
 /**
- * Renders the central city: the Town Hall (always) plus structures the upgrade
- * tree has built (houses, walls, gate, towers). Subscribes to cityStore so new
- * purchases appear live. Mount once inside World's offset group.
+ * Renders the central castle: the Keep (always) plus structures the upgrade
+ * tree has built (houses, walls, gate, towers, farm). Subscribes to cityStore
+ * so new purchases appear live. Mount once inside World's offset group.
  */
 export function City() {
   const [city, setCity] = useState<CityState>(() => ({ ...getCity() }))
 
   useEffect(() => subscribeCity((s) => setCity({ ...s })), [])
 
-  // Register pathfinding blockers (town hall + each built house). Re-run when
-  // housesBuilt changes so newly-built houses are routed around. registerHouseBlocker
-  // dedupes by exact bounds, so re-running is safe and never touches the
-  // villages' blockers (resetHouseBlockers is global — only used on unmount).
+  // Register pathfinding blockers (keep + each built house). registerHouseBlocker
+  // dedupes by exact bounds, so re-running on housesBuilt change is safe and
+  // never touches other blockers (resetHouseBlockers is global — unmount only).
   useEffect(() => {
-    const thHalf = 3.2 / 2 + 0.3
     registerHouseBlocker({
-      minX: TOWN_HALL_SLOT.x - thHalf,
-      maxX: TOWN_HALL_SLOT.x + thHalf,
-      minZ: TOWN_HALL_SLOT.z - thHalf,
-      maxZ: TOWN_HALL_SLOT.z + thHalf,
+      minX: KEEP_SLOT.x - KEEP_HALF.x,
+      maxX: KEEP_SLOT.x + KEEP_HALF.x,
+      minZ: KEEP_SLOT.z - KEEP_HALF.z,
+      maxZ: KEEP_SLOT.z + KEEP_HALF.z,
     })
     for (let i = 0; i < city.housesBuilt && i < HOUSE_SLOTS.length; i++) {
       const s = HOUSE_SLOTS[i]
@@ -60,11 +60,11 @@ export function City() {
     }
   }, [])
 
-  const thY = slotGroundY(TOWN_HALL_SLOT.x, TOWN_HALL_SLOT.z)
+  const keepY = slotGroundY(KEEP_SLOT.x, KEEP_SLOT.z)
 
   return (
     <group>
-      <TownHall position={[TOWN_HALL_SLOT.x, thY, TOWN_HALL_SLOT.z]} rotation={TOWN_HALL_SLOT.rotation} />
+      <Keep position={[KEEP_SLOT.x, keepY, KEEP_SLOT.z]} rotation={KEEP_SLOT.rotation} />
 
       {/* Houses for each built slot */}
       {HOUSE_SLOTS.slice(0, city.housesBuilt).map((s, i) => (
@@ -100,6 +100,16 @@ export function City() {
         TOWER_SLOTS.map((s, i) => (
           <Tower key={`tower-${i}`} position={[s.x, slotGroundY(s.x, s.z), s.z]} rotation={s.rotation} />
         ))}
+
+      {/* Farm */}
+      {city.farmBuilt && (
+        <Farm
+          position={[FARM_SLOT.x, slotGroundY(FARM_SLOT.x, FARM_SLOT.z), FARM_SLOT.z]}
+          rotation={FARM_SLOT.rotation}
+          w={FARM_SLOT.w}
+          d={FARM_SLOT.d}
+        />
+      )}
     </group>
   )
 }
