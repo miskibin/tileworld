@@ -1,5 +1,6 @@
 import { tileAt, COLS, ROWS, type Biome } from './tileMap'
 import { isInsideCastle, snapToCardinal } from './cityPlan'
+import { isRoadTile } from './roads'
 
 export type ObstacleKind =
   | 'tree'
@@ -52,6 +53,8 @@ const RESERVED = new Set<string>(
 function isReserved(x: number, z: number): boolean {
   // Trim any scatter inside the castle walls so structures place cleanly.
   if (isInsideCastle(x, z)) return true
+  // Never scatter props on a road tile.
+  if (isRoadTile(x, z)) return true
   return RESERVED.has(`${x},${z}`)
 }
 
@@ -71,7 +74,7 @@ const RADIUS_BY_KIND: Record<ObstacleKind, number> = {
   tree: 0.16,
   birch: 0.14,
   deadTree: 0.12,
-  bush: 0.2,
+  bush: 0, // small bushes are walk-through
   rock: 0,
   boulder: 0.34,
   mushroom: 0,

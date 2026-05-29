@@ -15,8 +15,8 @@ export const CITY_CENTER = { x: 57, z: 33 } as const
  *  central plain, clear of both rivers (N-S bends to ~x42, E-W reaches ~z23). */
 export const CASTLE_BOUNDS = { minX: 44, maxX: 70, minZ: 24, maxZ: 42 } as const
 
-/** How close the player must be to the Keep to press E. */
-export const INTERACT_DIST = 3.4
+/** How close the player must be to the Keep to press E (keep is multi-tile). */
+export const INTERACT_DIST = 4.2
 
 const HALF_PI = Math.PI / 2
 
@@ -66,6 +66,9 @@ export interface GateSlot {
   width: number
 }
 
+/** Gate openings (gap) along a wall: gives the clear span to leave in walls. */
+export const GATE_GAP = 4
+
 export interface FarmSlot {
   x: number
   z: number
@@ -86,40 +89,49 @@ function house(x: number, z: number): HouseSlot {
   return { x, z, rotation, doorX, doorZ }
 }
 
-/** Ten houses on a grid ring inside the walls, clear of the Keep and farm. */
+/** Eight houses in two grid rows inside the walls, clear of the gates, Keep
+ *  and farm (≥1.5 tiles from every wall). */
 export const HOUSE_SLOTS: HouseSlot[] = [
-  // north interior row (z=26)
-  house(48, 26),
-  house(54, 26),
-  house(60, 26),
-  house(66, 26),
-  // south interior row (z=40)
-  house(48, 40),
-  house(54, 40),
-  house(60, 40),
-  house(66, 40),
-  // mid sides (z=33)
-  house(47, 33),
-  house(67, 33),
+  // north interior row (z=27) — flanking the north gate
+  house(48, 27),
+  house(52, 27),
+  house(62, 27),
+  house(66, 27),
+  // south interior row (z=39) — flanking the south gate
+  house(48, 39),
+  house(52, 39),
+  house(62, 39),
+  house(66, 39),
 ]
 
 const WALL_H = 1.8
 
 // Perimeter walls (bounds x44..70, z24..42). rotation 0 = runs along X; 90° =
-// runs along Z. Gate breaks the south edge (player side).
+// runs along Z. Each side is split around its central gate, with segments that
+// span exactly tower→gate→tower so there are no gaps. Gate gaps: N/S at x55..59,
+// W/E at z31..35.
 export const WALL_SLOTS: WallSlot[] = [
-  // North edge (z=24) — full span x44..70
-  { x: 57, z: 24, rotation: 0, len: 26 },
-  // West edge (x=44) — z24..42
-  { x: 44, z: 33, rotation: HALF_PI, len: 18 },
-  // East edge (x=70) — z24..42
-  { x: 70, z: 33, rotation: HALF_PI, len: 18 },
-  // South edge (z=42) — split around the gate (gate gap x55..59)
-  { x: 49.5, z: 42, rotation: 0, len: 9 },
-  { x: 64.5, z: 42, rotation: 0, len: 9 },
+  // North edge (z=24)
+  { x: 49.5, z: 24, rotation: 0, len: 11 }, // x44..55
+  { x: 64.5, z: 24, rotation: 0, len: 11 }, // x59..70
+  // South edge (z=42)
+  { x: 49.5, z: 42, rotation: 0, len: 11 },
+  { x: 64.5, z: 42, rotation: 0, len: 11 },
+  // West edge (x=44)
+  { x: 44, z: 27.5, rotation: HALF_PI, len: 7 }, // z24..31
+  { x: 44, z: 38.5, rotation: HALF_PI, len: 7 }, // z35..42
+  // East edge (x=70)
+  { x: 70, z: 27.5, rotation: HALF_PI, len: 7 },
+  { x: 70, z: 38.5, rotation: HALF_PI, len: 7 },
 ]
 
-export const GATE_SLOT: GateSlot = { x: 57, z: 42, rotation: 0, width: 4 }
+/** Four gates, one centred on each wall. */
+export const GATE_SLOTS: GateSlot[] = [
+  { x: 57, z: 24, rotation: 0, width: GATE_GAP }, // north
+  { x: 57, z: 42, rotation: 0, width: GATE_GAP }, // south
+  { x: 44, z: 33, rotation: HALF_PI, width: GATE_GAP }, // west
+  { x: 70, z: 33, rotation: HALF_PI, width: GATE_GAP }, // east
+]
 
 export const TOWER_SLOTS: TowerSlot[] = [
   { x: 44, z: 24, rotation: snapToCardinal(Math.PI * 1.25) },
