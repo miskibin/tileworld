@@ -16,6 +16,9 @@ import { Bridge } from './Bridge'
 import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
 import { Mobs } from './Mobs'
+import { Bears } from './Bear'
+import { Chest } from './Chest'
+import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
 import { Birds } from './Birds'
@@ -109,6 +112,18 @@ export function World() {
 
         {/* Orks rendered from shared store (registered by OrkCamps) */}
         <Mobs />
+
+        {/* Bears — neutral wildlife that maul the player when approached */}
+        <Bears />
+
+        {/* Treasure chests — interactive (press F) with loot + gold */}
+        <Chest position={[44, 1, 38]} rotation={0.3} gold={15} loot={['sword_iron']} />
+        <Chest position={[24, 1, 52]} rotation={-0.5} gold={25} loot={['potion', 'potion']} />
+        <Chest position={[78, 1, 24]} rotation={1.0} gold={40} loot={['sword_gold']} />
+        <Chest position={[60, 1, 16]} rotation={2.2} gold={10} loot={['axe', 'bread']} />
+
+        {/* Number-key + right-click hotbar input */}
+        <HotbarInput />
 
         {/* Floating combat text (damage numbers, +gold, +XP) */}
         <FloatingText />

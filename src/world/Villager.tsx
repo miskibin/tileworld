@@ -4,6 +4,21 @@ import * as THREE from 'three'
 import type { VillagerState, VillagerStateName } from './villagerStore'
 import { isPaused } from './pauseStore'
 import { findPath } from './pathfinding'
+import { getPlayer } from './playerStore'
+import { playVillagerGrunt } from '../audio/sfx'
+import { hasBuffer, playSfx } from '../audio/audio'
+
+const VOICE_RANGE = 5 // murmur when the player is within this many tiles
+const VOICE_COOLDOWN = 6 // min seconds between a villager's grunts
+// Drop your own free clips at these paths to override the synthesized voice.
+const VOICE_FILES = ['/audio/villager1.mp3', '/audio/villager2.mp3', '/audio/villager3.mp3']
+
+/** Murmur near the player — uses a dropped-in clip if available, else synth. */
+function villagerVoice(seed: number): void {
+  const file = VOICE_FILES[Math.floor(Math.abs(seed) * 7) % VOICE_FILES.length]
+  if (hasBuffer(file)) void playSfx(file, 0.5, 0.08)
+  else playVillagerGrunt()
+}
 
 interface Props {
   state: VillagerState
@@ -113,12 +128,25 @@ export function VillagerView({ state }: Props) {
   )
 
   const walkPhase = useRef(0)
+  const nextVoiceAt = useRef(2 + Math.abs(state.seed) * 3)
   const [, setTick] = useState(0)
 
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
     const tNow = clock.getElapsedTime()
     tickStateMachine(state, tNow)
+
+    // Proximity murmur: grunt when the player lingers nearby, on a cooldown.
+    if (state.state !== 'home' && tNow >= nextVoiceAt.current) {
+      const p = getPlayer()
+      if (Math.hypot(p.x - state.x, p.z - state.z) < VOICE_RANGE) {
+        villagerVoice(state.seed)
+        nextVoiceAt.current = tNow + VOICE_COOLDOWN + Math.random() * 4
+      } else {
+        // Re-check soon without resetting the full cooldown.
+        nextVoiceAt.current = tNow + 0.7
+      }
+    }
 
     // Inside the house: hide and skip movement.
     const inside = state.state === 'home'

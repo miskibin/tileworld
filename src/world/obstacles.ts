@@ -223,3 +223,46 @@ export function obstacleCollidesAt(x: number, z: number, r: number): boolean {
   }
   return false
 }
+
+// ─── Pathing / spawn helpers ───────────────────────────────────
+// Tiles that contain a collidable prop (radius > 0). Used to make A* and spawns
+// route around trees/boulders instead of getting wedged against them.
+let blockedTiles: Set<number> | null = null
+
+function buildBlockedTiles(): Set<number> {
+  const s = new Set<number>()
+  for (const o of getObstacles()) {
+    if (o.radius > 0) s.add(Math.floor(o.z) * COLS + Math.floor(o.x))
+  }
+  return s
+}
+
+/** True if a collidable obstacle sits in tile (cx, cz). */
+export function isObstacleTile(cx: number, cz: number): boolean {
+  if (!blockedTiles) blockedTiles = buildBlockedTiles()
+  return blockedTiles.has(cz * COLS + cx)
+}
+
+/**
+ * Find the nearest standable, obstacle-free tile center to (x, z), searching
+ * outward in rings. Falls back to the rounded input if nothing is found.
+ * Used to validate creature spawns so they never start on water or in a prop.
+ */
+export function findSpawnNear(x: number, z: number, maxR = 8): { x: number; z: number } {
+  const ox = Math.floor(x)
+  const oz = Math.floor(z)
+  for (let r = 0; r <= maxR; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue // current ring only
+        const cx = ox + dx
+        const cz = oz + dz
+        const tile = tileAt(cx, cz)
+        if (tile && tile.height < 2 && !isObstacleTile(cx, cz)) {
+          return { x: cx + 0.5, z: cz + 0.5 }
+        }
+      }
+    }
+  }
+  return { x: ox + 0.5, z: oz + 0.5 }
+}
