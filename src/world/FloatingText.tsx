@@ -39,9 +39,12 @@ export function FloatingText() {
   useEffect(() => {
     let timer = 0
     const refresh = () => {
-      setFloats([...getFloats(performance.now() * 0.001)])
+      const live = [...getFloats(performance.now() * 0.001)]
+      setFloats(live)
       window.clearTimeout(timer)
-      timer = window.setTimeout(refresh, FLOAT_LIFETIME * 1000 + 50)
+      if (live.length > 0) {
+        timer = window.setTimeout(refresh, FLOAT_LIFETIME * 1000 + 50)
+      }
     }
     const unsub = subscribeFloats(refresh)
     return () => {
