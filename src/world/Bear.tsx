@@ -5,11 +5,13 @@ import * as THREE from 'three'
 import { tileAt } from './tileMap'
 import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { houseBlocksAt } from './houseBlockers'
+import { bridgeAt } from './bridges'
 import { findPath } from './pathfinding'
 import { isPaused } from './pauseStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
 import { playRoar } from '../audio/sfx'
+import { isCulled } from './cull'
 
 const BEAR_AGGRO = 6.5 // turns hostile within this range
 const BEAR_LEASH = 14 // gives up chase past this
@@ -75,6 +77,14 @@ function BearView({ state }: { state: BearState }) {
     const g = groupRef.current
     if (!g) return
 
+    // Distance cull: far bears are fog-hidden — hide + skip AI/animation work.
+    if (state.hp > 0 && isCulled(state.x, state.z)) {
+      if (g.visible) g.visible = false
+      return
+    } else if (!g.visible) {
+      g.visible = true
+    }
+
     // Death fade
     if (state.hp <= 0) {
       if (deadFadeFrom.current === null) deadFadeFrom.current = tNow
@@ -128,16 +138,23 @@ function BearView({ state }: { state: BearState }) {
       const step = speed * dt
       const nx = state.x + (dx / len) * step
       const nz = state.z + (dz / len) * step
+      // Bridges have no land tile beneath, so accept either solid ground OR a
+      // bridge span — otherwise the bear wedges on bridges (see screenshot).
+      const standable = (sx: number, sz: number) =>
+        tileAt(Math.floor(sx), Math.floor(sz)) !== null || bridgeAt(sx, sz) !== null
       const okX =
-        tileAt(Math.floor(nx), Math.floor(state.z)) !== null &&
+        standable(nx, state.z) &&
         !obstacleCollidesAt(nx, state.z, state.collisionRadius) &&
         !houseBlocksAt(nx, state.z)
       const okZ =
-        tileAt(Math.floor(state.x), Math.floor(nz)) !== null &&
+        standable(state.x, nz) &&
         !obstacleCollidesAt(state.x, nz, state.collisionRadius) &&
         !houseBlocksAt(state.x, nz)
       if (okX) state.x = nx
       if (okZ) state.z = nz
+      // Track bridge surface height so the bear rides the deck, not the gorge floor.
+      const br = bridgeAt(state.x, state.z)
+      if (br) state.y = br.y
       return okX || okZ
     }
 
@@ -320,6 +337,10 @@ const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
   { pos: [16, 18], seed: 1.3 },
   { pos: [82, 60], seed: 4.1 },
   { pos: [70, 14], seed: 6.7 },
+  // Out in the newly expanded wilds (spawns auto-snap to valid land).
+  { pos: [10, 56], seed: 8.2 },
+  { pos: [86, 36], seed: 2.9 },
+  { pos: [38, 64], seed: 5.5 },
 ]
 
 export function Bears() {

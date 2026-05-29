@@ -116,11 +116,17 @@ export function World() {
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
 
-        {/* Treasure chests — interactive (press F) with loot + gold */}
+        {/* Treasure chests — interactive (press F) with loot + gold. Positions
+            auto-snap to valid land, so they're safe to scatter widely. */}
         <Chest position={[44, 1, 38]} rotation={0.3} gold={15} loot={['sword_iron']} />
         <Chest position={[24, 1, 52]} rotation={-0.5} gold={25} loot={['potion', 'potion']} />
         <Chest position={[78, 1, 24]} rotation={1.0} gold={40} loot={['sword_gold']} />
         <Chest position={[60, 1, 16]} rotation={2.2} gold={10} loot={['axe', 'bread']} />
+        {/* Reward chests out toward the newly expanded coastline */}
+        <Chest position={[10, 1, 12]} rotation={0.8} gold={20} loot={['potion']} />
+        <Chest position={[88, 1, 64]} rotation={-1.2} gold={50} loot={['feast', 'potion']} />
+        <Chest position={[12, 1, 64]} rotation={1.6} gold={30} loot={['bread', 'bread', 'potion']} />
+        <Chest position={[88, 1, 10]} rotation={2.6} gold={35} loot={['sword_iron']} />
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />

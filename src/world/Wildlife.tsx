@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { tileAt } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
+import { isCulled } from './cull'
 
 const DOG_PALETTES: { body: string; dark: string }[] = [
   { body: '#8a5a3a', dark: '#5a3a22' },
@@ -88,6 +89,15 @@ function DogView({ state }: DogViewProps) {
   useFrame(({ clock }, dt) => {
     const t = clock.getElapsedTime()
     const s = state
+
+    // Distance cull: far dogs are fog-hidden — hide + skip AI/animation work.
+    const grp = groupRef.current
+    if (s.hp > 0 && grp && isCulled(s.x, s.z)) {
+      if (grp.visible) grp.visible = false
+      return
+    } else if (grp && !grp.visible) {
+      grp.visible = true
+    }
 
     // Dead-fade
     if (s.hp <= 0) {
