@@ -36,6 +36,23 @@ const GOLD_MAT = new THREE.MeshStandardMaterial({
 
 const INTERACT_DIST = 2.6
 
+// Triangular gable end: base spans the depth (±halfD), apex at the ridge.
+// Cached per (halfD,h) pair so we don't rebuild shapes each render.
+const gableCache = new Map<string, THREE.Shape>()
+function gableShape(halfD: number, h: number): THREE.Shape {
+  const key = `${halfD},${h}`
+  let s = gableCache.get(key)
+  if (!s) {
+    s = new THREE.Shape()
+    s.moveTo(-halfD, 0)
+    s.lineTo(halfD, 0)
+    s.lineTo(0, h)
+    s.closePath()
+    gableCache.set(key, s)
+  }
+  return s
+}
+
 // Buying adds the item to the player's hotbar (right-click to consume → heal).
 // apply() fails if the player can't afford it or the bag is full.
 function buy(price: number, itemId: string): boolean {
@@ -146,11 +163,48 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
       <mesh position={[0.55, FOUND_H + 0.94, WALL_D / 2 - 0.1]} material={GOLD_MAT}>
         <cylinderGeometry args={[0.05, 0.05, 0.04, 8]} />
       </mesh>
-      {/* Roof — gently pitched slab seated on the walls + header beam, with a
-          modest eave overhang (no longer a steep detached slab). */}
-      <mesh position={[0, FOUND_H + WALL_H + 0.12, 0]} rotation={[0.18, 0, 0]} castShadow material={ROOF_MAT}>
-        <boxGeometry args={[WALL_W + 0.3, 0.1, WALL_D + 0.5]} />
-      </mesh>
+      {/* Roof — proper A-frame gable: two pitched panels meeting at a ridge,
+          with triangular gable ends sealing the sides. Sits flush on the wall
+          tops so there's no floating-slab gap. */}
+      {(() => {
+        const eaveY = FOUND_H + WALL_H // wall top
+        const ridgeY = eaveY + 0.85 // ridge height above the eaves
+        const halfD = WALL_D / 2 + 0.25 // eave overhang front/back
+        const panelLen = Math.hypot(halfD, ridgeY - eaveY)
+        const pitch = Math.atan2(ridgeY - eaveY, halfD)
+        return (
+          <group position={[0, 0, 0]}>
+            {/* Back-facing panel (−Z slope) */}
+            <mesh
+              position={[0, (eaveY + ridgeY) / 2, -halfD / 2]}
+              rotation={[-pitch, 0, 0]}
+              castShadow
+              material={ROOF_MAT}
+            >
+              <boxGeometry args={[WALL_W + 0.4, 0.09, panelLen]} />
+            </mesh>
+            {/* Front-facing panel (+Z slope) */}
+            <mesh
+              position={[0, (eaveY + ridgeY) / 2, halfD / 2]}
+              rotation={[pitch, 0, 0]}
+              castShadow
+              material={ROOF_MAT}
+            >
+              <boxGeometry args={[WALL_W + 0.4, 0.09, panelLen]} />
+            </mesh>
+            {/* Ridge cap */}
+            <mesh position={[0, ridgeY, 0]} castShadow material={SIGN_MAT}>
+              <boxGeometry args={[WALL_W + 0.42, 0.1, 0.12]} />
+            </mesh>
+            {/* Gable triangles seal the two open ends under the ridge */}
+            {[-WALL_W / 2 + 0.05, WALL_W / 2 - 0.05].map((gx, i) => (
+              <mesh key={i} position={[gx, eaveY, 0]} rotation={[0, Math.PI / 2, 0]} material={WALL_MAT}>
+                <shapeGeometry args={[gableShape(halfD, ridgeY - eaveY)]} />
+              </mesh>
+            ))}
+          </group>
+        )
+      })()}
       {/* Sign post + sign board */}
       <mesh position={[WALL_W / 2 + 0.3, FOUND_H + 0.9, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
         <boxGeometry args={[0.06, 1.6, 0.06]} />

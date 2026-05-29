@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import * as THREE from 'three'
@@ -8,6 +8,8 @@ import { getPlayer, addGold } from './playerStore'
 import { addItem } from './inventoryStore'
 import { spawnFloat } from './fxStore'
 import { playChestOpen } from '../audio/sfx'
+import { findSpawnNear } from './obstacles'
+import { tileAt } from './tileMap'
 
 interface ChestProps {
   position: [number, number, number]
@@ -26,6 +28,14 @@ const LOCK = new THREE.MeshStandardMaterial({ color: '#e0b04a', roughness: 0.5, 
 const INTERACT_DIST = 2.2
 
 export function Chest({ position, rotation = 0, loot = [], gold = 0 }: ChestProps) {
+  // Snap to valid land so chests placed in the expanded coastline can't float
+  // on water. Resolved once from the requested spot.
+  const pos = useMemo<[number, number, number]>(() => {
+    const s = findSpawnNear(position[0], position[2])
+    const tile = tileAt(Math.floor(s.x), Math.floor(s.z))
+    return [s.x, tile ? tile.height : position[1], s.z]
+  }, [position])
+
   const lidRef = useRef<THREE.Group>(null!)
   const promptRef = useRef<THREE.Group>(null!)
   const glowRef = useRef<THREE.PointLight>(null!)
@@ -36,7 +46,7 @@ export function Chest({ position, rotation = 0, loot = [], gold = 0 }: ChestProp
   useFrame(() => {
     if (isPaused()) return
     const p = getPlayer()
-    const near = Math.hypot(p.x - position[0], p.z - position[2]) < INTERACT_DIST
+    const near = Math.hypot(p.x - pos[0], p.z - pos[2]) < INTERACT_DIST
     inRange.current = near
     if (promptRef.current) promptRef.current.visible = near && !opened && !isShopOpen()
 
@@ -55,19 +65,19 @@ export function Chest({ position, rotation = 0, loot = [], gold = 0 }: ChestProp
       playChestOpen()
       if (gold > 0) {
         addGold(gold)
-        spawnFloat(`+${gold} ★`, '#ffd58c', position[0], position[1] + 1.6, position[2])
+        spawnFloat(`+${gold} ★`, '#ffd58c', pos[0], pos[1] + 1.6, pos[2])
       }
       loot.forEach((id, i) => {
         const ok = addItem(id)
-        if (ok) spawnFloat('+1 item', '#9be88a', position[0] + (i - loot.length / 2) * 0.4, position[1] + 1.2 + i * 0.3, position[2])
+        if (ok) spawnFloat('+1 item', '#9be88a', pos[0] + (i - loot.length / 2) * 0.4, pos[1] + 1.2 + i * 0.3, pos[2])
       })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [opened, gold, loot, position])
+  }, [opened, gold, loot, pos])
 
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
+    <group position={pos} rotation={[0, rotation, 0]}>
       {/* Base box */}
       <mesh position={[0, 0.18, 0]} castShadow receiveShadow material={WOOD}>
         <boxGeometry args={[0.7, 0.36, 0.5]} />

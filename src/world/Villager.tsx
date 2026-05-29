@@ -6,6 +6,7 @@ import { isPaused } from './pauseStore'
 import { getCity, subscribeCity } from './cityStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
+import { isCulled } from './cull'
 import { playVillagerGrunt } from '../audio/sfx'
 import { hasBuffer, playSfx } from '../audio/audio'
 
@@ -133,7 +134,6 @@ export function VillagerView({ state }: Props) {
 
   const walkPhase = useRef(0)
   const nextVoiceAt = useRef(2 + Math.abs(state.seed) * 3)
-  const [, setTick] = useState(0)
 
   // Global villager armour tier (Defense upgrade branch).
   const [armorTier, setArmorTier] = useState(() => getCity().villagerArmorTier)
@@ -143,6 +143,13 @@ export function VillagerView({ state }: Props) {
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
     const tNow = clock.getElapsedTime()
+
+    // Distance cull: far villagers are fog-hidden — hide + skip update work.
+    if (ref.current && isCulled(state.x, state.z)) {
+      if (ref.current.visible) ref.current.visible = false
+      return
+    }
+
     tickStateMachine(state, tNow)
 
     // Proximity murmur: grunt when the player lingers nearby, on a cooldown.
@@ -248,8 +255,6 @@ export function VillagerView({ state }: Props) {
       headRef.current.rotation.y =
         Math.sin(tNow * 0.7 + state.seed) * 0.18 * (moving ? 0 : 1)
     }
-
-    setTick((n) => (n + 1) & 0xff)
   })
 
   return (
