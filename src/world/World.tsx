@@ -76,10 +76,11 @@ export function World() {
         <Scatter />
         <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
 
-        {/* Ork camps spread to the far corners of the larger map */}
-        <OrkCamp position={[20, 1, 50]} rotation={0.3} seed={3.3} />
-        <OrkCamp position={[76, 1, 22]} rotation={-0.8} seed={7.7} />
-        <OrkCamp position={[74, 1, 58]} rotation={1.1} seed={5.1} />
+        {/* Ork camps near the biome corners + a northern warcamp */}
+        <OrkCamp position={[22, 1, 52]} rotation={0.3} seed={3.3} />
+        <OrkCamp position={[76, 1, 20]} rotation={-0.8} seed={7.7} />
+        <OrkCamp position={[74, 1, 54]} rotation={1.1} seed={5.1} />
+        <OrkCamp position={[50, 1, 13]} rotation={0} seed={9.2} />
 
         {/* Remote hamlet west of the castle */}
         <Village position={[26, 30]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />

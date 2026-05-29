@@ -26,25 +26,25 @@ export interface Obstacle {
 
 // Hand-placed structure footprints to keep clear of scatter (camps + villages).
 // Positions chosen for the 96x72 procedural map; adjust if camps move.
+// Hand-placed structure footprints to keep clear of scatter. The castle
+// interior is handled separately (see isInsideCastle in isReserved).
 const RESERVED = new Set<string>(
   (() => {
     const r: string[] = []
-    // Knight spawn + friendly camp 1 (center of map)
-    for (let z = 32; z <= 38; z++) for (let x = 44; x <= 52; x++) r.push(`${x},${z}`)
-    // Friendly camp 2 (east of center)
-    for (let z = 31; z <= 36; z++) for (let x = 55; x <= 60; x++) r.push(`${x},${z}`)
-    // Ork camp 1 (SW)
-    for (let z = 47; z <= 53; z++) for (let x = 17; x <= 23; x++) r.push(`${x},${z}`)
-    // Ork camp 2 (NE)
-    for (let z = 19; z <= 25; z++) for (let x = 73; x <= 79; x++) r.push(`${x},${z}`)
-    // Village 1 footprint (incl. shop just to the south-west)
-    for (let z = 39; z <= 47; z++) for (let x = 49; x <= 63; x++) r.push(`${x},${z}`)
-    // Village 2 footprint
-    for (let z = 27; z <= 33; z++) for (let x = 23; x <= 31; x++) r.push(`${x},${z}`)
+    const box = (x0: number, x1: number, z0: number, z1: number) => {
+      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) r.push(`${x},${z}`)
+    }
+    // Ork camps (SW / NE / SE / north warcamp)
+    box(19, 25, 49, 55)
+    box(73, 79, 17, 23)
+    box(71, 77, 51, 57)
+    box(47, 53, 10, 16)
+    // Western hamlet
+    box(23, 31, 27, 33)
     // Bridge approaches — keep clear so the player can walk on
-    for (let z = 29; z <= 32; z++) for (let x = 30; x <= 50; x++) r.push(`${x},${z}`)
-    for (let z = 49; z <= 52; z++) for (let x = 30; x <= 50; x++) r.push(`${x},${z}`)
-    for (let z = 12; z <= 22; z++) for (let x = 63; x <= 66; x++) r.push(`${x},${z}`)
+    box(30, 44, 28, 33)
+    box(30, 44, 48, 53)
+    box(62, 67, 12, 22)
     return r
   })(),
 )
