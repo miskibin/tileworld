@@ -9,8 +9,6 @@ import { useAudioEnabled } from '../audio/useAudioEnabled'
 import { Terrain } from './Terrain'
 import { Water, WaterFloor } from './Water'
 import { Scatter } from './Scatter'
-import { Campfire } from './Campfire'
-import { Tent } from './Tent'
 import { OrkCamp } from './OrkCamp'
 import { Bridge } from './Bridge'
 import { Character, type PlayerStateRef } from './Character'
@@ -78,28 +76,20 @@ export function World() {
         <Scatter />
         <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
 
-        {/* Friendly camps */}
-        <Tent position={[46, 1, 34]} rotation={Math.PI / 6} />
-        <Campfire position={[48, 1, 35]} seed={0.2} />
-
-        <Tent position={[58, 1, 33]} rotation={-Math.PI / 4} color="#7a8f4a" />
-        <Campfire position={[57, 1, 34.5]} seed={1.4} />
-
         {/* Ork camps spread to the far corners of the larger map */}
         <OrkCamp position={[20, 1, 50]} rotation={0.3} seed={3.3} />
         <OrkCamp position={[76, 1, 22]} rotation={-0.8} seed={7.7} />
         <OrkCamp position={[74, 1, 58]} rotation={1.1} seed={5.1} />
 
-        {/* Friendly villages */}
-        <Village position={[58, 44]} rotation={-0.4} seed={1.7} wallColor="#d3b78b" roofColor="#6b3322" />
+        {/* Remote hamlet west of the castle */}
         <Village position={[26, 30]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
 
-        {/* Central upgradeable city — Town Hall + tree-built structures */}
+        {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
         <VillagerCrowd />
 
-        {/* Shop next to the eastern village */}
-        <Shop position={[52, 1, 42]} rotation={0.6} />
+        {/* Market shop just inside the castle's south side */}
+        <Shop position={[50, 1, 41]} rotation={Math.PI} />
 
         {/* A cat hangs around each village */}
         <Cat home={[58, 1, 46]} seed={0.7} />

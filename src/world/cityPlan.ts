@@ -1,25 +1,46 @@
 import { tileAt } from './tileMap'
 
-// The central city the player upgrades via the Town Hall tree. All coords are
-// absolute grid coords in the offset-group space used by World.tsx (same space
-// as villages/shop). Layout is verified on clear land north of the player spawn
-// (48,36): clear of the river (~z22), the shop (52,42), tents and chests.
+// The central castle the player upgrades via the Keep's upgrade tree. All coords
+// are absolute grid coords in the offset-group space used by World.tsx. The
+// castle is "fully tree-built": only the Keep exists at the start; the upgrade
+// tree raises the walls, gates, towers, houses and farm.
+//
+// Grid-based design: every placed model uses one of four cardinal rotations
+// (0, 90, 180, 270°) — see snapToCardinal — so the layout stays grid-aligned
+// and easy to reason about.
 
-export const CITY_CENTER = { x: 52, z: 30 } as const
+export const CITY_CENTER = { x: 56, z: 33 } as const
 
-/** How close the player must be to the Town Hall to press E. */
-export const INTERACT_DIST = 2.6
+/** Wall perimeter (also the footprint reserved from scatter). */
+export const CASTLE_BOUNDS = { minX: 43, maxX: 69, minZ: 23, maxZ: 43 } as const
 
-/** The Town Hall — the interactable core of the city. */
-export const TOWN_HALL_SLOT = { x: CITY_CENTER.x, z: CITY_CENTER.z, rotation: 0 } as const
-/** Player-facing interaction anchor (same as the building footprint). */
-export const TOWN_HALL_INTERACT = { x: TOWN_HALL_SLOT.x, z: TOWN_HALL_SLOT.z } as const
+/** How close the player must be to the Keep to press E. */
+export const INTERACT_DIST = 3.4
+
+const HALF_PI = Math.PI / 2
+
+/** Snap any angle to the nearest cardinal (0, 90, 180, 270°). */
+export function snapToCardinal(a: number): number {
+  const snapped = Math.round(a / HALF_PI) * HALF_PI
+  // Normalise to [0, 2π).
+  return ((snapped % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+}
+
+/** Cardinal rotation whose +Z front faces the city centre. */
+function faceCenter(x: number, z: number): number {
+  return snapToCardinal(Math.atan2(CITY_CENTER.x - x, CITY_CENTER.z - z))
+}
+
+// ---- Keep (central, multi-tile, interactable, exists from start) ----
+export const KEEP_SLOT = { x: CITY_CENTER.x, z: CITY_CENTER.z, rotation: 0 } as const
+export const KEEP_INTERACT = { x: KEEP_SLOT.x, z: KEEP_SLOT.z } as const
+/** Keep footprint half-extents (for blocker + scatter keep-clear). */
+export const KEEP_HALF = { x: 3.5, z: 3 } as const
 
 export interface HouseSlot {
   x: number
   z: number
   rotation: number
-  /** door position in front of the house (+Z local face) */
   doorX: number
   doorZ: number
 }
@@ -28,7 +49,6 @@ export interface WallSlot {
   x: number
   z: number
   rotation: number
-  /** length of the segment along its local X axis */
   len: number
 }
 
@@ -45,14 +65,17 @@ export interface GateSlot {
   width: number
 }
 
-/** Rotation so a building's +Z front faces the city centre. */
-function faceCenter(x: number, z: number): number {
-  return Math.atan2(CITY_CENTER.x - x, CITY_CENTER.z - z)
+export interface FarmSlot {
+  x: number
+  z: number
+  rotation: number
+  w: number
+  d: number
 }
 
-/** Door sits ~1.4 tiles out the front (+Z local) of the house. */
+/** Door sits ~1.6 tiles out the front (+Z local) of the house. */
 function doorInFront(x: number, z: number, rotation: number): { doorX: number; doorZ: number } {
-  const off = 1.4
+  const off = 1.6
   return { doorX: x + Math.sin(rotation) * off, doorZ: z + Math.cos(rotation) * off }
 }
 
@@ -62,42 +85,50 @@ function house(x: number, z: number): HouseSlot {
   return { x, z, rotation, doorX, doorZ }
 }
 
-/** Six houses ringing the Town Hall, each fronting toward the centre. */
+/** Ten houses on a grid ring inside the walls, clear of the Keep and farm. */
 export const HOUSE_SLOTS: HouseSlot[] = [
-  house(52, 26),
-  house(56, 28),
-  house(56, 32),
-  house(52, 34),
-  house(48, 32),
-  house(48, 28),
+  // north interior row (z=26)
+  house(47, 26),
+  house(53, 26),
+  house(59, 26),
+  house(65, 26),
+  // south interior row (z=40)
+  house(47, 40),
+  house(53, 40),
+  house(59, 40),
+  house(65, 40),
+  // mid sides (z=33)
+  house(45, 33),
+  house(67, 33),
 ]
 
-// Square perimeter at radius 6: corners (46,24) (58,24) (58,36) (46,36).
-const WALL_H = 1.6
+const WALL_H = 1.8
 
-/** Wall segments (gate breaks the south edge). rotation 0 = runs along X. */
+// Perimeter walls. rotation 0 = runs along X; 90° = runs along Z. Gate breaks
+// the south edge (player side).
 export const WALL_SLOTS: WallSlot[] = [
-  // North edge (z=24) — full span
-  { x: 52, z: 24, rotation: 0, len: 12 },
-  // West edge (x=46) — runs along Z
-  { x: 46, z: 30, rotation: Math.PI / 2, len: 12 },
-  // East edge (x=58) — runs along Z
-  { x: 58, z: 30, rotation: Math.PI / 2, len: 12 },
-  // South edge (z=36) — split around the central gate (gate spans x 50..54)
-  { x: 48, z: 36, rotation: 0, len: 4 },
-  { x: 56, z: 36, rotation: 0, len: 4 },
+  // North edge (z=23) — full span x43..69
+  { x: 56, z: 23, rotation: 0, len: 26 },
+  // West edge (x=43) — z23..43
+  { x: 43, z: 33, rotation: HALF_PI, len: 20 },
+  // East edge (x=69) — z23..43
+  { x: 69, z: 33, rotation: HALF_PI, len: 20 },
+  // South edge (z=43) — split around the gate (gate gap x54..58)
+  { x: 48.5, z: 43, rotation: 0, len: 9 },
+  { x: 63.5, z: 43, rotation: 0, len: 9 },
 ]
 
-/** Gate breaks the south wall, facing the player approach from spawn. */
-export const GATE_SLOT: GateSlot = { x: 52, z: 36, rotation: 0, width: 4 }
+export const GATE_SLOT: GateSlot = { x: 56, z: 43, rotation: 0, width: 4 }
 
-/** Watchtowers at the four wall corners. */
 export const TOWER_SLOTS: TowerSlot[] = [
-  { x: 46, z: 24, rotation: Math.PI * 1.25 },
-  { x: 58, z: 24, rotation: Math.PI * 1.75 },
-  { x: 58, z: 36, rotation: Math.PI * 0.25 },
-  { x: 46, z: 36, rotation: Math.PI * 0.75 },
+  { x: 43, z: 23, rotation: snapToCardinal(Math.PI * 1.25) },
+  { x: 69, z: 23, rotation: snapToCardinal(Math.PI * 1.75) },
+  { x: 69, z: 43, rotation: snapToCardinal(Math.PI * 0.25) },
+  { x: 43, z: 43, rotation: snapToCardinal(Math.PI * 0.75) },
 ]
+
+/** A tended farm plot in the NE interior. */
+export const FARM_SLOT: FarmSlot = { x: 62, z: 28, rotation: 0, w: 5, d: 4 }
 
 export const CITY_WALL_HEIGHT = WALL_H
 
@@ -105,4 +136,9 @@ export const CITY_WALL_HEIGHT = WALL_H
 export function slotGroundY(x: number, z: number): number {
   const tile = tileAt(Math.floor(x), Math.floor(z))
   return tile ? tile.height : 1
+}
+
+/** True if a grid tile lies within the castle wall perimeter. */
+export function isInsideCastle(x: number, z: number): boolean {
+  return x >= CASTLE_BOUNDS.minX && x <= CASTLE_BOUNDS.maxX && z >= CASTLE_BOUNDS.minZ && z <= CASTLE_BOUNDS.maxZ
 }

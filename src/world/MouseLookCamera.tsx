@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import type { PlayerStateRef } from './Character'
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { isShopOpen, subscribeShop } from './shopStore'
+import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
 import { getShake } from './fxStore'
 
@@ -49,7 +50,7 @@ export function MouseLookCamera({ posRef }: Props) {
       const target = e.target as Element | null
       if (target && target.closest('.hud')) return
       if (locked.current) return
-      if (isShopOpen() || isPaused()) return
+      if (isShopOpen() || isPaused() || isTreeOpen()) return
       el.requestPointerLock()
     }
     const onWheel = (e: WheelEvent) => {
@@ -74,6 +75,11 @@ export function MouseLookCamera({ posRef }: Props) {
     const unsubPaused = subscribePaused((p) => {
       if (p && document.pointerLockElement === el) document.exitPointerLock()
     })
+    // Release the mouse when the Town Hall upgrade tree opens, so the cursor is
+    // free to click nodes without pressing Esc first.
+    const unsubTree = subscribeTree((open) => {
+      if (open && document.pointerLockElement === el) document.exitPointerLock()
+    })
 
     return () => {
       el.style.cursor = ''
@@ -83,6 +89,7 @@ export function MouseLookCamera({ posRef }: Props) {
       document.removeEventListener('pointerlockchange', onLockChange)
       unsubShop()
       unsubPaused()
+      unsubTree()
     }
   }, [gl])
 

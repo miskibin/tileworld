@@ -10,6 +10,7 @@ import {
   setWallsBuilt,
   setGateBuilt,
   setTowersBuilt,
+  setFarmBuilt,
   bumpVillagerArmor,
 } from './cityStore'
 import { unlockWeapon } from './weaponUnlockStore'
@@ -55,47 +56,85 @@ function buildNextHouse(): boolean {
   return true
 }
 
+/** Build up to `n` houses (a district). Succeeds if at least one was built. */
+function buildHouses(n: number): boolean {
+  let built = 0
+  for (let i = 0; i < n; i++) {
+    if (!buildNextHouse()) break
+    built++
+  }
+  return built > 0
+}
+
 export const UPGRADE_NODES: UpgradeNode[] = [
   // ---- Economy: grow the population ----
   {
-    id: 'eco_house_1',
+    id: 'eco_district_1',
     branch: 'economy',
-    name: "Settler's Cottage",
-    desc: 'Build a cottage and welcome a new villager.',
+    name: "Settlers' District",
+    desc: 'Raise two cottages and welcome two villagers.',
     icon: '🏠',
     cost: 20,
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildNextHouse()
+      return buildHouses(2)
     },
   },
   {
-    id: 'eco_house_2',
+    id: 'eco_district_2',
     branch: 'economy',
-    name: 'Second Cottage',
-    desc: 'Another cottage and villager join the city.',
+    name: 'Market Row',
+    desc: 'Two more cottages and villagers.',
     icon: '🏠',
-    cost: 40,
-    prereqId: 'eco_house_1',
+    cost: 45,
+    prereqId: 'eco_district_1',
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildNextHouse()
+      return buildHouses(2)
     },
   },
   {
-    id: 'eco_house_3',
+    id: 'eco_district_3',
     branch: 'economy',
-    name: 'Growing Hamlet',
-    desc: 'A third cottage and villager.',
+    name: 'Craftsmen Quarter',
+    desc: 'Two more cottages and villagers.',
     icon: '🏡',
-    cost: 75,
-    prereqId: 'eco_house_2',
+    cost: 80,
+    prereqId: 'eco_district_2',
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildNextHouse()
+      return buildHouses(2)
+    },
+  },
+  {
+    id: 'eco_district_4',
+    branch: 'economy',
+    name: 'Thriving Town',
+    desc: 'Two final cottages and villagers.',
+    icon: '🏘️',
+    cost: 120,
+    prereqId: 'eco_district_3',
+    apply() {
+      if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
+      if (!spendGold(this.cost)) return false
+      return buildHouses(2)
+    },
+  },
+  {
+    id: 'eco_farm',
+    branch: 'economy',
+    name: 'Granary Farm',
+    desc: 'Till a farm plot inside the walls.',
+    icon: '🌾',
+    cost: 35,
+    apply() {
+      if (getCity().farmBuilt) return false
+      if (!spendGold(this.cost)) return false
+      setFarmBuilt(true)
+      return true
     },
   },
 

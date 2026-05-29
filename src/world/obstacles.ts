@@ -1,4 +1,5 @@
 import { tileAt, COLS, ROWS, type Biome } from './tileMap'
+import { isInsideCastle, snapToCardinal } from './cityPlan'
 
 export type ObstacleKind =
   | 'tree'
@@ -49,6 +50,8 @@ const RESERVED = new Set<string>(
 )
 
 function isReserved(x: number, z: number): boolean {
+  // Trim any scatter inside the castle walls so structures place cleanly.
+  if (isInsideCastle(x, z)) return true
   return RESERVED.has(`${x},${z}`)
 }
 
@@ -186,7 +189,8 @@ function generate(): Obstacle[] {
 
       const cx = x + 0.5 + (rand() - 0.5) * 0.4
       const cz = z + 0.5 + (rand() - 0.5) * 0.4
-      const rot = rand() * Math.PI * 2
+      // Grid-based: every placed model snaps to a cardinal rotation.
+      const rot = snapToCardinal(rand() * Math.PI * 2)
       const scale = 0.85 + rand() * 0.45
       const variant = Math.floor(rand() * 4)
 
@@ -199,7 +203,7 @@ function generate(): Obstacle[] {
             x + rand(),
             z + rand(),
             0.7 + rand() * 0.5,
-            rand() * Math.PI * 2,
+            snapToCardinal(rand() * Math.PI * 2),
             Math.floor(rand() * 4),
           )
         }
