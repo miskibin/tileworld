@@ -7,8 +7,10 @@ import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
 import { playSwing, playHit, playKill } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
+import { getWeaponBonus } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
+import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
@@ -197,11 +199,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         (tileAt(Math.floor(nx), czFloor) !== null || bridgeAt(nx, pos.current.z) !== null) &&
         !obstacleCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
+        !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
         (tileAt(cxFloor, Math.floor(nz)) !== null || bridgeAt(pos.current.x, nz) !== null) &&
         !obstacleCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
+        !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !houseBlocksAt(pos.current.x, nz)
       if (canMoveX) pos.current.x = nx
       if (canMoveZ) pos.current.z = nz
@@ -311,7 +315,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
-          const dmg = getAttackDamage()
+          const dmg = getAttackDamage() + getWeaponBonus()
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
           let hitAny = false
@@ -344,6 +348,25 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               spawnFloat(`+${XP_PER_ORK} XP`, '#62c6e8', ork.x - 0.3, ork.y + 2.0, ork.z)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', ork.x, ork.y + 2.2, ork.z)
+            }
+          }
+          for (const bear of getAliveBears()) {
+            const vx = bear.x - pos.current.x
+            const vz = bear.z - pos.current.z
+            const dist = Math.hypot(vx, vz)
+            if (dist > ATTACK_RANGE || dist < 0.001) continue
+            const dot = (vx / dist) * fx + (vz / dist) * fz
+            if (dot < ATTACK_CONE_DOT) continue
+            const died = damageBear(bear, dmg, t)
+            hitAny = true
+            if (died) {
+              killedAny = true
+              addGold(20) // bears are tougher — bigger bounty
+              addXp(XP_PER_ORK * 2)
+              spawnFloat('+20 ★', '#ffd58c', bear.x, bear.y + 2.6, bear.z)
+              spawnFloat(`+${XP_PER_ORK * 2} XP`, '#62c6e8', bear.x - 0.3, bear.y + 2.2, bear.z)
+            } else {
+              spawnFloat(`${dmg}`, '#ffffff', bear.x, bear.y + 2.4, bear.z)
             }
           }
           // Combat juice: impact SFX + camera shake scaled to the outcome.

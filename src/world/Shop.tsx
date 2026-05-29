@@ -3,8 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
-import { getPlayer, healPlayer, spendGold } from './playerStore'
+import { getPlayer, spendGold } from './playerStore'
 import { openShop, closeShop, isShopOpen, type ShopItem } from './shopStore'
+import { addItem } from './inventoryStore'
 
 interface ShopProps {
   /** village grid-space anchor */
@@ -34,40 +35,22 @@ const GOLD_MAT = new THREE.MeshStandardMaterial({
 
 const INTERACT_DIST = 2.6
 
+// Buying adds the item to the player's hotbar (right-click to consume → heal).
+// apply() fails if the player can't afford it or the bag is full.
+function buy(price: number, itemId: string): boolean {
+  if (!spendGold(price)) return false
+  if (!addItem(itemId)) {
+    // Bag full — refund and reject so gold isn't lost.
+    spendGold(-price)
+    return false
+  }
+  return true
+}
+
 const SHOP_ITEMS: ShopItem[] = [
-  {
-    id: 'bread',
-    name: 'Bread',
-    icon: '🍞',
-    price: 4,
-    apply: () => {
-      if (!spendGold(4)) return false
-      healPlayer(15)
-      return true
-    },
-  },
-  {
-    id: 'potion',
-    name: 'Health Potion',
-    icon: '🧪',
-    price: 12,
-    apply: () => {
-      if (!spendGold(12)) return false
-      healPlayer(40)
-      return true
-    },
-  },
-  {
-    id: 'feast',
-    name: 'Tavern Feast',
-    icon: '🍖',
-    price: 28,
-    apply: () => {
-      if (!spendGold(28)) return false
-      healPlayer(100)
-      return true
-    },
-  },
+  { id: 'bread', name: 'Bread', icon: '🍞', price: 4, apply: () => buy(4, 'bread') },
+  { id: 'potion', name: 'Health Potion', icon: '🧪', price: 12, apply: () => buy(12, 'potion') },
+  { id: 'feast', name: 'Tavern Feast', icon: '🍖', price: 28, apply: () => buy(28, 'feast') },
 ]
 
 export function Shop({ position, rotation = 0 }: ShopProps) {
@@ -123,12 +106,17 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
       <mesh position={[0, FOUND_H + 0.55, WALL_D / 2 - 0.1]} castShadow material={COUNTER_MAT}>
         <boxGeometry args={[WALL_W - 0.2, 0.55, 0.18]} />
       </mesh>
-      {/* Counter posts */}
-      <mesh position={[-WALL_W / 2 + 0.18, FOUND_H + 0.6, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
-        <boxGeometry args={[0.1, 0.7, 0.1]} />
+      {/* Counter posts — full height to carry the roof's front edge */}
+      <mesh position={[-WALL_W / 2 + 0.12, FOUND_H + WALL_H / 2, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
+        <boxGeometry args={[0.12, WALL_H, 0.12]} />
       </mesh>
-      <mesh position={[WALL_W / 2 - 0.18, FOUND_H + 0.6, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
-        <boxGeometry args={[0.1, 0.7, 0.1]} />
+      <mesh position={[WALL_W / 2 - 0.12, FOUND_H + WALL_H / 2, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
+        <boxGeometry args={[0.12, WALL_H, 0.12]} />
+      </mesh>
+      {/* Front header beam — closes the gap between counter and roof so the
+          stall reads as a solid structure rather than a floating roof. */}
+      <mesh position={[0, FOUND_H + WALL_H - 0.06, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>
+        <boxGeometry args={[WALL_W - 0.1, 0.18, 0.12]} />
       </mesh>
       {/* A few gold coin piles on the counter for flavour */}
       <mesh position={[-0.6, FOUND_H + 0.86, WALL_D / 2 - 0.1]} castShadow material={GOLD_MAT}>
@@ -140,9 +128,10 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
       <mesh position={[0.55, FOUND_H + 0.94, WALL_D / 2 - 0.1]} material={GOLD_MAT}>
         <cylinderGeometry args={[0.05, 0.05, 0.04, 8]} />
       </mesh>
-      {/* Roof — single slanted slab */}
-      <mesh position={[0, FOUND_H + WALL_H + 0.1, 0]} rotation={[0.35, 0, 0]} castShadow material={ROOF_MAT}>
-        <boxGeometry args={[WALL_W + 0.4, 0.08, WALL_D + 0.4]} />
+      {/* Roof — gently pitched slab seated on the walls + header beam, with a
+          modest eave overhang (no longer a steep detached slab). */}
+      <mesh position={[0, FOUND_H + WALL_H + 0.12, 0]} rotation={[0.18, 0, 0]} castShadow material={ROOF_MAT}>
+        <boxGeometry args={[WALL_W + 0.3, 0.1, WALL_D + 0.5]} />
       </mesh>
       {/* Sign post + sign board */}
       <mesh position={[WALL_W / 2 + 0.3, FOUND_H + 0.9, WALL_D / 2 - 0.1]} castShadow material={FRAME_MAT}>

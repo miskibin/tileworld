@@ -34,6 +34,11 @@ export function setEnabled(v: boolean): void {
   subscribers.forEach((fn) => fn(v))
 }
 
+/** True once a buffer for this url has been requested (and likely loaded). */
+export function hasBuffer(url: string): boolean {
+  return buffers.has(url)
+}
+
 export function loadBuffer(url: string): Promise<AudioBuffer> {
   let p = buffers.get(url)
   if (!p) {

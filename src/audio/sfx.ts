@@ -140,3 +140,66 @@ export function playVictory(): void {
   ] as const
   seq.forEach(([f, off]) => tone(c, 'triangle', f, t + off, 0.5, 0.14))
 }
+
+/** Villager "hmm" — nasal vowel grunt (Minecraft-style murmur). */
+export function playVillagerGrunt(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  const f0 = 118 + Math.random() * 46
+  const osc = c.createOscillator()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(f0, t)
+  // Slight up-then-down inflection gives the questioning "hmm?" feel.
+  osc.frequency.linearRampToValueAtTime(f0 * 1.12, t + 0.12)
+  osc.frequency.linearRampToValueAtTime(f0 * 0.82, t + 0.34)
+  const formant = c.createBiquadFilter()
+  formant.type = 'bandpass'
+  formant.frequency.value = 680
+  formant.Q.value = 6
+  const g = c.createGain()
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.15, t + 0.05)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36)
+  osc.connect(formant).connect(g).connect(c.destination)
+  osc.start(t)
+  osc.stop(t + 0.4)
+}
+
+/** Chest opening — wooden creak + a soft treasure chime. */
+export function playChestOpen(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  noise(c, t, 0.22, 0.1, 'bandpass', 500, 240) // creak
+  tone(c, 'sine', 784, t + 0.12, 0.18, 0.1)
+  tone(c, 'sine', 1175, t + 0.2, 0.24, 0.1)
+}
+
+/** Eating/drinking a consumable. */
+export function playConsume(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  tone(c, 'sine', 420, t, 0.1, 0.1, 620)
+  tone(c, 'sine', 520, t + 0.1, 0.12, 0.1, 760)
+}
+
+/** Equipping a weapon — short metallic clink. */
+export function playEquip(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  tone(c, 'square', 1320, t, 0.07, 0.08)
+  noise(c, t, 0.06, 0.05, 'highpass', 4000, 2000)
+}
+
+/** Bear roar — low growl sweep. */
+export function playRoar(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  tone(c, 'sawtooth', 130, t, 0.5, 0.18, 70)
+  noise(c, t, 0.45, 0.12, 'lowpass', 700, 200)
+}
+
