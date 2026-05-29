@@ -6,6 +6,7 @@ import { isPaused } from './pauseStore'
 import { getPlayer, spendGold } from './playerStore'
 import { openShop, closeShop, isShopOpen, type ShopItem } from './shopStore'
 import { addItem } from './inventoryStore'
+import { getUnlockedWeapons } from './weaponUnlockStore'
 
 interface ShopProps {
   /** village grid-space anchor */
@@ -53,6 +54,23 @@ const SHOP_ITEMS: ShopItem[] = [
   { id: 'feast', name: 'Tavern Feast', icon: '🍖', price: 28, apply: () => buy(28, 'feast') },
 ]
 
+// Weapons that the Arsenal upgrade branch can unlock for sale. Added to the
+// shop list at open-time only once their id is in weaponUnlockStore.
+const WEAPON_CATALOG: Record<string, { name: string; icon: string; price: number }> = {
+  axe: { name: 'Battle Axe', icon: '🪓', price: 45 },
+  sword_gold: { name: 'Golden Blade', icon: '🗡️', price: 80 },
+}
+
+/** Base consumables plus any weapons the Arsenal branch has unlocked. */
+function buildShopItems(): ShopItem[] {
+  const items = [...SHOP_ITEMS]
+  for (const id of getUnlockedWeapons()) {
+    const def = WEAPON_CATALOG[id]
+    if (def) items.push({ id, name: def.name, icon: def.icon, price: def.price, apply: () => buy(def.price, id) })
+  }
+  return items
+}
+
 export function Shop({ position, rotation = 0 }: ShopProps) {
   const promptRef = useRef<THREE.Group>(null!)
   const inRangeRef = useRef(false)
@@ -79,7 +97,7 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
         return
       }
       if (!inRangeRef.current) return
-      openShop({ id: `${position[0]},${position[2]}`, title: 'Wandering Merchant', items: SHOP_ITEMS })
+      openShop({ id: `${position[0]},${position[2]}`, title: 'Wandering Merchant', items: buildShopItems() })
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

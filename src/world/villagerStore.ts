@@ -35,6 +35,20 @@ export interface VillagerState {
 
 const villagers: VillagerState[] = []
 let nextId = 0
+const subs = new Set<(list: VillagerState[]) => void>()
+
+/** Notified whenever a villager is added/removed so views re-render. */
+export function subscribeVillagers(fn: (list: VillagerState[]) => void): () => void {
+  subs.add(fn)
+  fn(villagers)
+  return () => {
+    subs.delete(fn)
+  }
+}
+
+function notifyVillagers(): void {
+  subs.forEach((fn) => fn(villagers))
+}
 
 export function createVillager(
   init: Omit<
@@ -65,12 +79,14 @@ export function createVillager(
     ...init,
   }
   villagers.push(v)
+  notifyVillagers()
   return v
 }
 
 export function resetVillagers(): void {
   villagers.length = 0
   nextId = 0
+  notifyVillagers()
 }
 
 export function getVillagers(): VillagerState[] {

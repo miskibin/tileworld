@@ -787,3 +787,105 @@
   color: #fff;
   border-color: rgba(255, 255, 255, 0.24);
 }
+
+/* ---- Debug: unlimited-money toggle (sits left of the path toggle) ---- */
+.debug-money {
+  right: 98px;
+}
+
+.debug-money.is-on {
+  color: #ffd166;
+  border-color: rgba(255, 209, 102, 0.5);
+}
+
+/* ---- Upgrade tree (Town Hall) — reuses .shop-screen / .shop-card ---- */
+.upgrade-card {
+  min-width: min(920px, 92vw);
+  max-width: 92vw;
+}
+
+.upgrade-branches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.upgrade-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.upgrade-col-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #aeb4c0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.upgrade-node {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #d8dae0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.upgrade-node:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.upgrade-node-icon { font-size: 18px; text-align: center; }
+
+.upgrade-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.upgrade-node-name { font-weight: 600; }
+.upgrade-node-desc { font-size: 11px; color: #9aa0ac; line-height: 1.25; }
+
+.upgrade-node-cost {
+  grid-column: 2;
+  justify-self: end;
+  margin-top: 2px;
+  font-weight: 700;
+  color: #ffd58c;
+  letter-spacing: 0.06em;
+}
+
+.upgrade-node.is-poor {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.upgrade-node.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.upgrade-node.is-owned {
+  cursor: default;
+  border-color: rgba(113, 224, 122, 0.4);
+  background: rgba(113, 224, 122, 0.08);
+}
+
+.upgrade-node.is-owned .upgrade-node-cost {
+  color: #71e07a;
+}

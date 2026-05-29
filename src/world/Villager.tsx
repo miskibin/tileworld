@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { VillagerState, VillagerStateName } from './villagerStore'
 import { isPaused } from './pauseStore'
+import { getCity, subscribeCity } from './cityStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
 import { playVillagerGrunt } from '../audio/sfx'
@@ -39,6 +40,9 @@ const TUNIC_MATS = TUNIC_COLORS.map(
 const PANT_MAT = new THREE.MeshStandardMaterial({ color: PANT_COLOR, roughness: 1 })
 const HAT_MAT = new THREE.MeshStandardMaterial({ color: HAT_COLOR, roughness: 0.85 })
 const HAIR_MAT = new THREE.MeshStandardMaterial({ color: HAIR_COLOR, roughness: 0.85 })
+// Armour from the Defense upgrade branch. Tier 1 = iron, tier 2+ = brighter steel.
+const ARMOR_IRON = new THREE.MeshStandardMaterial({ color: '#9aa0aa', roughness: 0.5, metalness: 0.7, flatShading: true })
+const ARMOR_STEEL = new THREE.MeshStandardMaterial({ color: '#c6ccd6', roughness: 0.35, metalness: 0.85, flatShading: true })
 
 const SPEED = 1.6
 const WANDER_RADIUS = 3.0
@@ -130,6 +134,11 @@ export function VillagerView({ state }: Props) {
   const walkPhase = useRef(0)
   const nextVoiceAt = useRef(2 + Math.abs(state.seed) * 3)
   const [, setTick] = useState(0)
+
+  // Global villager armour tier (Defense upgrade branch).
+  const [armorTier, setArmorTier] = useState(() => getCity().villagerArmorTier)
+  useEffect(() => subscribeCity((s) => setArmorTier(s.villagerArmorTier)), [])
+  const armorMat = armorTier >= 2 ? ARMOR_STEEL : ARMOR_IRON
 
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
@@ -260,6 +269,12 @@ export function VillagerView({ state }: Props) {
         <mesh castShadow material={tunicMat}>
           <boxGeometry args={[0.42, 0.48, 0.26]} />
         </mesh>
+        {/* Chestplate (armour tier 1+) */}
+        {armorTier > 0 && (
+          <mesh castShadow material={armorMat}>
+            <boxGeometry args={[0.46, 0.4, 0.3]} />
+          </mesh>
+        )}
       </group>
 
       <group ref={armRRef} position={[0.27, 0.92, 0]}>
@@ -269,6 +284,12 @@ export function VillagerView({ state }: Props) {
         <mesh position={[0, -0.42, 0]} castShadow material={skinMat}>
           <boxGeometry args={[0.12, 0.1, 0.2]} />
         </mesh>
+        {/* Pauldron (armour tier 2+) */}
+        {armorTier >= 2 && (
+          <mesh position={[0, 0.02, 0]} castShadow material={armorMat}>
+            <boxGeometry args={[0.18, 0.16, 0.26]} />
+          </mesh>
+        )}
       </group>
       <group ref={armLRef} position={[-0.27, 0.92, 0]}>
         <mesh position={[0, -0.18, 0]} castShadow material={tunicMat}>
@@ -277,6 +298,11 @@ export function VillagerView({ state }: Props) {
         <mesh position={[0, -0.42, 0]} castShadow material={skinMat}>
           <boxGeometry args={[0.12, 0.1, 0.2]} />
         </mesh>
+        {armorTier >= 2 && (
+          <mesh position={[0, 0.02, 0]} castShadow material={armorMat}>
+            <boxGeometry args={[0.18, 0.16, 0.26]} />
+          </mesh>
+        )}
       </group>
 
       <group ref={headRef} position={[0, 1.12, 0]}>
@@ -286,10 +312,24 @@ export function VillagerView({ state }: Props) {
         <mesh position={[0, 0.13, 0]} castShadow material={HAIR_MAT}>
           <boxGeometry args={[0.31, 0.08, 0.31]} />
         </mesh>
-        {state.id % 2 === 0 && (
-          <mesh position={[0, 0.22, 0]} castShadow material={HAT_MAT}>
-            <coneGeometry args={[0.22, 0.2, 6]} />
-          </mesh>
+        {/* Helmet (armour tier 1+) replaces the peasant hat */}
+        {armorTier > 0 ? (
+          <>
+            <mesh position={[0, 0.16, 0]} castShadow material={armorMat}>
+              <boxGeometry args={[0.34, 0.16, 0.34]} />
+            </mesh>
+            {armorTier >= 2 && (
+              <mesh position={[0, 0.28, 0]} castShadow material={armorMat}>
+                <coneGeometry args={[0.12, 0.16, 6]} />
+              </mesh>
+            )}
+          </>
+        ) : (
+          state.id % 2 === 0 && (
+            <mesh position={[0, 0.22, 0]} castShadow material={HAT_MAT}>
+              <coneGeometry args={[0.22, 0.2, 6]} />
+            </mesh>
+          )
         )}
         <mesh position={[-0.07, 0.03, 0.16]} material={HAIR_MAT}>
           <boxGeometry args={[0.04, 0.04, 0.005]} />

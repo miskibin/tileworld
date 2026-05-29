@@ -6,6 +6,7 @@ import {
   togglePaused,
 } from '../world/pauseStore'
 import { isShopOpen } from '../world/shopStore'
+import { isTreeOpen } from '../world/townHallStore'
 import { isStarted } from '../world/gameStore'
 import {
   isEnabled as isAudioEnabled,
@@ -27,11 +28,11 @@ export function PauseMenu() {
   useEffect(() => subscribeAudio(setAudioState), [])
   useEffect(() => subscribeShowPaths(setPathsState), [])
 
-  // Esc toggles pause — but defer to the shop panel if it's open.
+  // Esc toggles pause — but defer to the shop panel / upgrade tree if open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
-        if (isShopOpen() || !isStarted()) return
+        if (isShopOpen() || isTreeOpen() || !isStarted()) return
         e.preventDefault()
         togglePaused()
       }
