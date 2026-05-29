@@ -21,6 +21,7 @@ import { Chest } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
+import { City } from './City'
 import { Birds } from './Birds'
 import { Cat } from './Cat'
 import { Shop } from './Shop'
@@ -92,6 +93,9 @@ export function World() {
         {/* Friendly villages */}
         <Village position={[58, 44]} rotation={-0.4} seed={1.7} wallColor="#d3b78b" roofColor="#6b3322" />
         <Village position={[26, 30]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+
+        {/* Central upgradeable city — Town Hall + tree-built structures */}
+        <City />
         <VillagerCrowd />
 
         {/* Shop next to the eastern village */}

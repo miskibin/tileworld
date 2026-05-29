@@ -1,5 +1,6 @@
 import { playGold, playHurt, playLevelUp } from '../audio/sfx'
 import { addShake } from './fxStore'
+import { isUnlimitedMoney } from './debugStore'
 
 export const PLAYER_MAX_HP = 100
 export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
@@ -119,6 +120,9 @@ export function addGold(n: number): void {
 
 /** Returns true if the spend succeeded. */
 export function spendGold(n: number): boolean {
+  // Debug cheat: unlimited money never deducts and always succeeds. (Refund
+  // calls pass a negative n — those still apply so gold isn't lost.)
+  if (isUnlimitedMoney() && n >= 0) return true
   if (state.gold < n) return false
   state.gold -= n
   notifyGold()
@@ -132,6 +136,19 @@ export function healPlayer(n: number): void {
 
 export function getAttackDamage(): number {
   return state.attackDamage
+}
+
+/** Hero upgrade tree: raise max HP (and heal by the same amount). */
+export function bumpMaxHp(n: number): void {
+  state.maxHp += n
+  state.hp = Math.min(state.maxHp, state.hp + n)
+  notifyHp()
+}
+
+/** Hero upgrade tree: raise base attack damage. */
+export function bumpAttackDamage(n: number): void {
+  state.attackDamage += n
+  notifyStats()
 }
 
 /** Grants xp and resolves any resulting level-ups (heals to full, raises stats). */

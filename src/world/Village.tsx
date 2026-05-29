@@ -3,7 +3,7 @@ import { tileAt } from './tileMap'
 import { House } from './House'
 import { Garden } from './Garden'
 import { VillagerView } from './Villager'
-import { createVillager, getVillagers, resetVillagers, type VillagerState } from './villagerStore'
+import { createVillager, resetVillagers, subscribeVillagers, type VillagerState } from './villagerStore'
 import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 
 interface VillageProps {
@@ -82,9 +82,10 @@ export function VillagerCrowd() {
   const [list, setList] = useState<VillagerState[]>([])
 
   useEffect(() => {
-    const handle = requestAnimationFrame(() => setList([...getVillagers()]))
+    // Re-sync whenever a villager is created (e.g. an Economy upgrade spawns one).
+    const unsub = subscribeVillagers((list) => setList([...list]))
     return () => {
-      cancelAnimationFrame(handle)
+      unsub()
       resetVillagers()
       resetHouseBlockers()
     }
