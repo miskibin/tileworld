@@ -1,3 +1,6 @@
+import { playGold, playHurt, playLevelUp } from '../audio/sfx'
+import { addShake } from './fxStore'
+
 export const PLAYER_MAX_HP = 100
 export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
@@ -76,6 +79,8 @@ export function damagePlayer(amount: number, now: number): void {
   state.hp = Math.max(0, state.hp - amount)
   state.hurtFlashUntil = now + 0.35
   if (state.hp <= 0) state.deadSince = now
+  playHurt()
+  addShake(state.hp <= 0 ? 0.5 : 0.22, state.hp <= 0 ? 0.5 : 0.25)
   notifyHp()
 }
 
@@ -108,6 +113,7 @@ export function getGold(): number {
 
 export function addGold(n: number): void {
   state.gold += n
+  if (n > 0) playGold()
   notifyGold()
 }
 
@@ -144,6 +150,8 @@ export function addXp(n: number): void {
   }
   if (leveled) {
     state.levelUpFlashUntil = performance.now() * 0.001 + 1.2
+    playLevelUp()
+    addShake(0.2, 0.3)
     notifyHp()
   }
   notifyStats()

@@ -205,10 +205,17 @@ export function OrkView({ state }: OrkViewProps) {
       }
     }
 
+    // Hit recoil: brief flinch (lean back + flash) right after taking damage.
+    const hurtRemain = state.hurtFlashUntil - tNow
+    const recoil = hurtRemain > 0 ? Math.max(0, hurtRemain / 0.25) : 0
+
     // Position + sway
     g.position.set(state.x, state.y, state.z)
     g.rotation.y = state.facing + Math.sin(t * 0.55) * 0.04
     g.rotation.z = 0
+    // Lean away from the player on recoil for a snappy reaction.
+    if (recoil > 0) g.rotation.x = -recoil * 0.35
+    else g.rotation.x = 0
 
     if (bodyRef.current) {
       const s = 1 + Math.sin(t * 1.2) * 0.04

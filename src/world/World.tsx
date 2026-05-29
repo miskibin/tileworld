@@ -23,6 +23,7 @@ import { Cat } from './Cat'
 import { Shop } from './Shop'
 import { MouseLookCamera } from './MouseLookCamera'
 import { Paths } from './Paths'
+import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
 import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
 
@@ -108,6 +109,9 @@ export function World() {
 
         {/* Orks rendered from shared store (registered by OrkCamps) */}
         <Mobs />
+
+        {/* Floating combat text (damage numbers, +gold, +XP) */}
+        <FloatingText />
 
         <DebugPaths />
 

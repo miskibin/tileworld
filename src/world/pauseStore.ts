@@ -1,4 +1,6 @@
-let paused = false
+// Starts paused so the world is frozen behind the start screen until the
+// player clicks Play (see StartScreen + gameStore).
+let paused = true
 const subs = new Set<(v: boolean) => void>()
 
 export function isPaused(): boolean {

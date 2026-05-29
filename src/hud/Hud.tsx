@@ -6,10 +6,12 @@ import { PauseMenu } from './PauseMenu'
 import { PlayerHud } from './PlayerHud'
 import { ShopPanel } from './ShopPanel'
 import { Objective } from './Objective'
+import { StartScreen } from './StartScreen'
 
 export function Hud() {
   return (
     <div className="hud">
+      <StartScreen />
       <PlayerHud />
       <Objective />
       <AudioToggle />

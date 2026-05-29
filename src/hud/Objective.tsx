@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getObjective } from '../world/objectiveStore'
 import { getPlayer } from '../world/playerStore'
+import { playVictory } from '../audio/sfx'
 
 export function Objective() {
   // Poll the derived objective each frame, but only re-render when the numbers
@@ -23,9 +24,12 @@ export function Objective() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  // Release pointer-lock on victory so the cursor is free to click "Play Again".
+  // On victory: release pointer-lock so the cursor can click "Play Again", and
+  // play the fanfare once.
   useEffect(() => {
-    if (obj.won && document.pointerLockElement) document.exitPointerLock()
+    if (!obj.won) return
+    if (document.pointerLockElement) document.exitPointerLock()
+    playVictory()
   }, [obj.won])
 
   if (obj.total === 0) return null
