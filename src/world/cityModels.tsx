@@ -107,7 +107,7 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       <mesh position={[0, roofY + 1.0, 0]} castShadow receiveShadow material={LIGHT_STONE}>
         <boxGeometry args={[2.4, 2.0, 2.4]} />
       </mesh>
-      <mesh position={[0, roofY + 2.6, 0]} castShadow material={ROOF}>
+      <mesh position={[0, roofY + 2.6, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
         <coneGeometry args={[1.9, 1.4, 4]} />
       </mesh>
       <mesh position={[0, roofY + 3.5, 0]} material={GOLD}>
@@ -205,8 +205,8 @@ export function Tower({ position, rotation = 0 }: TowerProps) {
       <mesh position={[0, TOWER_H + 0.1, 0]} castShadow material={DARK_STONE}>
         <boxGeometry args={[2.1, 0.4, 2.1]} />
       </mesh>
-      {/* Pitched roof */}
-      <mesh position={[0, TOWER_H + 0.95, 0]} castShadow material={ROOF}>
+      {/* Pitched roof — 45° so the 4-sided cone's faces align with the square */}
+      <mesh position={[0, TOWER_H + 0.95, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
         <coneGeometry args={[1.5, 1.3, 4]} />
       </mesh>
       {/* Flag */}

@@ -10,7 +10,6 @@ import { Terrain } from './Terrain'
 import { Water, WaterFloor } from './Water'
 import { Scatter } from './Scatter'
 import { OrkCamp } from './OrkCamp'
-import { Bridge } from './Bridge'
 import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
 import { Mobs } from './Mobs'
@@ -27,7 +26,7 @@ import { MouseLookCamera } from './MouseLookCamera'
 import { Paths } from './Paths'
 import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
-import { CENTER_X, CENTER_Z, getRiverX, getRiverZ } from './tileMap'
+import { CENTER_X, CENTER_Z } from './tileMap'
 
 function DebugExpose() {
   const state = useThree()
@@ -95,12 +94,6 @@ export function World() {
         {/* A cat hangs around each village */}
         <Cat home={[58, 1, 46]} seed={0.7} />
         <Cat home={[26, 1, 32]} seed={2.1} />
-
-        {/* Bridges over rivers — coords use tile-row centers (x+0.5 / z+0.5) so
-            the collision span lines up with where the player actually walks. */}
-        <Bridge from={[getRiverX(30) - 3.5, 30.5]} to={[getRiverX(30) + 3.5, 30.5]} y={1.0} />
-        <Bridge from={[getRiverX(50) - 3.5, 50.5]} to={[getRiverX(50) + 3.5, 50.5]} y={1.0} />
-        <Bridge from={[64.5, getRiverZ(64) - 3.5]} to={[64.5, getRiverZ(64) + 3.5]} y={1.0} />
 
         {/* Wandering dogs */}
         <Wildlife />
