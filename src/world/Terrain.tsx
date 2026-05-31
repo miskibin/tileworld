@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { buildTiles, type Biome } from './tileMap'
 import { applyVisionShader } from './vision'
+import { getDetailTextures } from './terrainDetail'
 
 // ─── Materials per biome ─────────────────────────────────────────────
 const SIDE_DIRT = new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 1 })
@@ -25,8 +26,12 @@ const TOP_DESERT = new THREE.MeshStandardMaterial({ color: '#e8c585', roughness:
 const TOP_PLAINS = new THREE.MeshStandardMaterial({ color: '#a8c45a', roughness: 0.92 })
 const TOP_SWAMP = new THREE.MeshStandardMaterial({ color: '#587a36', roughness: 1, flatShading: true })
 
-// Inject the player-centred darkening shader into every terrain material so
-// distance from the player fades the ground to black, LoL-style.
+// Inject the terrain detail + darkening shader. Tops get a tiling detail
+// texture (sampled in world-XZ) plus strong hue/value variation; vertical
+// sides get variation only (no detail map — it would smear on cliff faces).
+const detail = getDetailTextures()
+
+// Side (cliff) faces: subtle variation, no detail texture.
 ;[
   SIDE_DIRT,
   SIDE_DIRT_DARK,
@@ -38,16 +43,22 @@ const TOP_SWAMP = new THREE.MeshStandardMaterial({ color: '#587a36', roughness: 
   SIDE_SNOW_DARK,
   SIDE_SWAMP,
   SIDE_SWAMP_DARK,
-  TOP_GRASS,
-  TOP_GRASS_DARK,
-  TOP_SAND,
-  TOP_FOREST,
-  TOP_ROCK,
-  TOP_SNOW,
-  TOP_DESERT,
-  TOP_PLAINS,
-  TOP_SWAMP,
-].forEach(applyVisionShader)
+].forEach((mat) => applyVisionShader(mat, { variation: 0.5 }))
+
+// Top faces: detail map keyed to the biome + strong variation. detailMean comes
+// off the texture so the imprint normalises around 1.0 per biome.
+const top = (mat: THREE.Material, tex: THREE.CanvasTexture, o: { detailScale?: number; detailStrength?: number; variation?: number }) =>
+  applyVisionShader(mat, { detail: tex, detailMean: tex.userData.mean as number, ...o })
+
+top(TOP_GRASS, detail.grass, { detailScale: 0.18, detailStrength: 0.72, variation: 1.0 })
+top(TOP_GRASS_DARK, detail.grass, { detailScale: 0.18, detailStrength: 0.72, variation: 1.0 })
+top(TOP_FOREST, detail.grass, { detailScale: 0.18, detailStrength: 0.65, variation: 0.85 })
+top(TOP_PLAINS, detail.grass, { detailScale: 0.18, detailStrength: 0.65, variation: 1.0 })
+top(TOP_SAND, detail.sand, { detailScale: 0.3, detailStrength: 0.5, variation: 0.6 })
+top(TOP_DESERT, detail.sand, { detailScale: 0.3, detailStrength: 0.5, variation: 0.6 })
+top(TOP_ROCK, detail.rock, { detailScale: 0.3, detailStrength: 0.6, variation: 0.7 })
+top(TOP_SNOW, detail.snow, { detailScale: 0.3, detailStrength: 0.4, variation: 0.45 })
+top(TOP_SWAMP, detail.swamp, { detailScale: 0.25, detailStrength: 0.6, variation: 0.85 })
 
 // Box face order: +x, -x, +y (top), -y (bottom), +z, -z
 function matsFor(biome: Biome, height: number): THREE.Material[] {

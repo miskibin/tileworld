@@ -1,7 +1,7 @@
 import { Suspense, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
-import { PositionalAudio, Sparkles, Sky, Environment } from '@react-three/drei'
+import { PositionalAudio, Sparkles, Environment } from '@react-three/drei'
 import {
   EffectComposer,
   Bloom,
@@ -37,14 +37,9 @@ import { MouseLookCamera } from './MouseLookCamera'
 import { Paths } from './Paths'
 import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
+import { DayNight } from './DayNight'
 import { SunShadow } from './SunShadow'
 import { CENTER_X, CENTER_Z } from './tileMap'
-
-// Golden-hour sun. One direction drives three things that must agree:
-// the directional (shadow-casting) light, the <Sky> sun disc, and the
-// far-away emissive sphere that the GodRays post-effect rays out from.
-const SUN_DIR = new THREE.Vector3(92, 36, 60)
-const SUN_FAR = SUN_DIR.clone().normalize().multiplyScalar(700)
 
 function DebugExpose() {
   const state = useThree()
@@ -69,16 +64,12 @@ export function World() {
     <>
       <DebugBindings onLights={setLights} />
 
-      {/* Atmospheric sky dome (Preetham scattering) tuned to a low, warm sun
-          so the horizon glows golden-hour and the zenith stays soft blue. */}
-      <Sky
-        distance={4000}
-        sunPosition={SUN_DIR}
-        turbidity={9}
-        rayleigh={2.4}
-        mieCoefficient={0.006}
-        mieDirectionalG={0.82}
-      />
+      {/* Day/night cycle: owns the sky dome, the sun glow sphere, the moon, the
+          star field and the position-independent fill lights, and animates them
+          all from the time-of-day clock (timeStore). The shadow-casting sun is
+          a separate follow-the-player component (SunShadow) inside the grid
+          group below, reading the same clock. */}
+      <DayNight lights={lights} onSunMesh={setSunMesh} />
 
       {/* Image-based lighting: a sunset HDRI supplies rich, directional
           ambient + subtle reflections on every MeshStandardMaterial. Lighting
@@ -89,24 +80,9 @@ export function World() {
         <Environment files="/hdri/sunset_1k.hdr" environmentIntensity={0.55} />
       </Suspense>
 
-      {/* Far emissive sphere — reads as the sun's glow (blooms) and is the
-          origin the GodRays effect shafts out from. */}
-      <mesh ref={setSunMesh} position={SUN_FAR}>
-        <sphereGeometry args={[46, 24, 24]} />
-        <meshBasicMaterial color="#fff0cc" toneMapped={false} fog={false} />
-      </mesh>
-
-      {/* Position-independent fills stay in world space. The shadow-casting
-          sun is a separate follow-the-player component (see SunShadow) placed
-          inside the grid group below, so its shadow frustum can track the
-          player in grid coords instead of statically covering the whole map. */}
-      <hemisphereLight args={['#e7eef8', '#5a6a44', lights.hemi]} />
-      <ambientLight intensity={lights.ambient} />
-
-      {/* Day fog — exponential falloff in a warm haze colour so the horizon
-          melts into golden-hour atmosphere and the map isn't fully visible
-          all at once. */}
-      <fogExp2 attach="fog" args={['#d6c6a0', 0.02]} />
+      {/* Day fog — exponential falloff; colour is animated by the day/night
+          cycle (see DayNight.tsx), density is leva-tunable. */}
+      <fogExp2 attach="fog" args={['#d6c6a0', 0.025]} />
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
@@ -170,10 +146,15 @@ export function World() {
         <Chest position={[78, 1, 24]} rotation={1.0} gold={40} loot={['sword_gold']} />
         <Chest position={[60, 1, 16]} rotation={2.2} gold={10} loot={['axe', 'bread']} />
         {/* Reward chests out toward the newly expanded coastline */}
-        <Chest position={[10, 1, 12]} rotation={0.8} gold={20} loot={['potion']} />
+        <Chest position={[14, 1, 28]} rotation={0.8} gold={20} loot={['potion']} />
         <Chest position={[88, 1, 64]} rotation={-1.2} gold={50} loot={['feast', 'potion']} />
         <Chest position={[12, 1, 64]} rotation={1.6} gold={30} loot={['bread', 'bread', 'potion']} />
         <Chest position={[88, 1, 10]} rotation={2.6} gold={35} loot={['sword_iron']} />
+        {/* Frontier chests out in the new eastern / southern wilds */}
+        <Chest position={[106, 1, 50]} rotation={0.4} gold={45} loot={['sword_gold', 'potion']} />
+        <Chest position={[100, 1, 80]} rotation={-0.9} gold={40} loot={['feast']} />
+        <Chest position={[58, 1, 84]} rotation={1.9} gold={35} loot={['potion', 'bread']} />
+        <Chest position={[112, 1, 44]} rotation={2.3} gold={50} loot={['axe', 'potion']} />
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />
@@ -186,16 +167,16 @@ export function World() {
         {/* Shoreline water loops — positional for stereo, placed at new map edges */}
         {audioEnabled && (
           <>
-            <group position={[6, 0.5, 36]}>
+            <group position={[6, 0.5, 47]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[90, 0.5, 36]}>
+            <group position={[118, 0.5, 47]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[48, 0.5, 6]}>
+            <group position={[62, 0.5, 6]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[48, 0.5, 66]}>
+            <group position={[62, 0.5, 88]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
           </>
@@ -215,8 +196,8 @@ export function World() {
       {/* Drifting atmospheric motes across the island */}
       <Sparkles
         position={[0, 4, 0]}
-        scale={[70, 8, 70]}
-        count={70}
+        scale={[120, 8, 120]}
+        count={110}
         size={3}
         speed={0.15}
         opacity={0.25}

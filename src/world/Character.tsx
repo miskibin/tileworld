@@ -11,6 +11,8 @@ import { getWeaponBonus } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
+import { damageAnimal, getAliveAnimals, animalCollidesAt } from './animalStore'
+import { ANIMAL_CONFIG } from './animalConfig'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
@@ -200,12 +202,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         !obstacleCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
+        !animalCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
         (tileAt(cxFloor, Math.floor(nz)) !== null || bridgeAt(pos.current.x, nz) !== null) &&
         !obstacleCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
+        !animalCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !houseBlocksAt(pos.current.x, nz)
       if (canMoveX) pos.current.x = nx
       if (canMoveZ) pos.current.z = nz
@@ -367,6 +371,26 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               spawnFloat(`+${XP_PER_ORK * 2} XP`, '#62c6e8', bear.x - 0.3, bear.y + 2.2, bear.z)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', bear.x, bear.y + 2.4, bear.z)
+            }
+          }
+          for (const animal of getAliveAnimals()) {
+            const vx = animal.x - pos.current.x
+            const vz = animal.z - pos.current.z
+            const dist = Math.hypot(vx, vz)
+            if (dist > ATTACK_RANGE || dist < 0.001) continue
+            const dot = (vx / dist) * fx + (vz / dist) * fz
+            if (dot < ATTACK_CONE_DOT) continue
+            const died = damageAnimal(animal, dmg, t)
+            hitAny = true
+            if (died) {
+              killedAny = true
+              const c = ANIMAL_CONFIG[animal.species]
+              addGold(c.bountyGold)
+              addXp(c.bountyXp)
+              spawnFloat(`+${c.bountyGold} ★`, '#ffd58c', animal.x, animal.y + 2.2, animal.z)
+              spawnFloat(`+${c.bountyXp} XP`, '#62c6e8', animal.x - 0.3, animal.y + 1.8, animal.z)
+            } else {
+              spawnFloat(`${dmg}`, '#ffffff', animal.x, animal.y + 2.0, animal.z)
             }
           }
           // Combat juice: impact SFX + camera shake scaled to the outcome.

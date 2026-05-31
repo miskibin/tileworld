@@ -7,6 +7,7 @@ import {
   viewRadiusUniform,
   viewFalloffUniform,
 } from './vision'
+import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
 
 interface Props {
   onLights: (l: {
@@ -28,8 +29,9 @@ export function DebugBindings({ onLights }: Props) {
 
   const env = useControls('Environment', {
     fog: folder({
-      fogColor: { value: '#d6c6a0', label: 'color' },
-      fogDensity: { value: 0.02, min: 0, max: 0.1, step: 0.001, label: 'density' },
+      // Fog colour is now driven by the day/night cycle (see DayNight.tsx);
+      // only its density stays manually tunable here.
+      fogDensity: { value: 0.025, min: 0, max: 0.1, step: 0.001, label: 'density' },
     }),
     lights: folder({
       ambient: { value: 0.22, min: 0, max: 2, step: 0.05 },
@@ -38,22 +40,46 @@ export function DebugBindings({ onLights }: Props) {
     }),
   })
 
+  // Day/night clock. The slider scrubs the time of day; the toggle freezes the
+  // day shift. `onChange` only writes to the store on real user input
+  // (`fromPanel`) so the subscribeDay → set() sync below can't feed back.
+  const [, setDayUi] = useControls('Time of day', () => ({
+    hour: {
+      value: 7.2, // DAY_START_T (0.30) × 24
+      min: 0,
+      max: 24,
+      step: 0.1,
+      onChange: (v: number, _p, ctx: { fromPanel?: boolean }) => {
+        if (ctx.fromPanel) setDayTime(v / 24)
+      },
+    },
+    frozen: {
+      value: true,
+      onChange: (v: boolean, _p, ctx: { fromPanel?: boolean }) => {
+        if (ctx.fromPanel) setDayFrozen(v)
+      },
+    },
+  }))
+
+  // Listener: keep the panel in sync with the running clock (and any external
+  // changes). Throttled notifies from the driver move the slider as time flows.
+  useEffect(
+    () => subscribeDay((s) => setDayUi({ hour: s.t * 24, frozen: s.frozen })),
+    [setDayUi],
+  )
+
   const vis = useControls('Vision (fog of war)', {
     radius: { value: viewRadiusUniform.value, min: 0, max: 60, step: 0.5 },
     falloff: { value: viewFalloffUniform.value, min: 0, max: 60, step: 0.5 },
     maxDarken: { value: viewMaxDarkenUniform.value, min: 0, max: 1, step: 0.01 },
   })
 
-  // Push fog colour + density and background to the scene each time they change.
+  // Push fog density to the scene when it changes (colour is cycle-driven).
   useEffect(() => {
     if (scene.fog && 'density' in scene.fog) {
-      scene.fog.color.set(env.fogColor)
       ;(scene.fog as THREE.FogExp2).density = env.fogDensity
     }
-    if (scene.background instanceof THREE.Color) {
-      scene.background.set(env.fogColor)
-    }
-  }, [env.fogColor, env.fogDensity, scene])
+  }, [env.fogDensity, scene])
 
   useEffect(() => {
     onLights({ ambient: env.ambient, hemi: env.hemi, dir: env.dir })

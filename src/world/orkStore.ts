@@ -1,4 +1,6 @@
 import { tileAt } from './tileMap'
+import { ORK_CONFIG, type OrkVariant } from './orkConfig'
+import { orksHostile, type OrkFaction } from './factions'
 
 export interface OrkState {
   id: number
@@ -10,7 +12,10 @@ export interface OrkState {
   hp: number
   maxHp: number
   hurtFlashUntil: number
-  paletteIndex: number
+  /** which variant (grunt/scout/berserker/shaman) — drives stats + look */
+  variant: OrkVariant
+  /** warband; orks fight rival-faction orks */
+  faction: OrkFaction
   seed: number
   /** radius used for blocking the player */
   collisionRadius: number
@@ -21,6 +26,8 @@ export interface OrkState {
   attackReadyAt: number
   /** whether the current swing already dealt damage */
   attackHitDealt: boolean
+  /** shaman: time (sec) until next ally-heal */
+  healReadyAt: number
   /** waypoints toward current goal, in world grid coords (tile centers) */
   path: { x: number; z: number }[]
   /** index into path[] of the next waypoint to walk toward */
@@ -36,26 +43,30 @@ export function createOrk(
   x: number,
   z: number,
   facing: number,
-  paletteIndex: number,
+  variant: OrkVariant,
+  faction: OrkFaction,
   seed: number,
 ): OrkState {
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? t.height : 1
+  const cfg = ORK_CONFIG[variant]
   const o: OrkState = {
     id: nextId++,
     x,
     y,
     z,
     facing,
-    hp: 120,
-    maxHp: 120,
+    hp: cfg.hp,
+    maxHp: cfg.hp,
     hurtFlashUntil: 0,
-    paletteIndex,
+    variant,
+    faction,
     seed,
-    collisionRadius: 0.32,
+    collisionRadius: cfg.collisionRadius,
     attackingSince: 0,
     attackReadyAt: 0,
     attackHitDealt: false,
+    healReadyAt: 0,
     path: [],
     pathIndex: 0,
     pathRecomputeAt: 0,
@@ -83,6 +94,53 @@ export function damageOrk(o: OrkState, amount: number, now: number): boolean {
   o.hp = Math.max(0, o.hp - amount)
   o.hurtFlashUntil = now + 0.25
   return o.hp <= 0
+}
+
+/**
+ * Nearest living ork of an opposing warband within `range`, or null. Used so
+ * rival camps brawl. Allocation-free scan — fine at our ork counts.
+ */
+export function nearestEnemyOrk(self: OrkState, range: number): OrkState | null {
+  let best: OrkState | null = null
+  let bestD = range * range
+  for (let i = 0; i < orks.length; i++) {
+    const o = orks[i]
+    if (o === self || o.hp <= 0) continue
+    if (!orksHostile(self.faction, o.faction)) continue
+    const dx = o.x - self.x
+    const dz = o.z - self.z
+    const d = dx * dx + dz * dz
+    if (d < bestD) {
+      bestD = d
+      best = o
+    }
+  }
+  return best
+}
+
+/** Nearest wounded ally ork within `range` (for shaman healing), or null. */
+export function nearestWoundedAlly(self: OrkState, range: number): OrkState | null {
+  let best: OrkState | null = null
+  let bestD = range * range
+  for (let i = 0; i < orks.length; i++) {
+    const o = orks[i]
+    if (o === self || o.hp <= 0 || o.hp >= o.maxHp) continue
+    if (o.faction !== self.faction) continue
+    const dx = o.x - self.x
+    const dz = o.z - self.z
+    const d = dx * dx + dz * dz
+    if (d < bestD) {
+      bestD = d
+      best = o
+    }
+  }
+  return best
+}
+
+/** Heal an ork (clamped to maxHp). */
+export function healOrk(o: OrkState, amount: number): void {
+  if (o.hp <= 0) return
+  o.hp = Math.min(o.maxHp, o.hp + amount)
 }
 
 /** Player-vs-ork blocking check (used in movement collision). */

@@ -340,8 +340,12 @@ const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
   { pos: [70, 14], seed: 6.7 },
   // Out in the newly expanded wilds (spawns auto-snap to valid land).
   { pos: [10, 56], seed: 8.2 },
-  { pos: [86, 36], seed: 2.9 },
+  { pos: [90, 52], seed: 2.9 },
   { pos: [38, 64], seed: 5.5 },
+  // Frontier bears roaming the new eastern / southern lands.
+  { pos: [104, 58], seed: 9.4 },
+  { pos: [70, 84], seed: 11.6 },
+  { pos: [108, 78], seed: 3.7 },
 ]
 
 export function Bears() {

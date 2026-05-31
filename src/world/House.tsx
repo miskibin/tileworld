@@ -20,12 +20,12 @@ interface HouseProps {
 
 // House dimensions — keep these explicit so the parts line up.
 const WALL_W = 2.6
-const WALL_H = 1.4
+const WALL_H = 1.15
 const WALL_D = 2.0
 const ROOF_OVERHANG_X = 0.15
 const ROOF_OVERHANG_Z = 0.15
-const ROOF_RISE = 0.7
-const FOUND_H = 0.2
+const ROOF_RISE = 0.58
+const FOUND_H = 0.18
 const wallTopY = FOUND_H + WALL_H
 
 const DEFAULT_WALL = '#d3b78b'

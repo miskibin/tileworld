@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { tileAt } from './tileMap'
 import { getRoadDirt, getRoadBridges } from './roads'
 import { Bridge } from './Bridge'
+import { applyVisionShader } from './vision'
+import { getDetailTextures } from './terrainDetail'
 
 /**
  * Grid-based dirt roads. Each road tile is a full 1×1 quad sitting just above
@@ -11,8 +13,21 @@ import { Bridge } from './Bridge'
  */
 
 const Y_OFFSET = 0.04
-const PATH_MAT = new THREE.MeshStandardMaterial({ color: '#8a6d44', roughness: 1, flatShading: true })
+const PATH_MAT = new THREE.MeshStandardMaterial({ color: '#8a6d44', roughness: 1 })
 const PATH_GEO = new THREE.PlaneGeometry(1, 1)
+
+// Trampled-dirt look: soil-grain detail in world-XZ + variation so the trail
+// reads as worn ground, not a flat brown quad. Shares the shader with terrain.
+{
+  const dirt = getDetailTextures().dirt
+  applyVisionShader(PATH_MAT, {
+    detail: dirt,
+    detailMean: dirt.userData.mean as number,
+    detailScale: 0.35,
+    detailStrength: 0.7,
+    variation: 0.5,
+  })
+}
 
 function tileHeightAt(x: number, z: number): number {
   const t = tileAt(x, z)

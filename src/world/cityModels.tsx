@@ -67,9 +67,9 @@ function box(w: number, h: number, d: number, x: number, y: number, z: number): 
 // tree (mirrors Shop.tsx's interaction pattern).
 // ---------------------------------------------------------------------------
 const KEEP_W = 7
-const KEEP_H = 3.0
+const KEEP_H = 1.9
 const KEEP_D = 6
-const KEEP_FOUND = 0.35
+const KEEP_FOUND = 0.3
 
 interface KeepProps {
   position: [number, number, number]
@@ -136,44 +136,32 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       {/* Battlement merlons (merged) */}
       <mesh geometry={merlonGeo} material={DARK_STONE} castShadow />
       {/* Central tower rising above the roof */}
-      <mesh position={[0, roofY + 0.9, 0]} castShadow receiveShadow material={LIGHT_STONE}>
-        <boxGeometry args={[2.2, 1.6, 2.2]} />
+      <mesh position={[0, roofY + 0.65, 0]} castShadow receiveShadow material={LIGHT_STONE}>
+        <boxGeometry args={[2.0, 1.3, 2.0]} />
       </mesh>
-      <mesh position={[0, roofY + 1.9, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
-        <coneGeometry args={[1.7, 1.2, 4]} />
+      <mesh position={[0, roofY + 1.55, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
+        <coneGeometry args={[1.4, 0.9, 4]} />
       </mesh>
-      <mesh position={[0, roofY + 2.7, 0]} material={GOLD}>
+      <mesh position={[0, roofY + 2.05, 0]} material={GOLD}>
         <sphereGeometry args={[0.18, 10, 8]} />
       </mesh>
       {/* Grand door on the +Z (player-facing) front */}
-      <mesh position={[0, KEEP_FOUND + 0.95, KEEP_D / 2 + 0.02]} castShadow material={WOOD}>
-        <boxGeometry args={[1.4, 1.9, 0.12]} />
+      <mesh position={[0, KEEP_FOUND + 0.85, KEEP_D / 2 + 0.02]} castShadow material={WOOD}>
+        <boxGeometry args={[1.4, 1.6, 0.12]} />
       </mesh>
-      <mesh position={[0, KEEP_FOUND + 0.95, KEEP_D / 2 + 0.09]} material={BEAM}>
-        <boxGeometry args={[0.1, 1.9, 0.05]} />
+      <mesh position={[0, KEEP_FOUND + 0.85, KEEP_D / 2 + 0.09]} material={BEAM}>
+        <boxGeometry args={[0.1, 1.6, 0.05]} />
       </mesh>
       {/* Banners flanking the door (planes — no shadow) */}
-      <mesh position={[-1.4, KEEP_FOUND + 2.4, KEEP_D / 2 + 0.08]} material={BANNER}>
-        <planeGeometry args={[0.7, 1.6]} />
+      <mesh position={[-1.4, KEEP_FOUND + 1.25, KEEP_D / 2 + 0.08]} material={BANNER}>
+        <planeGeometry args={[0.6, 1.4]} />
       </mesh>
-      <mesh position={[1.4, KEEP_FOUND + 2.4, KEEP_D / 2 + 0.08]} material={BANNER}>
-        <planeGeometry args={[0.7, 1.6]} />
+      <mesh position={[1.4, KEEP_FOUND + 1.25, KEEP_D / 2 + 0.08]} material={BANNER}>
+        <planeGeometry args={[0.6, 1.4]} />
       </mesh>
-
-      <Text
-        position={[0, roofY + 0.05, KEEP_D / 2 + 0.05]}
-        fontSize={0.4}
-        color="#f3e2b6"
-        anchorX="center"
-        anchorY="middle"
-        outlineColor="#000"
-        outlineWidth={0.02}
-      >
-        KEEP
-      </Text>
 
       {/* "Press E" prompt */}
-      <group ref={promptRef} position={[0, roofY + 3.4, 0]} visible={false}>
+      <group ref={promptRef} position={[0, roofY + 2.6, 0]} visible={false}>
         <Text fontSize={0.34} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.025}>
           Press E — Upgrades
         </Text>
@@ -218,7 +206,7 @@ export function Wall({ position, rotation = 0, len }: WallProps) {
 // Watchtower — square stone tower with a pitched roof (grid-aligned). Body +
 // battlement ring merged into one stone mesh.
 // ---------------------------------------------------------------------------
-const TOWER_H = 3.4
+const TOWER_H = 2.5
 
 interface TowerProps {
   position: [number, number, number]
@@ -254,7 +242,7 @@ export function Tower({ position, rotation = 0 }: TowerProps) {
 // ---------------------------------------------------------------------------
 // Gate — two stone posts with a timber lintel spanning the wall opening.
 // ---------------------------------------------------------------------------
-const GATE_H = 2.6
+const GATE_H = 2.0
 
 interface GateProps {
   position: [number, number, number]

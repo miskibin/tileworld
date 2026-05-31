@@ -30,6 +30,19 @@ const ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
   [[43, 33], [16, 33], [16, 38]],
   // East gate → stone highlands (E)
   [[71, 33], [82, 33], [82, 37]],
+  // Spurs off the trunks to the landmarks — more trails, not wider ones.
+  // South trunk → market stall (S gate).
+  [[57, 45], [62, 45]],
+  // West road → western hamlet.
+  [[27, 33], [27, 30]],
+  // North trunk → north warcamp.
+  [[50, 12], [50, 15]],
+  // North branch → NE ork camp.
+  [[76, 12], [76, 20]],
+  // South branch → into SE ork camp.
+  [[74, 53], [71, 53]],
+  // Southern trunk → into SW ork camp.
+  [[20, 52], [24, 52]],
 ]
 
 interface RoadData {

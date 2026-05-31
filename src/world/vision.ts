@@ -1,10 +1,20 @@
 import * as THREE from 'three'
 
 /**
- * Player-centred "fog of war" — terrain darkens with distance from the
- * player position. Mimics the LoL-style sight radius.
+ * Terrain shader injection — two effects share one onBeforeCompile pass:
  *
- * The uniforms below are shared across every patched material so a single
+ *  1. Per-fragment detail: world-space value-noise mottle, large-scale
+ *     hue/value variation (the cure for "flat green"), and an optional tiling
+ *     detail texture sampled in continuous world-XZ UVs (so the 1×1 grid never
+ *     shows). Strength is tunable per material via `opts`.
+ *  2. Player-centred "fog of war": terrain darkens with distance from the
+ *     player (LoL-style sight bubble). Disabled by default (maxDarken 0).
+ *
+ * World position is computed *including* instanceMatrix, so the instanced
+ * terrain tiles actually vary per tile — without this the noise repeats
+ * identically inside every 1×1 box and the ground looks uniform.
+ *
+ * The fog-of-war uniforms are shared across every patched material so a single
  * write per frame updates the whole world.
  */
 export const playerPosUniform = { value: new THREE.Vector3(0, 0, 0) }
@@ -20,29 +30,62 @@ export function setVisionPlayerPos(x: number, y: number, z: number): void {
   playerPosUniform.value.set(x, y, z)
 }
 
+export interface TerrainShaderOpts {
+  /** tiling detail texture sampled in world-XZ; only applied to up-facing faces */
+  detail?: THREE.Texture | null
+  /** world units → detail UV multiplier (0.2 ≈ one texture per 5 tiles) */
+  detailScale?: number
+  /** detail blend strength (0..1) */
+  detailStrength?: number
+  /** mean luminance of the detail texture (for imprint normalisation) */
+  detailMean?: number
+  /** large-scale hue/value variation strength (0..1+) */
+  variation?: number
+}
+
 /**
- * Inject the darkening pass into a MeshStandardMaterial (or compatible).
- * Safe to call multiple times — only patches once per material instance.
+ * Inject the terrain detail + darkening pass into a MeshStandardMaterial (or
+ * compatible). Safe to call multiple times — only patches once per material.
  */
-export function applyVisionShader(material: THREE.Material): void {
+export function applyVisionShader(
+  material: THREE.Material,
+  opts: TerrainShaderOpts = {},
+): void {
   const m = material as THREE.Material & { __visionPatched?: boolean }
   if (m.__visionPatched) return
   m.__visionPatched = true
+
+  const hasDetail = !!opts.detail
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPlayerPos = playerPosUniform
     shader.uniforms.uViewRadius = viewRadiusUniform
     shader.uniforms.uViewFalloff = viewFalloffUniform
     shader.uniforms.uViewMaxDarken = viewMaxDarkenUniform
+    shader.uniforms.uVariation = { value: opts.variation ?? 0.6 }
+    if (hasDetail) {
+      shader.uniforms.uDetailMap = { value: opts.detail }
+      shader.uniforms.uDetailScale = { value: opts.detailScale ?? 0.22 }
+      shader.uniforms.uDetailStrength = { value: opts.detailStrength ?? 0.55 }
+      shader.uniforms.uDetailMean = { value: opts.detailMean ?? 0.5 }
+    }
 
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying vec3 vFogOfWarWorldPos;',
+        '#include <common>\nvarying vec3 vTerrainWorldPos;\nvarying float vTerrainUp;',
       )
       .replace(
         '#include <project_vertex>',
-        'vFogOfWarWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#include <project_vertex>',
+        `#ifdef USE_INSTANCING
+           vec4 vtWorld = modelMatrix * instanceMatrix * vec4(transformed, 1.0);
+           vTerrainUp = (modelMatrix * instanceMatrix * vec4(normal, 0.0)).y;
+         #else
+           vec4 vtWorld = modelMatrix * vec4(transformed, 1.0);
+           vTerrainUp = (modelMatrix * vec4(normal, 0.0)).y;
+         #endif
+         vTerrainWorldPos = vtWorld.xyz;
+         #include <project_vertex>`,
       )
 
     shader.fragmentShader = shader.fragmentShader
@@ -53,12 +96,15 @@ export function applyVisionShader(material: THREE.Material): void {
          uniform float uViewRadius;
          uniform float uViewFalloff;
          uniform float uViewMaxDarken;
-         varying vec3 vFogOfWarWorldPos;
-         float fowHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-         float fowNoise(vec2 p){
+         uniform float uVariation;
+         ${hasDetail ? 'uniform sampler2D uDetailMap;\nuniform float uDetailScale;\nuniform float uDetailStrength;\nuniform float uDetailMean;' : ''}
+         varying vec3 vTerrainWorldPos;
+         varying float vTerrainUp;
+         float terHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+         float terNoise(vec2 p){
            vec2 i = floor(p); vec2 f = fract(p);
-           float a = fowHash(i), b = fowHash(i + vec2(1.0, 0.0));
-           float c = fowHash(i + vec2(0.0, 1.0)), d = fowHash(i + vec2(1.0, 1.0));
+           float a = terHash(i), b = terHash(i + vec2(1.0, 0.0));
+           float c = terHash(i + vec2(0.0, 1.0)), d = terHash(i + vec2(1.0, 1.0));
            vec2 u = f * f * (3.0 - 2.0 * f);
            return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
          }`,
@@ -66,17 +112,35 @@ export function applyVisionShader(material: THREE.Material): void {
       .replace(
         '#include <dithering_fragment>',
         `#include <dithering_fragment>
-         // Procedural ground mottle — world-space value noise at three octaves
-         // breaks the flat per-tile colour into organic patches (no visible grid).
-         vec2 fowWp = vFogOfWarWorldPos.xz;
-         float fowN = fowNoise(fowWp * 0.55) * 0.6 + fowNoise(fowWp * 2.1) * 0.3 + fowNoise(fowWp * 6.5) * 0.1;
-         gl_FragColor.rgb *= 0.88 + fowN * 0.24;
-         float fowD = length(vFogOfWarWorldPos.xz - uPlayerPos.xz);
-         float fowDark = smoothstep(uViewRadius, uViewRadius + uViewFalloff, fowD) * uViewMaxDarken;
-         // Fade toward a dark cool tint, not pure black — keeps the look moody
-         // and matches the atmospheric fog colour, so distant terrain reads as
-         // "far away" rather than "desaturated".
-         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.04, 0.05, 0.10), fowDark);`,
+         vec2 terWp = vTerrainWorldPos.xz;
+
+         // (1) fine value mottle — three octaves break the flat per-tile colour.
+         float terM = terNoise(terWp * 0.5) * 0.55 + terNoise(terWp * 1.7) * 0.30 + terNoise(terWp * 5.5) * 0.15;
+         gl_FragColor.rgb *= 0.80 + terM * 0.40;
+
+         // (2) analytic large-scale hue + value variation. Computed per fragment
+         //     from world position (no texture minification), so it survives the
+         //     RTS camera distance — this is the real cure for "flat green":
+         //     broad patches drift warm yellow-green ↔ cool deep-green and
+         //     lighten/darken like real ground cover.
+         float terBig = terNoise(terWp * 0.05) * 0.6 + terNoise(terWp * 0.14) * 0.4;
+         float terHue = terNoise(terWp * 0.028 + 11.0);
+         gl_FragColor.rgb += (terBig - 0.5) * uVariation * vec3(0.16, 0.10, -0.10);
+         gl_FragColor.rgb *= 1.0 + (terHue - 0.5) * uVariation * 0.30;
+
+         ${hasDetail ? `
+         // (3) tiling detail texture imprint (up-facing faces only). Normalised by
+         //     its mean so it modulates around 1.0 — keeps the biome's base colour
+         //     but stamps the grain/clumps on top.
+         float terTop = step(0.5, vTerrainUp);
+         vec3 terDet = texture2D(uDetailMap, terWp * uDetailScale).rgb / max(uDetailMean, 0.01);
+         gl_FragColor.rgb *= mix(vec3(1.0), terDet, uDetailStrength * terTop);
+         ` : ''}
+
+         // (4) player-centred darkening (fog of war), disabled when maxDarken = 0.
+         float terD = length(vTerrainWorldPos.xz - uPlayerPos.xz);
+         float terDark = smoothstep(uViewRadius, uViewRadius + uViewFalloff, terD) * uViewMaxDarken;
+         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.04, 0.05, 0.10), terDark);`,
       )
   }
   material.needsUpdate = true

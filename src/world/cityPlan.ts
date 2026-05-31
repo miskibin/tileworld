@@ -104,7 +104,7 @@ export const HOUSE_SLOTS: HouseSlot[] = [
   house(66, 39),
 ]
 
-const WALL_H = 1.8
+const WALL_H = 1.35
 
 // Perimeter walls (bounds x44..70, z24..42). rotation 0 = runs along X; 90° =
 // runs along Z. Each side is split around its central gate, with segments that

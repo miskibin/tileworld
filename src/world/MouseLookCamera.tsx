@@ -15,7 +15,7 @@ const SENSITIVITY_X = 0.0035
 const SENSITIVITY_Y = 0.0014
 const ZOOM_SENS = 0.04
 const MIN_DIST = 8
-const MAX_DIST = 70
+const MAX_DIST = 150
 const MIN_POLAR = 0.18
 const MAX_POLAR = Math.PI / 2 - 0.07
 
@@ -29,8 +29,8 @@ export function MouseLookCamera({ posRef }: Props) {
   const gl = useThree((s) => s.gl)
 
   const azimuth = useRef(Math.PI * 0.85)
-  const polar = useRef(Math.PI * 0.32)
-  const dist = useRef(30)
+  const polar = useRef(Math.PI * 0.18)
+  const dist = useRef(12)
   const locked = useRef(false)
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getPlayer } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { DAY_START_T, getDay, makeDaySample, sampleDay, sunDirAt } from './timeStore'
 
 /**
  * The sun: a shadow-casting directional light whose shadow frustum FOLLOWS the
@@ -27,9 +28,14 @@ import { isFrozen } from './pauseStore'
  * so the moving shadow camera looks as stable as the old static one.
  */
 
-// Sun direction (matches World.tsx SUN_DIR). The light sits this far up-sun
-// from its target; far/near bracket the target so the whole view depth fits.
-const SUN_OFFSET = new THREE.Vector3(92, 36, 60).normalize().multiplyScalar(120)
+// How far up-sun the light sits from its target (far/near bracket the target
+// so the whole view depth fits). The DIRECTION now comes from the day/night
+// clock (timeStore) each frame instead of a fixed golden-hour constant.
+const SUN_DIST = 120
+// Initial offset at the frozen start (golden hour) for the first commit.
+const START_OFFSET = sunDirAt(DAY_START_T, new THREE.Vector3()).multiplyScalar(
+  SUN_DIST,
+)
 
 // Half-extent of the shadow frustum in world units. At the map centre (spawn)
 // this still reaches the island edges, so spawn shadows are unchanged; it only
@@ -76,42 +82,56 @@ export function SunShadow({ intensity }: Props) {
   // centre. 2048 = shadow map size; SHADOW_HALF*2 = frustum width.
   const texelSize = useMemo(() => (SHADOW_HALF * 2) / 2048, [])
 
+  // Scratch reused each frame (no per-frame allocation).
+  const sunDir = useMemo(() => new THREE.Vector3(), [])
+  const sample = useMemo(() => makeDaySample(), [])
+
   useFrame(() => {
-    // Hold shadows still behind any pause/modal — the scene is frozen anyway.
-    if (isFrozen()) return
-    frame.current++
+    // Direction + colour/intensity come from the day/night clock and are
+    // applied EVERY frame (even while paused) so the sun shading is correct
+    // behind the start screen and tracks the clock as it runs / is scrubbed.
+    const day = getDay()
+    sunDirAt(day.t, sunDir)
+    sampleDay(day.t, sample)
+    const light = lightRef.current
+    light.intensity = intensity * sample.sunVis // → 0 once the sun sets
+    light.color.copy(sample.sunColor)
 
-    const p = getPlayer()
-    // The light lives inside World's grid-offset group, so player grid coords
-    // (p.x, p.z) are the right frame for both the light and its target.
-    const px = p.x
-    const pz = p.z
-
-    const movedSq =
-      (px - lastCenter.current.x) ** 2 + (pz - lastCenter.current.z) ** 2
-    const recenter = movedSq > RECENTER_DIST_SQ
-
-    if (recenter) {
-      // Snap the follow centre to the texel grid so shadow edges don't swim as
-      // the frustum slides with the player.
-      const snappedX = Math.round(px / texelSize) * texelSize
-      const snappedZ = Math.round(pz / texelSize) * texelSize
-      target.position.set(snappedX, 0, snappedZ)
-      target.updateMatrixWorld()
-      const light = lightRef.current
-      light.position.set(
-        snappedX + SUN_OFFSET.x,
-        SUN_OFFSET.y,
-        snappedZ + SUN_OFFSET.z,
-      )
-      light.updateMatrixWorld()
-      lastCenter.current.set(px, 0, pz)
-      gl.shadowMap.needsUpdate = true
-    } else if (frame.current % ANIM_REFRESH_INTERVAL === 0) {
-      // Standing still / small moves: still refresh occasionally so moving
-      // casters (mobs) get updated shadows, without redrawing every frame.
-      gl.shadowMap.needsUpdate = true
+    // Shadow map only re-renders when the world is live (held still behind any
+    // pause/modal). The light transform below still updates so shading is right.
+    if (!isFrozen()) {
+      frame.current++
+      const p = getPlayer()
+      // The light lives inside World's grid-offset group, so player grid coords
+      // (p.x, p.z) are the right frame for both the light and its target.
+      const px = p.x
+      const pz = p.z
+      const movedSq =
+        (px - lastCenter.current.x) ** 2 + (pz - lastCenter.current.z) ** 2
+      if (movedSq > RECENTER_DIST_SQ) {
+        // Snap the follow centre to the texel grid so shadow edges don't swim
+        // as the frustum slides with the player.
+        const snappedX = Math.round(px / texelSize) * texelSize
+        const snappedZ = Math.round(pz / texelSize) * texelSize
+        target.position.set(snappedX, 0, snappedZ)
+        target.updateMatrixWorld()
+        lastCenter.current.set(px, 0, pz)
+        gl.shadowMap.needsUpdate = true
+      } else if (frame.current % ANIM_REFRESH_INTERVAL === 0) {
+        // Standing still / small moves: still refresh occasionally so moving
+        // casters (mobs) AND the drifting sun get updated shadows, without
+        // redrawing every frame.
+        gl.shadowMap.needsUpdate = true
+      }
     }
+
+    // Aim the light up-sun from the (current) target every frame.
+    light.position.set(
+      target.position.x + sunDir.x * SUN_DIST,
+      sunDir.y * SUN_DIST,
+      target.position.z + sunDir.z * SUN_DIST,
+    )
+    light.updateMatrixWorld()
   })
 
   return (
@@ -119,7 +139,7 @@ export function SunShadow({ intensity }: Props) {
       <primitive object={target} />
       <directionalLight
         ref={lightRef}
-        position={[SUN_OFFSET.x, SUN_OFFSET.y, SUN_OFFSET.z]}
+        position={[START_OFFSET.x, START_OFFSET.y, START_OFFSET.z]}
         target={target}
         intensity={intensity}
         color="#ffe6b3"

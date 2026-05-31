@@ -81,9 +81,9 @@ interface Orbit {
 // superellipse that bulges into the corners, so an ellipse that's only clear on
 // the axes still clips the corners). These radii clear it all the way round.
 const ORBITS: Orbit[] = [
-  { rx: 62, rz: 50, speed: 0.05, phase: 0.0, seed: 0.3 },
-  { rx: 68, rz: 54, speed: -0.04, phase: 2.3, seed: 1.7 },
-  { rx: 58, rz: 58, speed: 0.045, phase: 4.1, seed: 2.9 },
+  { rx: 88, rz: 66, speed: 0.05, phase: 0.0, seed: 0.3 },
+  { rx: 95, rz: 72, speed: -0.04, phase: 2.3, seed: 1.7 },
+  { rx: 84, rz: 80, speed: 0.045, phase: 4.1, seed: 2.9 },
 ]
 
 export function Ships() {

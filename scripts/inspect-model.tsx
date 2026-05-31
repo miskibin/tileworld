@@ -28,10 +28,16 @@ import { OrkCamp } from '../src/world/OrkCamp'
 import { OrkView } from '../src/world/Ork'
 import { createOrk } from '../src/world/orkStore'
 import { Character } from '../src/world/Character'
-import { Wall, Tower } from '../src/world/cityModels'
+import { Wall, Tower, Gate, Keep } from '../src/world/cityModels'
 import { VillagerView } from '../src/world/Villager'
 import { createVillager } from '../src/world/villagerStore'
 import { Boat } from '../src/world/Boat'
+import { DistantMountains } from '../src/world/DistantMountains'
+import { WolfView } from '../src/world/Wolf'
+import { DeerView } from '../src/world/Deer'
+import { BoarView } from '../src/world/Boar'
+import { RabbitView } from '../src/world/Rabbit'
+import { createAnimal } from '../src/world/animalStore'
 
 // ---------------------------------------------------------------------------
 // Registry: name -> a thunk that builds the element with inspection-friendly
@@ -48,10 +54,18 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Cat: () => <Cat home={[0, 0, 0]} />,
   Campfire: () => <Campfire position={[0, 0, 0]} />,
   OrkCamp: () => <OrkCamp position={[0, 0, 0]} />,
-  Ork: () => <OrkView state={createOrk(0, 0, 0, 0, 1)} />,
+  Ork: () => <OrkView state={createOrk(0, 0, 0, 'grunt', 'red', 1)} />,
+  OrkShaman: () => <OrkView state={createOrk(0, 0, 0, 'shaman', 'blue', 1)} />,
+  Wolf: () => <WolfView state={createAnimal('wolf', 0, 0, 1)} />,
+  Deer: () => <DeerView state={createAnimal('deer', 0, 0, 1)} />,
+  Boar: () => <BoarView state={createAnimal('boar', 0, 0, 1)} />,
+  Rabbit: () => <RabbitView state={createAnimal('rabbit', 0, 0, 1)} />,
   Wall: () => <Wall position={[0, 0, 0]} len={11} />,
   Tower: () => <Tower position={[0, 0, 0]} />,
+  Gate: () => <Gate position={[0, 0, 0]} width={4} />,
+  Keep: () => <Keep position={[0, 0, 0]} />,
   Boat: () => <Boat />,
+  DistantMountains: () => <DistantMountains />,
   Villager: () => (
     <VillagerView
       state={createVillager({

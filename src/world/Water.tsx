@@ -5,10 +5,11 @@ import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
 import { isPaused } from './pauseStore'
 import { waterTexture } from './textures'
 
-// Wide open ocean ring around the island (was COLS+8 / ROWS+8 — only a thin
-// margin). A big plane fading into the horizon fog reads as the open sea.
-const W = COLS + 70
-const H = ROWS + 70
+// Wide open ocean ring around the island. A big plane fading into the horizon
+// fog reads as the open sea; the margin is generous so the distant mountain
+// backdrop (see DistantMountains) sits well out on the water, not at the edge.
+const W = COLS + 280
+const H = ROWS + 280
 
 export function Water() {
   const meshRef = useRef<THREE.Mesh>(null!)

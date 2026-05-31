@@ -13,8 +13,8 @@ export interface Tile {
   height: number
 }
 
-export const COLS = 96
-export const ROWS = 72
+export const COLS = 144
+export const ROWS = 108
 
 export const CENTER_X = COLS / 2
 export const CENTER_Z = ROWS / 2
@@ -53,8 +53,9 @@ function lakeAt(x: number, z: number): number {
 
 // Push the coastline almost to the grid edge AND use a superellipse (rounded
 // rectangle) instead of a plain ellipse so the island fills the grid corners
-// too — ~30% more walkable land within the same 96×72 grid. Existing camps /
-// villages / castle sit well inside, so this only adds land around them.
+// too. The grid is 124×94; the island grows around its centre while the old
+// core (castle, camps, villages, rivers) stays anchored at its original coords,
+// so the extra ~30% of land opens up as fresh frontier to the east and south.
 const islandRx = COLS / 2 - 1
 const islandRz = ROWS / 2 - 1
 const ISLAND_EXP = 2.6 // 2 = ellipse; higher = squarer (more corner land)
@@ -85,9 +86,11 @@ function distFromCoast(x: number, z: number): number {
   return min
 }
 
-/** Center X of the meandering N-S river at row z. */
+/** Center X of the meandering N-S river at row z. Anchored to the absolute
+ *  x≈40 line (not CENTER_X) so the river stays put when the grid grows — the
+ *  castle, gate roads and their bridges are all authored around this crossing. */
 function riverX(z: number): number {
-  return CENTER_X - 8 + Math.sin(z * 0.18) * 5 + Math.sin(z * 0.07 + 1.4) * 3
+  return 40 + Math.sin(z * 0.18) * 5 + Math.sin(z * 0.07 + 1.4) * 3
 }
 
 /** Center Z of the E-W river at column x. */
@@ -101,7 +104,7 @@ function isRiverAt(x: number, z: number): boolean {
     const w = 1.3 + Math.sin(z * 0.5) * 0.3
     if (Math.abs(x - cx) < w) return true
   }
-  if (x > CENTER_X - 2 && x < COLS - 10) {
+  if (x > 46 && x < COLS - 10) {
     const cz = riverZ(x)
     if (Math.abs(z - cz) < 1.0) return true
   }
@@ -136,12 +139,19 @@ interface Region {
   height?: number
 }
 const REGIONS: Region[] = [
-  { x: 16, z: 12, r: 12, biome: 'snow', height: 2 }, // NW
-  { x: 80, z: 13, r: 12, biome: 'desert' }, // NE
-  { x: 15, z: 58, r: 12, biome: 'swamp' }, // SW
-  { x: 80, z: 58, r: 13, biome: 'forest' }, // SE pine wood
-  { x: 11, z: 38, r: 9, biome: 'forest' }, // W forest
-  { x: 82, z: 37, r: 11, biome: 'rock', height: 2 }, // E stone highlands
+  // Original biome ring around the anchored town — radii enlarged so each biome
+  // reads as a big region instead of a small blob.
+  { x: 16, z: 12, r: 15, biome: 'snow', height: 2 }, // NW
+  { x: 80, z: 13, r: 16, biome: 'desert' }, // N / NE
+  { x: 15, z: 58, r: 15, biome: 'swamp' }, // SW
+  { x: 80, z: 58, r: 18, biome: 'forest' }, // S pine wood
+  { x: 11, z: 38, r: 12, biome: 'forest' }, // W forest
+  { x: 84, z: 38, r: 12, biome: 'rock', height: 2 }, // E stone highlands (nudged east, off the castle wall)
+  // Big frontier biomes filling the expanded east / south land (grid 144×108).
+  { x: 118, z: 40, r: 19, biome: 'desert' }, // far-east dunes
+  { x: 116, z: 84, r: 21, biome: 'forest' }, // SE deep pinewood
+  { x: 60, z: 92, r: 17, biome: 'swamp' }, // south marsh
+  { x: 120, z: 16, r: 15, biome: 'rock', height: 2 }, // NE highland spur
 ]
 
 function regionAt(x: number, z: number): Region | null {

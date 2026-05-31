@@ -195,10 +195,10 @@ function generate(): Obstacle[] {
       }
       if (!picked) continue
 
-      // Thin the forest: drop ~30% of would-be trees so the canopy reads full
+      // Thin the forest: drop ~50% of would-be trees so the canopy reads full
       // without being overgrown (user request). Bushes/rocks/decor untouched.
       if (picked.kind === 'tree' || picked.kind === 'birch' || picked.kind === 'snowPine') {
-        if (rand() < 0.3) continue
+        if (rand() < 0.5) continue
       }
 
       const cx = x + 0.5 + (rand() - 0.5) * 0.4
