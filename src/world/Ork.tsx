@@ -7,12 +7,15 @@ import {
   healOrk,
   nearestEnemyOrk,
   nearestWoundedAlly,
+  reapOrk,
   type OrkState,
 } from './orkStore'
 import { ORK_CONFIG, FACTION_COLOR } from './orkConfig'
+import { CASTLE_CORE, damageCastle } from './castleStore'
+import { KEEP_HALF } from './cityPlan'
 import { spawnBolt } from './projectileStore'
 import { spawnFloat } from './fxStore'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
@@ -117,7 +120,10 @@ export function OrkView({ state }: OrkViewProps) {
       const sink = Math.min(0.4, elapsed * 0.3)
       g.position.set(state.x, state.y - sink, state.z)
       g.rotation.z = Math.min(Math.PI / 2, elapsed * 2.2)
-      if (opacity <= 0 && visible) setVisible(false)
+      if (opacity <= 0 && visible) {
+        setVisible(false)
+        reapOrk(state.id) // drop from roster so waves don't accumulate corpses
+      }
       if (billboardGroupRef.current) billboardGroupRef.current.visible = false
       return
     }
@@ -142,6 +148,7 @@ export function OrkView({ state }: OrkViewProps) {
     let dist = Infinity
     let targetOrk: OrkState | null = null
     let targetIsPlayer = false
+    let targetIsCastle = false
     if (playerValid && playerDist <= enemyDist) {
       tx = player.x
       tz = player.z
@@ -153,14 +160,25 @@ export function OrkView({ state }: OrkViewProps) {
       dist = enemyDist
       targetOrk = enemy
     }
-    const hasTarget = targetIsPlayer || targetOrk !== null
+    // Fallback goal: if no player/rival-ork target, march on the keep.
+    if (!targetIsPlayer && !targetOrk) {
+      tx = CASTLE_CORE.x
+      tz = CASTLE_CORE.z
+      // Distance to the keep's AABB edge (not its centre) so orks stop at the
+      // wall and strike it, instead of trying to stand inside the keep.
+      const ddx = Math.max(0, Math.abs(CASTLE_CORE.x - state.x) - KEEP_HALF.x)
+      const ddz = Math.max(0, Math.abs(CASTLE_CORE.z - state.z) - KEEP_HALF.z)
+      dist = Math.hypot(ddx, ddz)
+      targetIsCastle = true
+    }
+    const hasTarget = targetIsPlayer || targetOrk !== null || targetIsCastle
     const triggerRange = isShaman ? cfg.rangedRange ?? cfg.aggro : cfg.melee
     const inRange = hasTarget && dist < triggerRange
     const attacking = state.attackingSince > 0
 
     // Grunt when first acquiring a target.
     if (hasTarget && !wasAggroRef.current && tNow - lastGruntRef.current > 1.5) {
-      playOrkGrunt(dist)
+      playOrkGrunt(playerDist)
       lastGruntRef.current = tNow
     }
     wasAggroRef.current = hasTarget
@@ -191,7 +209,7 @@ export function OrkView({ state }: OrkViewProps) {
       state.attackingSince = tNow
       state.attackHitDealt = false
       if (tNow - lastGruntRef.current > 1.2) {
-        playOrkGrunt(dist)
+        playOrkGrunt(playerDist)
         lastGruntRef.current = tNow
       }
     }
@@ -240,7 +258,7 @@ export function OrkView({ state }: OrkViewProps) {
             state.y = bridge.y
           } else {
             const tileNow = tileAt(Math.floor(state.x), Math.floor(state.z))
-            if (tileNow) state.y = tileNow.height
+            if (tileNow) state.y = tileTopY(Math.floor(state.x), Math.floor(state.z))
           }
           walking = canMoveX || canMoveZ
         }
@@ -273,6 +291,9 @@ export function OrkView({ state }: OrkViewProps) {
               damagePlayer(cfg.damage, tNow)
             } else if (targetOrk && targetOrk.hp > 0) {
               damageOrk(targetOrk, cfg.damage, tNow)
+            } else if (targetIsCastle) {
+              damageCastle(cfg.damage)
+              spawnFloat(`-${cfg.damage}`, '#ff7a3a', CASTLE_CORE.x, 4, CASTLE_CORE.z)
             }
           }
         }
