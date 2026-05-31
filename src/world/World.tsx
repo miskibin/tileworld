@@ -1,8 +1,18 @@
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
+import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
-import { PositionalAudio, Sparkles } from '@react-three/drei'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
-import { KernelSize } from 'postprocessing'
+import { PositionalAudio, Sparkles, Sky, Environment } from '@react-three/drei'
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+  N8AO,
+  GodRays,
+  HueSaturation,
+  BrightnessContrast,
+  SMAA,
+} from '@react-three/postprocessing'
+import { KernelSize, BlendFunction } from 'postprocessing'
 import { Perf } from 'r3f-perf'
 import { SoundScape } from '../audio/SoundScape'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
@@ -29,6 +39,13 @@ import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
 import { CENTER_X, CENTER_Z } from './tileMap'
 
+// Golden-hour sun. One direction drives three things that must agree:
+// the directional (shadow-casting) light, the <Sky> sun disc, and the
+// far-away emissive sphere that the GodRays post-effect rays out from.
+const SUN_DIR = new THREE.Vector3(92, 36, 60)
+const SUN_FAR = SUN_DIR.clone().normalize().multiplyScalar(700)
+const SUN_LIGHT_POS = SUN_DIR.clone().normalize().multiplyScalar(130)
+
 function DebugExpose() {
   const state = useThree()
   if (typeof window !== 'undefined') {
@@ -41,33 +58,67 @@ export function World() {
   // Knight spawn near map center of the larger 96×72 map.
   const posRef = useRef<PlayerStateRef>({ x: 48, y: 1, z: 36, moving: false })
   const audioEnabled = useAudioEnabled()
-  const [lights, setLights] = useState({ ambient: 0.5, hemi: 0.75, dir: 1.6 })
+  // Lower flat fills than before — the HDRI environment now supplies most of
+  // the ambient/bounce light, so ambient+hemi are dialled back and the sun is
+  // pushed up for golden-hour contrast. Keep in sync with DebugBindings.tsx.
+  const [lights, setLights] = useState({ ambient: 0.22, hemi: 0.4, dir: 2.1 })
+  // GodRays needs the rendered sun mesh; capture it via callback ref.
+  const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
 
   return (
     <>
       <DebugBindings onLights={setLights} />
-      <hemisphereLight args={['#dfe9f4', '#4a6a3a', lights.hemi]} />
+
+      {/* Atmospheric sky dome (Preetham scattering) tuned to a low, warm sun
+          so the horizon glows golden-hour and the zenith stays soft blue. */}
+      <Sky
+        distance={4000}
+        sunPosition={SUN_DIR}
+        turbidity={9}
+        rayleigh={2.4}
+        mieCoefficient={0.006}
+        mieDirectionalG={0.82}
+      />
+
+      {/* Image-based lighting: a sunset HDRI supplies rich, directional
+          ambient + subtle reflections on every MeshStandardMaterial. Lighting
+          only (background stays the <Sky> dome). Wrapped in its own Suspense
+          so the HDRI fetch/parse can't blank the whole scene on first load —
+          the world renders immediately and the IBL pops in when ready. */}
+      <Suspense fallback={null}>
+        <Environment files="/hdri/sunset_1k.hdr" environmentIntensity={0.55} />
+      </Suspense>
+
+      {/* Far emissive sphere — reads as the sun's glow (blooms) and is the
+          origin the GodRays effect shafts out from. */}
+      <mesh ref={setSunMesh} position={SUN_FAR}>
+        <sphereGeometry args={[46, 24, 24]} />
+        <meshBasicMaterial color="#fff0cc" toneMapped={false} fog={false} />
+      </mesh>
+
+      <hemisphereLight args={['#e7eef8', '#5a6a44', lights.hemi]} />
       <ambientLight intensity={lights.ambient} />
       <directionalLight
-        position={[34, 50, 26]}
+        position={SUN_LIGHT_POS}
         intensity={lights.dir}
-        color="#fff4d8"
+        color="#ffe6b3"
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-left={-60}
         shadow-camera-right={60}
         shadow-camera-top={60}
         shadow-camera-bottom={-60}
         shadow-camera-near={0.5}
-        shadow-camera-far={160}
-        shadow-bias={-0.0005}
+        shadow-camera-far={260}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.035}
       />
 
-      {/* Day fog — exponential falloff in the sky colour so the horizon
-          fades into atmospheric haze and the map isn't fully visible all
-          at once. */}
-      <fogExp2 attach="fog" args={['#bccad6', 0.024]} />
+      {/* Day fog — exponential falloff in a warm haze colour so the horizon
+          melts into golden-hour atmosphere and the map isn't fully visible
+          all at once. */}
+      <fogExp2 attach="fog" args={['#d6c6a0', 0.02]} />
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
@@ -182,16 +233,42 @@ export function World() {
         noise={0.6}
       />
 
-      <EffectComposer multisampling={0} enableNormalPass={false}>
-        <Bloom
-          mipmapBlur
-          luminanceThreshold={1.0}
-          luminanceSmoothing={0.2}
-          intensity={0.9}
-          kernelSize={KernelSize.LARGE}
-        />
-        <Vignette offset={0.4} darkness={0.55} eskil={false} />
-      </EffectComposer>
+      {/* Gated on the sun mesh (set by its callback ref on first commit) so
+          GodRays always has a valid origin — react-postprocessing's child
+          typing rejects conditional effect children, and the one-frame delay
+          is invisible behind the paused StartScreen. */}
+      {sunMesh && (
+        <EffectComposer multisampling={0} enableNormalPass={false}>
+          {/* Ambient occlusion grounds props/buildings into the terrain so
+              they stop looking pasted-on. Half-res keeps it cheap. */}
+          <N8AO halfRes aoRadius={2.0} distanceFalloff={1.5} intensity={2.2} />
+          {/* Volumetric sun shafts from the emissive sun sphere. */}
+          <GodRays
+            sun={sunMesh}
+            blur
+            samples={60}
+            density={0.96}
+            decay={0.92}
+            weight={0.4}
+            exposure={0.34}
+            clampMax={1}
+            blendFunction={BlendFunction.SCREEN}
+          />
+          {/* Selective glow on the sun + emissive surfaces (windows, fire). */}
+          <Bloom
+            mipmapBlur
+            luminanceThreshold={1.0}
+            luminanceSmoothing={0.2}
+            intensity={0.7}
+            kernelSize={KernelSize.LARGE}
+          />
+          {/* Warm cinematic grade: a touch more saturation + contrast. */}
+          <HueSaturation saturation={0.12} />
+          <BrightnessContrast brightness={-0.02} contrast={0.1} />
+          <Vignette offset={0.35} darkness={0.5} eskil={false} />
+          <SMAA />
+        </EffectComposer>
+      )}
 
       <MouseLookCamera posRef={posRef} />
       <SoundScape />

@@ -28,13 +28,13 @@ export function DebugBindings({ onLights }: Props) {
 
   const env = useControls('Environment', {
     fog: folder({
-      fogColor: { value: '#bccad6', label: 'color' },
-      fogDensity: { value: 0.024, min: 0, max: 0.1, step: 0.001, label: 'density' },
+      fogColor: { value: '#d6c6a0', label: 'color' },
+      fogDensity: { value: 0.02, min: 0, max: 0.1, step: 0.001, label: 'density' },
     }),
     lights: folder({
-      ambient: { value: 0.5, min: 0, max: 2, step: 0.05 },
-      hemi: { value: 0.75, min: 0, max: 2, step: 0.05 },
-      dir: { value: 1.6, min: 0, max: 4, step: 0.05 },
+      ambient: { value: 0.22, min: 0, max: 2, step: 0.05 },
+      hemi: { value: 0.4, min: 0, max: 2, step: 0.05 },
+      dir: { value: 2.1, min: 0, max: 4, step: 0.05 },
     }),
   })
 
