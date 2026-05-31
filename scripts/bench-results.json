@@ -1,0 +1,22 @@
+{
+  "note": "Headless draw-call benchmark at player spawn (map centre), measured per-frame over 120 frames via scripts/bench.mjs. Run under SwiftShader (software WebGL) so FPS is not meaningful here; draw calls / triangles / geometries are the deterministic, hardware-independent metrics.",
+  "before": {
+    "drawCalls_medianPerFrame": 1112,
+    "drawCalls_range": [1107, 1115],
+    "triangles": 658686,
+    "geometries": 552
+  },
+  "after": {
+    "drawCalls_medianPerFrame": 356,
+    "drawCalls_min": 334,
+    "drawCalls_avgPerFrame": 550,
+    "drawCalls_maxPerFrame_shadowRefresh": 964,
+    "triangles": 396432,
+    "geometries": 514
+  },
+  "delta": {
+    "drawCalls_median": "-68% (1112 -> 356)",
+    "triangles": "-40% (659k -> 396k per frame)",
+    "explanation": "Most frames skip the shadow pass (on-demand shadow map); the colour pass is ~300 calls. Refresh frames (~964) happen every 3rd frame for animated-caster shadow updates and on player recenter; they shrink further as the player explores away from the map centre because the follow frustum then covers fewer casters."
+  }
+}
