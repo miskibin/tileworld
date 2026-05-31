@@ -15,7 +15,16 @@ await sleep(8000)
 const result = await page.evaluate(async () => {
   const r3f = window.__r3f, gl = r3f.gl, scene = r3f.scene, cam = r3f.camera
   gl.info.autoReset = false
-  const render = () => { gl.info.reset(); gl.render(scene, cam); return gl.info.render.calls }
+  // SunShadow sets shadowMap.autoUpdate = false, so a bare gl.render() reuses
+  // the cached shadow map and the per-subtree deltas would miss the shadow
+  // pass. Force a shadow re-render each time so attribution covers colour +
+  // shadow, which is what this diagnostic is meant to measure.
+  const render = () => {
+    gl.shadowMap.needsUpdate = true
+    gl.info.reset()
+    gl.render(scene, cam)
+    return gl.info.render.calls
+  }
   const base = render()
   // Collect all renderable-bearing subtrees up to depth 3, attribute by hiding.
   // Walk top groups; for each direct/grandchild group with >0 renderables, measure.
