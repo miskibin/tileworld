@@ -5,6 +5,7 @@ import { isFrozen } from './pauseStore'
 import { getBirds } from './Birds'
 import { CENTER_X, CENTER_Z, tileAt, tileTopY } from './tileMap'
 import { getPlayer } from './playerStore'
+import { isNight } from './timeStore'
 import { playCatMeow } from '../audio/sfx'
 
 type CatMode = 'idle' | 'walk' | 'sit' | 'stalk'
@@ -72,9 +73,9 @@ export function Cat({ home, seed = 0 }: CatProps) {
     if (t >= st.nextMeow) {
       const p = getPlayer()
       const dd = Math.hypot(p.x - st.x, p.z - st.z)
-      if (dd < 12) {
+      if (dd < 12 && !isNight()) {
         playCatMeow(dd)
-        st.nextMeow = t + 7 + Math.random() * 8
+        st.nextMeow = t + 14 + Math.random() * 12
       } else {
         st.nextMeow = t + 2
       }

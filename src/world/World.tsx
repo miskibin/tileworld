@@ -23,6 +23,7 @@ import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
 import { WildAnimals } from './WildAnimals'
 import { Mobs } from './Mobs'
+import { OrkCamp } from './OrkCamp'
 import { WaveDirector } from './WaveDirector'
 import { Towers } from './Towers'
 import { KeepArchers } from './KeepArchers'
@@ -139,6 +140,14 @@ export function World() {
 
         {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
+
+        {/* Ork war-camps out in the wilds — daytime targets the player can ride
+            out and clear. Orks here guard their camp (home anchor) instead of
+            marching on the keep; blue warband so they read apart from the red
+            night-horde (and brawl any wave ork that strays near). */}
+        <OrkCamp position={[88, 1, 62]} rotation={0.6} seed={1.2} faction="blue" />
+        <OrkCamp position={[28, 1, 58]} rotation={-0.4} seed={2.7} faction="blue" />
+        <OrkCamp position={[98, 1, 30]} rotation={1.2} seed={4.1} faction="blue" />
 
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />

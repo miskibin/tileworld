@@ -8,6 +8,7 @@ import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
 import { isCulled } from './cull'
 import { getPlayer } from './playerStore'
+import { isNight } from './timeStore'
 import { playDogBark } from '../audio/sfx'
 
 const DOG_PALETTES: { body: string; dark: string }[] = [
@@ -126,9 +127,9 @@ function DogView({ state }: DogViewProps) {
     if (t >= nextBarkRef.current) {
       const p = getPlayer()
       const dd = Math.hypot(p.x - s.x, p.z - s.z)
-      if (dd < 16) {
+      if (dd < 16 && !isNight()) {
         playDogBark(dd)
-        nextBarkRef.current = t + 4 + rand() * 6
+        nextBarkRef.current = t + 9 + rand() * 10
       } else {
         nextBarkRef.current = t + 1.5
       }

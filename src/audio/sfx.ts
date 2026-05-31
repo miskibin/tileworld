@@ -306,8 +306,18 @@ export function playBearGrowl(dist = 0): void {
 
 // Sampled dog/cat voices (CC0 — rubberduck barks + IgnasD/AntumDeluge meows,
 // OpenGameArt). Random clip per call, distance-scaled, synth fallback.
-const DOG_BARKS = ['/audio/dog-bark-1.ogg', '/audio/dog-bark-2.ogg']
-const CAT_MEOWS = ['/audio/cat-meow-1.ogg', '/audio/cat-meow-2.ogg']
+const DOG_BARKS = [
+  '/audio/dog-bark-1.ogg',
+  '/audio/dog-bark-2.ogg',
+  '/audio/dog-bark-3.mp3',
+  '/audio/dog-bark-4.mp3',
+]
+const CAT_MEOWS = [
+  '/audio/cat-meow-1.ogg',
+  '/audio/cat-meow-2.ogg',
+  '/audio/cat-meow-3.mp3',
+  '/audio/cat-meow-4.mp3',
+]
 
 /** Dog bark — synth fallback (two short "ruff" bursts). */
 function dogBarkSynth(): void {
@@ -335,7 +345,7 @@ function dogBarkSynth(): void {
 
 /** Dog bark — sampled clip, distance-scaled. */
 export function playDogBark(dist = 0): void {
-  const v = volForDist(dist, 0.3)
+  const v = volForDist(dist, 0.16)
   if (v <= 0) return
   const f = DOG_BARKS[(Math.random() * DOG_BARKS.length) | 0]
   playSfx(f, v, 0.12).catch(dogBarkSynth)
@@ -343,7 +353,7 @@ export function playDogBark(dist = 0): void {
 
 /** Cat meow — sampled clip, distance-scaled. */
 export function playCatMeow(dist = 0): void {
-  const v = volForDist(dist, 0.22)
+  const v = volForDist(dist, 0.12)
   if (v <= 0) return
   const f = CAT_MEOWS[(Math.random() * CAT_MEOWS.length) | 0]
   playSfx(f, v, 0.1).catch(() => {})

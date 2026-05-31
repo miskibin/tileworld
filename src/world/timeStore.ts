@@ -50,6 +50,14 @@ export function getDay(): DayState {
   return state
 }
 
+const nightScratch = new THREE.Vector3()
+
+/** Cheap night gate for ambient SFX — true once the sun sits at/below the
+ *  horizon (dusk through dawn). Allocation-free, safe to call per frame. */
+export function isNight(): boolean {
+  return sunDirAt(state.t, nightScratch).y < 0.05
+}
+
 /** Hot path: advance the clock. No notify (would re-render every frame). */
 export function advanceDay(dt: number): void {
   if (state.frozen) return
