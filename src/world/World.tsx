@@ -24,6 +24,7 @@ import { Wildlife } from './Wildlife'
 import { WildAnimals } from './WildAnimals'
 import { Mobs } from './Mobs'
 import { WaveDirector } from './WaveDirector'
+import { Towers } from './Towers'
 import { Bears } from './Bear'
 import { Projectiles } from './Projectiles'
 import { Chest } from './Chest'
@@ -131,6 +132,7 @@ export function World() {
 
         {/* Wave director: spawns escalating ork waves that march on the keep */}
         <WaveDirector />
+        <Towers />
 
         {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
