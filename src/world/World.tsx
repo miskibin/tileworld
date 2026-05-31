@@ -46,6 +46,7 @@ import { DebugBindings } from './DebugBindings'
 import { DayNight } from './DayNight'
 import { SunShadow } from './SunShadow'
 import { CENTER_X, CENTER_Z } from './tileMap'
+import { CAPTURE_MODE } from './renderMode'
 
 function DebugExpose() {
   const state = useThree()
@@ -234,7 +235,7 @@ export function World() {
           GodRays always has a valid origin — react-postprocessing's child
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
-      {sunMesh && (
+      {sunMesh && !CAPTURE_MODE && (
         <EffectComposer multisampling={0} enableNormalPass={false}>
           {/* Ambient occlusion grounds props/buildings into the terrain so
               they stop looking pasted-on. Half-res keeps it cheap. */}
