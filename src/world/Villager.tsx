@@ -10,6 +10,7 @@ import { isCulled } from './cull'
 import { isInsideCastle } from './cityPlan'
 import { getAliveOrks, damageOrk } from './orkStore'
 import { getAliveBears, damageBear } from './bearStore'
+import { getPhase } from './gameStore'
 import { spawnFloat } from './fxStore'
 import { playVillagerGrunt, playSwing, playHit } from '../audio/sfx'
 import { hasBuffer, playSfx } from '../audio/audio'
@@ -209,8 +210,10 @@ export function VillagerView({ state }: Props) {
     let attackArm: number | null = null
     let fighting = false
     if (isGuard) {
+      const waveActive = getPhase() === 'wave'
+      const defendR = GUARD_DEFEND_RADIUS * (waveActive ? 1.8 : 1)
       const aggro = armorTier > 0 ? GUARD_AGGRO_ARMORED : GUARD_AGGRO
-      const foe = nearestHostile(state, GUARD_DEFEND_RADIUS, aggro)
+      const foe = nearestHostile(state, defendR, aggro)
       if (foe) {
         fighting = true
         const dx = foe.x - state.x
