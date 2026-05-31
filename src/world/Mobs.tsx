@@ -1,20 +1,18 @@
 import { useEffect, useState } from 'react'
-import { getOrks, resetOrks, type OrkState } from './orkStore'
+import { getOrks, resetOrks, subscribeOrks, type OrkState } from './orkStore'
 import { resetObjectiveTotal } from './objectiveStore'
 import { OrkView } from './Ork'
 
 export function Mobs() {
-  // Re-render once on mount so OrkCamps that registered orks during mount get displayed.
-  // After that, OrkView reads state directly each frame.
-  const [orks, setOrks] = useState<OrkState[]>([])
+  // Subscribe to the roster so orks spawned over the course of a wave (and
+  // reaped on death) appear/disappear. The list reference is stable; we copy to
+  // force a re-render.
+  const [orks, setOrks] = useState<OrkState[]>(() => [...getOrks()])
 
   useEffect(() => {
-    // One frame later — by then all OrkCamps have run their createOrk effects.
-    const handle = requestAnimationFrame(() => {
-      setOrks([...getOrks()])
-    })
+    const unsub = subscribeOrks((list) => setOrks([...list]))
     return () => {
-      cancelAnimationFrame(handle)
+      unsub()
       // Reset on unmount so HMR + remount don't double-register.
       resetOrks()
       resetObjectiveTotal()
