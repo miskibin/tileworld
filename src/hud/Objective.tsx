@@ -1,49 +1,43 @@
-import { useEffect, useRef, useState } from 'react'
-import { getObjective } from '../world/objectiveStore'
+import { useEffect, useState } from 'react'
 import { getPlayer } from '../world/playerStore'
+import { getWave, subscribeWave, type WaveProgress } from '../world/waveStore'
+import { getCastle, subscribeCastle, type CastleState } from '../world/castleStore'
+import { getPhase, subscribePhase, type GamePhase } from '../world/gameStore'
 import { playVictory } from '../audio/sfx'
 
 export function Objective() {
-  // Poll the derived objective each frame, but only re-render when the numbers
-  // actually change (kills are infrequent) to avoid per-frame React churn.
-  const [obj, setObj] = useState(() => getObjective())
-  const prev = useRef('')
+  const [phase, setPhase] = useState<GamePhase>(() => getPhase())
+  const [wave, setWave] = useState<WaveProgress>(() => getWave())
+  const [castle, setCastle] = useState<CastleState>(() => getCastle())
 
-  useEffect(() => {
-    let raf = 0
-    const tick = () => {
-      const next = getObjective()
-      const key = `${next.total}|${next.remaining}|${next.won}`
-      if (key !== prev.current) {
-        prev.current = key
-        setObj(next)
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+  useEffect(() => subscribePhase(setPhase), [])
+  useEffect(() => subscribeWave((s) => setWave({ ...s })), [])
+  useEffect(() => subscribeCastle((s) => setCastle({ ...s })), [])
 
-  // On victory: release pointer-lock so the cursor can click "Play Again", and
-  // play the fanfare once.
+  // Release pointer-lock + play fanfare on victory.
   useEffect(() => {
-    if (!obj.won) return
+    if (phase !== 'victory') return
     if (document.pointerLockElement) document.exitPointerLock()
     playVictory()
-  }, [obj.won])
+  }, [phase])
 
-  if (obj.total === 0) return null
+  useEffect(() => {
+    if (phase !== 'defeat') return
+    if (document.pointerLockElement) document.exitPointerLock()
+  }, [phase])
 
-  if (obj.won) {
+  if (phase === 'menu') return null
+
+  if (phase === 'victory') {
     const p = getPlayer()
     return (
       <div className="victory-screen">
         <div className="victory-title">Victory!</div>
-        <div className="victory-sub">The orks have been driven from the land.</div>
+        <div className="victory-sub">Every wave repelled. The keep stands.</div>
         <div className="victory-stats">
           <span>Level {p.level}</span>
           <span>{p.gold} ★ gold</span>
-          <span>{obj.slain} orks slain</span>
+          <span>{wave.total} waves survived</span>
         </div>
         <button className="victory-again" onClick={() => location.reload()}>
           Play Again
@@ -52,12 +46,36 @@ export function Objective() {
     )
   }
 
+  if (phase === 'defeat') {
+    return (
+      <div className="victory-screen defeat-screen">
+        <div className="victory-title">The Keep Has Fallen</div>
+        <div className="victory-sub">You held until wave {Math.max(1, wave.index + 1)} of {wave.total}.</div>
+        <button className="victory-again" onClick={() => location.reload()}>
+          Play Again
+        </button>
+      </div>
+    )
+  }
+
+  // prep / wave: banner + castle HP bar.
+  const hpPct = Math.max(0, (castle.hp / castle.maxHp) * 100)
   return (
     <div className="objective-banner">
-      <span className="objective-label">Clear the orks</span>
-      <span className="objective-count">
-        {obj.remaining} / {obj.total} remaining
+      <span className="objective-label">
+        {phase === 'prep'
+          ? `Wave ${wave.index + 2} incoming…`
+          : `Wave ${wave.index + 1} / ${wave.total}`}
       </span>
+      {phase === 'wave' && (
+        <span className="objective-count">{wave.enemiesAlive} orks left</span>
+      )}
+      <div className="castle-hp">
+        <span className="castle-hp-label">Keep</span>
+        <div className="castle-hp-track">
+          <div className="castle-hp-fill" style={{ width: `${hpPct}%` }} />
+        </div>
+      </div>
     </div>
   )
 }

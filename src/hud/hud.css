@@ -889,3 +889,33 @@
 .upgrade-node.is-owned .upgrade-node-cost {
   color: #71e07a;
 }
+
+/* Castle keep HP bar in the objective banner */
+.castle-hp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.castle-hp-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.castle-hp-track {
+  width: 160px;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.castle-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6fd0ff, #2a8fd6);
+  transition: width 0.2s linear;
+}
+.defeat-screen .victory-title {
+  color: #ff6a5a;
+}
