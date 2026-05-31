@@ -55,7 +55,9 @@ interface Props {
 export function SunShadow({ intensity }: Props) {
   const gl = useThree((s) => s.gl)
   const lightRef = useRef<THREE.DirectionalLight>(null!)
-  const targetRef = useRef<THREE.Object3D>(new THREE.Object3D())
+  // Stable shadow target — memoised (not a ref) so it can be referenced in JSX
+  // below without tripping the "no ref access during render" rule.
+  const target = useMemo(() => new THREE.Object3D(), [])
   const lastCenter = useRef(new THREE.Vector3(Infinity, 0, Infinity))
   const frame = useRef(0)
 
@@ -94,7 +96,6 @@ export function SunShadow({ intensity }: Props) {
       // the frustum slides with the player.
       const snappedX = Math.round(px / texelSize) * texelSize
       const snappedZ = Math.round(pz / texelSize) * texelSize
-      const target = targetRef.current
       target.position.set(snappedX, 0, snappedZ)
       target.updateMatrixWorld()
       const light = lightRef.current
@@ -115,11 +116,11 @@ export function SunShadow({ intensity }: Props) {
 
   return (
     <>
-      <primitive object={targetRef.current} />
+      <primitive object={target} />
       <directionalLight
         ref={lightRef}
         position={[SUN_OFFSET.x, SUN_OFFSET.y, SUN_OFFSET.z]}
-        target={targetRef.current}
+        target={target}
         intensity={intensity}
         color="#ffe6b3"
         castShadow
