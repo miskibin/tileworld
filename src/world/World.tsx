@@ -19,11 +19,13 @@ import { useAudioEnabled } from '../audio/useAudioEnabled'
 import { Terrain } from './Terrain'
 import { Water, WaterFloor } from './Water'
 import { Scatter } from './Scatter'
-import { OrkCamp } from './OrkCamp'
 import { Character, type PlayerStateRef } from './Character'
 import { Wildlife } from './Wildlife'
+import { WildAnimals } from './WildAnimals'
 import { Mobs } from './Mobs'
+import { WaveDirector } from './WaveDirector'
 import { Bears } from './Bear'
+import { Projectiles } from './Projectiles'
 import { Chest } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
@@ -94,12 +96,6 @@ export function World() {
         <Scatter />
         <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
 
-        {/* Ork camps near the biome corners + a northern warcamp */}
-        <OrkCamp position={[22, 1, 52]} rotation={0} seed={3.3} />
-        <OrkCamp position={[76, 1, 20]} rotation={-Math.PI / 2} seed={7.7} />
-        <OrkCamp position={[74, 1, 54]} rotation={Math.PI / 2} seed={5.1} />
-        <OrkCamp position={[50, 1, 13]} rotation={0} seed={9.2} />
-
         {/* Remote hamlet west of the castle */}
         <Village position={[26, 30]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
 
@@ -133,11 +129,20 @@ export function World() {
         {/* Wandering dogs */}
         <Wildlife />
 
-        {/* Orks rendered from shared store (registered by OrkCamps) */}
+        {/* Wave director: spawns escalating ork waves that march on the keep */}
+        <WaveDirector />
+
+        {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
 
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
+
+        {/* Wild animals: wolves hunt deer + rabbits; boars charge when provoked */}
+        <WildAnimals />
+
+        {/* Ork-shaman magic bolts (grid-space → inside the offset group) */}
+        <Projectiles />
 
         {/* Treasure chests — interactive (press F) with loot + gold. Positions
             auto-snap to valid land, so they're safe to scatter widely. */}
