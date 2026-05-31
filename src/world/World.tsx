@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { Suspense, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import { PositionalAudio, Sparkles, Sky, Environment } from '@react-three/drei'
@@ -82,8 +82,12 @@ export function World() {
 
       {/* Image-based lighting: a sunset HDRI supplies rich, directional
           ambient + subtle reflections on every MeshStandardMaterial. Lighting
-          only (background stays the <Sky> dome). */}
-      <Environment files="/hdri/sunset_1k.hdr" environmentIntensity={0.55} />
+          only (background stays the <Sky> dome). Wrapped in its own Suspense
+          so the HDRI fetch/parse can't blank the whole scene on first load —
+          the world renders immediately and the IBL pops in when ready. */}
+      <Suspense fallback={null}>
+        <Environment files="/hdri/sunset_1k.hdr" environmentIntensity={0.55} />
+      </Suspense>
 
       {/* Far emissive sphere — reads as the sun's glow (blooms) and is the
           origin the GodRays effect shafts out from. */}
