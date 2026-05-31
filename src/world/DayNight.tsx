@@ -78,6 +78,7 @@ export function DayNight({ lights, onSunMesh }: Props) {
     [],
   )
   const notifyAcc = useRef(0)
+  const lastNotifiedT = useRef(-1)
   // Time-of-day the current game phase wants the clock to ease toward.
   const dayTarget = useRef(DAY_T)
 
@@ -87,6 +88,9 @@ export function DayNight({ lights, onSunMesh }: Props) {
     () =>
       subscribePhase((p) => {
         dayTarget.current = p === 'wave' ? NIGHT_T : DAY_T
+        // Victory/defeat freeze the world (setPaused), so the easing loop can't
+        // run — snap straight to daytime so the end screen isn't stuck at night.
+        if (p === 'victory' || p === 'defeat') getDay().t = DAY_T
       }),
     [],
   )
@@ -104,14 +108,18 @@ export function DayNight({ lights, onSunMesh }: Props) {
     const day = getDay()
 
     // Ease the clock toward the phase's target time (night for waves, day
-    // otherwise) so dusk/dawn fall smoothly when a wave starts/ends. Held still
-    // behind a pause/menu (visuals below still apply, so the look is correct).
-    if (!isFrozen()) {
+    // otherwise) so dusk/dawn fall smoothly when a wave starts/ends. Skipped
+    // behind a pause/menu, and when the debug "frozen" control holds the clock
+    // for manual scrubbing. Visuals below still apply every frame regardless.
+    if (!isFrozen() && !day.frozen) {
       day.t += (dayTarget.current - day.t) * Math.min(1, dt * DAY_LERP_RATE)
       notifyAcc.current += dt
-      if (notifyAcc.current >= NOTIFY_INTERVAL) {
+      // Only notify when the time actually moved — avoids re-rendering the leva
+      // panel 5×/s once the clock has settled at its target.
+      if (notifyAcc.current >= NOTIFY_INTERVAL && Math.abs(day.t - lastNotifiedT.current) > 5e-4) {
         notifyAcc.current = 0
-        notifyDay() // keep the leva slider tracking the clock
+        lastNotifiedT.current = day.t
+        notifyDay()
       }
     }
 

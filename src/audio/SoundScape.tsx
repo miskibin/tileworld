@@ -3,7 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { setListener, getListener, loadBuffer, audioMix, registerLoops } from './audio'
 import { useAudioEnabled } from './useAudioEnabled'
-import { subscribePaused } from '../world/pauseStore'
+import { subscribePaused, isFrozen } from '../world/pauseStore'
 import { getPhase } from '../world/gameStore'
 
 // Ease speed for the day↔night music crossfade (≈ a couple-second blend).
@@ -101,6 +101,7 @@ export function SoundScape() {
   // while a wave (night) is live and fades back to the day theme when cleared.
   // Reads audioMix.music live so the debug slider still scales both tracks.
   useFrame((_, dt) => {
+    if (isFrozen()) return // match the world's freeze-gate; phase can't change while frozen
     const day = dayMusicRef.current
     const night = nightMusicRef.current
     if (!day || !night) return

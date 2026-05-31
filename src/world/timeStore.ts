@@ -34,7 +34,9 @@ export interface DayState {
   frozen: boolean
 }
 
-const state: DayState = { t: DAY_START_T, frozen: true }
+// frozen=false by default: the game (wave phase) drives time of day. Toggling
+// the debug "frozen" control flips this true to hold the clock for scrubbing.
+const state: DayState = { t: DAY_START_T, frozen: false }
 
 type DayListener = (s: DayState) => void
 const subs = new Set<DayListener>()
