@@ -10,7 +10,7 @@ import { findPath } from './pathfinding'
 import { isFrozen } from './pauseStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
-import { playRoar } from '../audio/sfx'
+import { playBearRoar, playBearGrowl } from '../audio/sfx'
 import { isCulled } from './cull'
 
 const BEAR_AGGRO = 6.5 // turns hostile within this range
@@ -108,7 +108,7 @@ function BearView({ state }: { state: BearState }) {
       state.aggro = true
       if (tNow - state.lastRoarAt > ROAR_COOLDOWN) {
         state.lastRoarAt = tNow
-        playRoar()
+        playBearRoar(dist)
       }
     } else if (state.aggro && (dist > BEAR_LEASH || !isPlayerAlive())) {
       state.aggro = false
@@ -127,6 +127,7 @@ function BearView({ state }: { state: BearState }) {
     if (!attacking && state.aggro && inMelee && tNow >= state.attackReadyAt) {
       state.attackingSince = tNow
       state.attackHitDealt = false
+      playBearGrowl(dist)
     }
 
     // Chase (hostile) or wander (passive).
@@ -262,7 +263,7 @@ function BearView({ state }: { state: BearState }) {
   if (!visible) return null
 
   return (
-    <group ref={groupRef} position={[state.x, state.y, state.z]} rotation={[0, state.facing, 0]} scale={0.95}>
+    <group ref={groupRef} position={[state.x, state.y, state.z]} rotation={[0, state.facing, 0]} scale={0.6}>
       {/* Body */}
       <mesh position={[0, 0.7, 0]} castShadow material={FUR}>
         <boxGeometry args={[0.7, 0.6, 1.1]} />
@@ -275,16 +276,16 @@ function BearView({ state }: { state: BearState }) {
         <mesh castShadow material={FUR}>
           <boxGeometry args={[0.5, 0.46, 0.46]} />
         </mesh>
-        <mesh position={[0, -0.08, 0.28]} castShadow material={SNOUT}>
+        <mesh position={[0, -0.08, 0.28]} material={SNOUT}>
           <boxGeometry args={[0.26, 0.22, 0.22]} />
         </mesh>
         <mesh position={[0, -0.04, 0.4]} material={NOSE}>
           <boxGeometry args={[0.12, 0.09, 0.06]} />
         </mesh>
-        <mesh position={[-0.18, 0.26, -0.02]} castShadow material={FUR_DARK}>
+        <mesh position={[-0.18, 0.26, -0.02]} material={FUR_DARK}>
           <boxGeometry args={[0.16, 0.16, 0.1]} />
         </mesh>
-        <mesh position={[0.18, 0.26, -0.02]} castShadow material={FUR_DARK}>
+        <mesh position={[0.18, 0.26, -0.02]} material={FUR_DARK}>
           <boxGeometry args={[0.16, 0.16, 0.1]} />
         </mesh>
         <mesh position={[-0.12, 0.05, 0.23]} material={EYE}>

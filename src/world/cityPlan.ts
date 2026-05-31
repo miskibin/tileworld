@@ -141,7 +141,7 @@ export const TOWER_SLOTS: TowerSlot[] = [
 ]
 
 /** A tended farm plot in the NE interior. */
-export const FARM_SLOT: FarmSlot = { x: 63, z: 28, rotation: 0, w: 5, d: 4 }
+export const FARM_SLOT: FarmSlot = { x: 49, z: 33, rotation: 0, w: 5, d: 4 }
 
 export const CITY_WALL_HEIGHT = WALL_H
 

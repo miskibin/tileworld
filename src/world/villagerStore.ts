@@ -31,6 +31,13 @@ export interface VillagerState {
   pathRecomputeAt: number
   /** sim time until which the door of this villager's house should stay open */
   doorOpenUntil: number
+  // guard combat (deal-damage-only; villagers never take damage)
+  /** sim time the current swing started; 0 = not swinging */
+  attackingSince: number
+  /** sim time until which no new swing may start */
+  attackReadyAt: number
+  /** whether the current swing already landed its hit */
+  attackHitDealt: boolean
 }
 
 const villagers: VillagerState[] = []
@@ -63,6 +70,9 @@ export function createVillager(
     | 'pathIndex'
     | 'pathRecomputeAt'
     | 'doorOpenUntil'
+    | 'attackingSince'
+    | 'attackReadyAt'
+    | 'attackHitDealt'
   >,
 ): VillagerState {
   const v: VillagerState = {
@@ -76,6 +86,9 @@ export function createVillager(
     pathIndex: 0,
     pathRecomputeAt: 0,
     doorOpenUntil: 0,
+    attackingSince: 0,
+    attackReadyAt: 0,
+    attackHitDealt: false,
     ...init,
   }
   villagers.push(v)

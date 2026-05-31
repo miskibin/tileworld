@@ -13,6 +13,10 @@ const BIRCH_MARK_MAT = new THREE.MeshStandardMaterial({ color: '#2a261e', roughn
 const BIRCH_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#3a8c34', roughness: 0.95, flatShading: true })
 const BIRCH_LIGHT_MAT = new THREE.MeshStandardMaterial({ color: '#7dc04a', roughness: 0.95, flatShading: true })
 
+const SNOWPINE_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#35614a', roughness: 0.95, flatShading: true })
+const SNOWPINE_MID_MAT = new THREE.MeshStandardMaterial({ color: '#427a5a', roughness: 0.95, flatShading: true })
+const SNOW_MAT = new THREE.MeshStandardMaterial({ color: '#eef3f8', roughness: 0.7, flatShading: true })
+
 const DEAD_MAT = new THREE.MeshStandardMaterial({ color: '#6e6258', roughness: 1, flatShading: true })
 const DEAD_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#4a4238', roughness: 1, flatShading: true })
 
@@ -126,6 +130,16 @@ const PARTS: Record<string, Part[]> = {
     { geo: bake(() => new THREE.IcosahedronGeometry(0.22, 0), [0.18, 1.05, 0.1]), mat: BIRCH_LIGHT_MAT, castShadow: true },
     { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 0), [-0.16, 1.0, -0.1]), mat: BIRCH_DARK_MAT, castShadow: true },
     { geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [0.05, 1.18, 0]), mat: BIRCH_LIGHT_MAT, castShadow: true },
+  ],
+  snowPine: [
+    { geo: bake(() => new THREE.CylinderGeometry(0.08, 0.1, 0.36, 6), [0, 0.18, 0]), mat: TRUNK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.5, 0.45, 7), [0, 0.48, 0]), mat: SNOWPINE_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.38, 0.42, 7), [0, 0.78, 0]), mat: SNOWPINE_MID_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.26, 0.4, 7), [0, 1.06, 0]), mat: SNOWPINE_MID_MAT, castShadow: true },
+    // Snow-capped peak + dustings of snow clinging to the lower branches.
+    { geo: bake(() => new THREE.ConeGeometry(0.27, 0.18, 7), [0, 1.28, 0]), mat: SNOW_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.13, 0), [0.2, 0.6, 0.08]), mat: SNOW_MAT },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.1, 0), [-0.15, 0.86, -0.05]), mat: SNOW_MAT },
   ],
   deadTree: [
     { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.095, 0.9, 6), [0, 0.45, 0]), mat: DEAD_MAT, castShadow: true },

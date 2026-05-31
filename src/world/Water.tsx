@@ -3,16 +3,19 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
 import { isPaused } from './pauseStore'
+import { waterTexture } from './textures'
 
-const W = COLS + 8
-const H = ROWS + 8
+// Wide open ocean ring around the island (was COLS+8 / ROWS+8 — only a thin
+// margin). A big plane fading into the horizon fog reads as the open sea.
+const W = COLS + 70
+const H = ROWS + 70
 
 export function Water() {
   const meshRef = useRef<THREE.Mesh>(null!)
   const frame = useRef(0)
 
   const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(W, H, 32, 24)
+    const g = new THREE.PlaneGeometry(W, H, 56, 48)
     g.rotateX(-Math.PI / 2)
     return g
   }, [])
@@ -22,7 +25,20 @@ export function Water() {
     return new Float32Array(arr)
   }, [geo])
 
-  useFrame(({ clock }) => {
+  // Scrolling ripple texture so rivers/sea read as flowing, not glassy.
+  const mat = useMemo(() => {
+    const map = waterTexture('#2780c9', 7)
+    return new THREE.MeshStandardMaterial({
+      color: map ? '#5aa6e0' : '#2780c9',
+      map: map ?? undefined,
+      roughness: 0.3,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.9,
+    })
+  }, [])
+
+  useFrame(({ clock }, dt) => {
     if (isPaused()) return
     const t = clock.getElapsedTime()
     const pos = geo.attributes.position.array as Float32Array
@@ -37,24 +53,14 @@ export function Water() {
     // Recompute normals only every 4th frame — the gentle ripple doesn't need
     // per-frame normals and computeVertexNormals is the expensive part.
     if (frame.current++ % 4 === 0) geo.computeVertexNormals()
+    // Drift the ripple texture so the surface looks like it's flowing.
+    if (mat.map) {
+      mat.map.offset.x = (mat.map.offset.x + dt * 0.015) % 1
+      mat.map.offset.y = (mat.map.offset.y + dt * 0.024) % 1
+    }
   })
 
-  return (
-    <mesh
-      ref={meshRef}
-      geometry={geo}
-      position={[0, 0.05, 0]}
-      receiveShadow
-    >
-      <meshStandardMaterial
-        color="#2780c9"
-        roughness={0.35}
-        metalness={0.1}
-        transparent
-        opacity={0.92}
-      />
-    </mesh>
-  )
+  return <mesh ref={meshRef} geometry={geo} material={mat} position={[0, 0.05, 0]} receiveShadow />
 }
 
 // Solid darker floor under water so transparent areas don't reveal sky.

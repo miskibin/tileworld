@@ -3,7 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isFrozen } from './pauseStore'
 import { getBirds } from './Birds'
-import { CENTER_X, CENTER_Z } from './tileMap'
+import { CENTER_X, CENTER_Z, tileAt } from './tileMap'
+import { getPlayer } from './playerStore'
+import { playCatMeow } from '../audio/sfx'
 
 type CatMode = 'idle' | 'walk' | 'sit' | 'stalk'
 
@@ -52,6 +54,7 @@ export function Cat({ home, seed = 0 }: CatProps) {
     targetX: home[0],
     targetZ: home[2],
     walkPhase: 0,
+    nextMeow: 3 + Math.abs(seed) * 2,
   })
 
   // World-space anchor (offset removed) so we can compare to bird positions.
@@ -64,6 +67,18 @@ export function Cat({ home, seed = 0 }: CatProps) {
     if (isFrozen()) return
     const t = clock.getElapsedTime()
     const st = s.current
+
+    // Meow occasionally when the player is nearby.
+    if (t >= st.nextMeow) {
+      const p = getPlayer()
+      const dd = Math.hypot(p.x - st.x, p.z - st.z)
+      if (dd < 12) {
+        playCatMeow(dd)
+        st.nextMeow = t + 7 + Math.random() * 8
+      } else {
+        st.nextMeow = t + 2
+      }
+    }
 
     // ── State machine ───────────────────────────────────────────
     const worldX = st.x - CENTER_X
@@ -141,8 +156,27 @@ export function Cat({ home, seed = 0 }: CatProps) {
       if (d > 0.05) {
         const speed = st.mode === 'stalk' ? CAT_SPEED_STALK : CAT_SPEED_WALK
         const step = Math.min(speed * dt, d)
-        st.x += (dx / d) * step
-        st.z += (dz / d) * step
+        const nx = st.x + (dx / d) * step
+        const nz = st.z + (dz / d) * step
+        const land = (lx: number, lz: number) => {
+          const tl = tileAt(Math.floor(lx), Math.floor(lz))
+          return !!tl && tl.height < 2
+        }
+        // Keep the cat off water/cliffs (no corner-cutting onto a water tile).
+        if (land(nx, nz)) {
+          st.x = nx
+          st.z = nz
+        } else if (land(nx, st.z)) {
+          st.x = nx
+        } else if (land(st.x, nz)) {
+          st.z = nz
+        } else {
+          // Blocked (river/edge) — give up this target.
+          st.mode = 'idle'
+          st.stateUntil = t + 0.8
+        }
+        const tl = tileAt(Math.floor(st.x), Math.floor(st.z))
+        if (tl) st.y = tl.height
         const targetFacing = Math.atan2(dx, dz)
         let dF = targetFacing - st.facing
         while (dF > Math.PI) dF -= 2 * Math.PI

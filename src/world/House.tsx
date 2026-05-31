@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { getVillagers } from './villagerStore'
+import { plasterTexture, shingleTexture, stoneTexture, woodTexture } from './textures'
 
 interface HouseProps {
   position: [number, number, number]
@@ -24,6 +26,7 @@ const ROOF_OVERHANG_X = 0.15
 const ROOF_OVERHANG_Z = 0.15
 const ROOF_RISE = 0.7
 const FOUND_H = 0.2
+const wallTopY = FOUND_H + WALL_H
 
 const DEFAULT_WALL = '#d3b78b'
 const DEFAULT_ROOF = '#6b3322'
@@ -31,6 +34,42 @@ const FRAME = '#5a3a22'
 const WINDOW_GLOW = '#ffd58c'
 const DOOR_COLOR = '#3a2618'
 const STONE_BASE = '#6e6e76'
+
+function texMat(map: THREE.Texture | null, fallback: string, roughness: number): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color: map ? '#ffffff' : fallback,
+    map: map ?? undefined,
+    roughness,
+    flatShading: !map,
+  })
+}
+
+function box(w: number, h: number, d: number, x: number, y: number, z: number): THREE.BoxGeometry {
+  const g = new THREE.BoxGeometry(w, h, d)
+  g.translate(x, y, z)
+  return g
+}
+
+// Static geometry shared by every house (one draw call each, instead of a mesh
+// per part). Foundation + chimney stack share the stone material; the door
+// frame, window cross-frames and chimney cap share the timber material.
+const STONE_GEO = mergeGeometries(
+  [
+    box(WALL_W + 0.2, FOUND_H, WALL_D + 0.2, 0, FOUND_H / 2, 0),
+    box(0.24, 0.7, 0.24, WALL_W / 2 - 0.4, wallTopY + 0.35, 0.25),
+  ],
+  false,
+) as THREE.BufferGeometry
+
+const FRAME_GEO = mergeGeometries(
+  [
+    box(0.5, 1.0, 0.04, -0.55, FOUND_H + 0.5, WALL_D / 2 + 0.005),
+    box(0.46, 0.04, 0.01, 0.4, FOUND_H + 0.9, WALL_D / 2 + 0.015),
+    box(0.04, 0.46, 0.01, 0.4, FOUND_H + 0.9, WALL_D / 2 + 0.015),
+    box(0.3, 0.06, 0.3, WALL_W / 2 - 0.4, wallTopY + 0.7, 0.25),
+  ],
+  false,
+) as THREE.BufferGeometry
 
 export function House({
   position,
@@ -44,17 +83,11 @@ export function House({
   const doorRef = useRef<THREE.Group>(null!)
   const windowMatRef = useRef<THREE.MeshStandardMaterial | null>(null)
 
-  const wallMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.95, flatShading: true }),
-    [wallColor],
-  )
-  const roofMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: roofColor, roughness: 0.85, flatShading: true }),
-    [roofColor],
-  )
-  const frameMat = useMemo(() => new THREE.MeshStandardMaterial({ color: FRAME, roughness: 1 }), [])
-  const doorMat = useMemo(() => new THREE.MeshStandardMaterial({ color: DOOR_COLOR, roughness: 1 }), [])
-  const stoneMat = useMemo(() => new THREE.MeshStandardMaterial({ color: STONE_BASE, roughness: 0.9 }), [])
+  const wallMat = useMemo(() => texMat(plasterTexture(wallColor, 2), wallColor, 0.95), [wallColor])
+  const roofMat = useMemo(() => texMat(shingleTexture(roofColor, 2), roofColor, 0.85), [roofColor])
+  const frameMat = useMemo(() => texMat(woodTexture(FRAME), FRAME, 1), [])
+  const doorMat = useMemo(() => texMat(woodTexture(DOOR_COLOR, 1, 3), DOOR_COLOR, 1), [])
+  const stoneMat = useMemo(() => texMat(stoneTexture(STONE_BASE), STONE_BASE, 0.9), [])
   const windowMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
@@ -111,27 +144,20 @@ export function House({
     }
   })
 
-  const wallTopY = FOUND_H + WALL_H
-
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <mesh position={[0, FOUND_H / 2, 0]} castShadow receiveShadow material={stoneMat}>
-        <boxGeometry args={[WALL_W + 0.2, FOUND_H, WALL_D + 0.2]} />
-      </mesh>
+      {/* Foundation + chimney stack (merged stone) */}
+      <mesh geometry={STONE_GEO} castShadow receiveShadow material={stoneMat} />
 
-      <mesh
-        position={[0, FOUND_H + WALL_H / 2, 0]}
-        castShadow
-        receiveShadow
-        material={wallMat}
-      >
+      {/* Walls */}
+      <mesh position={[0, FOUND_H + WALL_H / 2, 0]} castShadow receiveShadow material={wallMat}>
         <boxGeometry args={[WALL_W, WALL_H, WALL_D]} />
       </mesh>
 
-      <mesh position={[-0.55, FOUND_H + 0.5, WALL_D / 2 + 0.005]} material={frameMat}>
-        <boxGeometry args={[0.5, 1.0, 0.04]} />
-      </mesh>
+      {/* Door frame + window frames + chimney cap (merged timber) */}
+      <mesh geometry={FRAME_GEO} material={frameMat} />
 
+      {/* Door (swings open) */}
       <group ref={doorRef} position={[-0.78, FOUND_H + 0.5, WALL_D / 2 + 0.015]}>
         <mesh position={[0.22, 0, 0]} castShadow material={doorMat}>
           <boxGeometry args={[0.44, 0.92, 0.06]} />
@@ -141,16 +167,12 @@ export function House({
         </mesh>
       </group>
 
+      {/* Glowing window */}
       <mesh position={[0.4, FOUND_H + 0.9, WALL_D / 2 + 0.005]} material={windowMat}>
         <boxGeometry args={[0.42, 0.42, 0.02]} />
       </mesh>
-      <mesh position={[0.4, FOUND_H + 0.9, WALL_D / 2 + 0.015]} material={frameMat}>
-        <boxGeometry args={[0.46, 0.04, 0.01]} />
-      </mesh>
-      <mesh position={[0.4, FOUND_H + 0.9, WALL_D / 2 + 0.015]} material={frameMat}>
-        <boxGeometry args={[0.04, 0.46, 0.01]} />
-      </mesh>
 
+      {/* Roof */}
       <group position={[0, wallTopY, 0]} rotation={[0, Math.PI / 2, 0]}>
         <mesh
           position={[0, 0, -(WALL_W + ROOF_OVERHANG_X * 2) / 2]}
@@ -161,33 +183,16 @@ export function House({
         />
       </group>
 
-      <mesh position={[WALL_W / 2 - 0.4, wallTopY + 0.35, 0.25]} castShadow material={stoneMat}>
-        <boxGeometry args={[0.24, 0.7, 0.24]} />
-      </mesh>
-      <mesh position={[WALL_W / 2 - 0.4, wallTopY + 0.7, 0.25]} material={frameMat}>
-        <boxGeometry args={[0.3, 0.06, 0.3]} />
-      </mesh>
-
-      {/* Chimney smoke — two layered Sparkles for a denser, drifting plume. */}
+      {/* Chimney smoke — a single drifting plume. */}
       <Sparkles
-        position={[WALL_W / 2 - 0.4, wallTopY + 0.95, 0.25]}
-        scale={[0.55, 0.6, 0.55]}
-        count={30}
-        size={14}
-        speed={0.25}
-        opacity={0.55}
-        color={'#9da3a8'}
-        noise={1.2}
-      />
-      <Sparkles
-        position={[WALL_W / 2 - 0.4, wallTopY + 1.7, 0.25]}
-        scale={[1.0, 1.4, 1.0]}
-        count={22}
-        size={20}
-        speed={0.18}
-        opacity={0.25}
-        color={'#c9cdd4'}
-        noise={2.4}
+        position={[WALL_W / 2 - 0.4, wallTopY + 1.2, 0.25]}
+        scale={[0.8, 1.4, 0.8]}
+        count={24}
+        size={16}
+        speed={0.22}
+        opacity={0.35}
+        color={'#b8bcc2'}
+        noise={1.6}
       />
     </group>
   )

@@ -7,7 +7,11 @@ import { getCity, subscribeCity } from './cityStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
 import { isCulled } from './cull'
-import { playVillagerGrunt } from '../audio/sfx'
+import { isInsideCastle } from './cityPlan'
+import { getAliveOrks, damageOrk } from './orkStore'
+import { getAliveBears, damageBear } from './bearStore'
+import { spawnFloat } from './fxStore'
+import { playVillagerGrunt, playSwing, playHit } from '../audio/sfx'
 import { hasBuffer, playSfx } from '../audio/audio'
 
 const VOICE_RANGE = 5 // murmur when the player is within this many tiles
@@ -44,6 +48,9 @@ const HAIR_MAT = new THREE.MeshStandardMaterial({ color: HAIR_COLOR, roughness: 
 // Armour from the Defense upgrade branch. Tier 1 = iron, tier 2+ = brighter steel.
 const ARMOR_IRON = new THREE.MeshStandardMaterial({ color: '#9aa0aa', roughness: 0.5, metalness: 0.7, flatShading: true })
 const ARMOR_STEEL = new THREE.MeshStandardMaterial({ color: '#c6ccd6', roughness: 0.35, metalness: 0.85, flatShading: true })
+// Guard's sword (shown on armoured castle villagers).
+const SWORD_BLADE = new THREE.MeshStandardMaterial({ color: '#d8dde6', roughness: 0.3, metalness: 0.8, flatShading: true })
+const SWORD_GUARD = new THREE.MeshStandardMaterial({ color: '#caa23a', roughness: 0.5, metalness: 0.6 })
 
 const SPEED = 1.6
 const WANDER_RADIUS = 3.0
@@ -51,6 +58,50 @@ const ARRIVE_DIST = 0.35
 const WAYPOINT_DIST = 0.4
 const PATH_RECOMPUTE = 0.8 // seconds between A* refreshes while moving
 const DOOR_OPEN_DURATION = 1.8 // door stays open this long when entering/leaving
+
+// ─── Guard combat (deal-damage-only; villagers are invulnerable) ─────────────
+// Castle-dwelling villagers act as town guards: they break off their daily
+// routine to chase and strike any ork/bear that wanders near, but never take
+// damage themselves. Armour (Defense upgrade) makes them braver + hit harder.
+const GUARD_AGGRO = 7.5 // base detection range
+const GUARD_AGGRO_ARMORED = 11
+const GUARD_DEFEND_RADIUS = 12 // won't chase a foe farther than this from home
+const GUARD_MELEE = 1.45
+const GUARD_SPEED = 2.4 // chase faster than a stroll
+const GUARD_ATTACK_DURATION = 0.55
+const GUARD_ATTACK_COOLDOWN = 1.0
+const GUARD_DAMAGE = 9
+const GUARD_DAMAGE_ARMORED = 16
+
+interface Foe {
+  x: number
+  y: number
+  z: number
+  /** apply damage; returns true if the foe died on this hit */
+  hit: (dmg: number, now: number) => boolean
+}
+
+/** Nearest alive ork/bear within `aggro` of the villager AND within
+ *  `defendR` of their home. Returns null if nothing worth fighting. */
+function nearestHostile(v: VillagerState, defendR: number, aggro: number): Foe | null {
+  let best: Foe | null = null
+  let bestD = aggro
+  for (const o of getAliveOrks()) {
+    const d = Math.hypot(o.x - v.x, o.z - v.z)
+    if (d < bestD && Math.hypot(o.x - v.homeX, o.z - v.homeZ) < defendR) {
+      bestD = d
+      best = { x: o.x, y: o.y, z: o.z, hit: (dmg, now) => damageOrk(o, dmg, now) }
+    }
+  }
+  for (const b of getAliveBears()) {
+    const d = Math.hypot(b.x - v.x, b.z - v.z)
+    if (d < bestD && Math.hypot(b.x - v.homeX, b.z - v.homeZ) < defendR) {
+      bestD = d
+      best = { x: b.x, y: b.y, z: b.z, hit: (dmg, now) => damageBear(b, dmg, now) }
+    }
+  }
+  return best
+}
 
 /** Decide which "mode" the villager should be in given the day phase.  */
 function scheduledMode(t: number): VillagerStateName {
@@ -140,6 +191,10 @@ export function VillagerView({ state }: Props) {
   useEffect(() => subscribeCity((s) => setArmorTier(s.villagerArmorTier)), [])
   const armorMat = armorTier >= 2 ? ARMOR_STEEL : ARMOR_IRON
 
+  // Castle-dwelling villagers double as town guards (see nearestHostile).
+  const isGuard = useMemo(() => isInsideCastle(state.homeX, state.homeZ), [state.homeX, state.homeZ])
+  const wasFighting = useRef(false)
+
   useFrame(({ clock }, dt) => {
     if (isFrozen()) return
     const tNow = clock.getElapsedTime()
@@ -150,10 +205,65 @@ export function VillagerView({ state }: Props) {
       return
     }
 
-    tickStateMachine(state, tNow)
+    // ── Guard combat: defend the castle from orks/bears (deal-damage-only) ──
+    let attackArm: number | null = null
+    let fighting = false
+    if (isGuard) {
+      const aggro = armorTier > 0 ? GUARD_AGGRO_ARMORED : GUARD_AGGRO
+      const foe = nearestHostile(state, GUARD_DEFEND_RADIUS, aggro)
+      if (foe) {
+        fighting = true
+        const dx = foe.x - state.x
+        const dz = foe.z - state.z
+        const dist = Math.hypot(dx, dz)
+        // Face the foe.
+        let df = Math.atan2(dx, dz) - state.facing
+        while (df > Math.PI) df -= 2 * Math.PI
+        while (df < -Math.PI) df += 2 * Math.PI
+        state.facing += df * Math.min(1, dt * 9)
 
-    // Proximity murmur: grunt when the player lingers nearby, on a cooldown.
-    if (state.state !== 'home' && tNow >= nextVoiceAt.current) {
+        const attacking = state.attackingSince > 0
+        const inMelee = dist < GUARD_MELEE
+        // Force an immediate path refresh when first engaging.
+        if (!wasFighting.current) {
+          state.path = []
+          state.pathRecomputeAt = 0
+        }
+        if (!attacking && inMelee && tNow >= state.attackReadyAt) {
+          state.attackingSince = tNow
+          state.attackHitDealt = false
+          if (Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z) < 12) playSwing()
+        }
+        // Chase the foe, or hold ground once in melee.
+        state.targetX = inMelee ? state.x : foe.x
+        state.targetZ = inMelee ? state.z : foe.z
+        // Resolve an in-progress swing — deal damage mid-strike.
+        if (attacking) {
+          const phase = (tNow - state.attackingSince) / GUARD_ATTACK_DURATION
+          if (phase >= 1) {
+            state.attackingSince = 0
+            state.attackReadyAt = tNow + GUARD_ATTACK_COOLDOWN
+          } else {
+            attackArm = phase < 0.4 ? -1.6 * (phase / 0.4) : -1.6 + 2.4 * ((phase - 0.4) / 0.6)
+            if (!state.attackHitDealt && phase >= 0.5) {
+              state.attackHitDealt = true
+              if (dist <= GUARD_MELEE + 0.4) {
+                const dmg = armorTier > 0 ? GUARD_DAMAGE_ARMORED : GUARD_DAMAGE
+                foe.hit(dmg, tNow)
+                if (Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z) < 12) playHit()
+                spawnFloat(`-${dmg}`, '#ffe6a8', foe.x, foe.y + 2.0, foe.z)
+              }
+            }
+          }
+        }
+      }
+    }
+    wasFighting.current = fighting
+
+    if (!fighting) tickStateMachine(state, tNow)
+
+    // Proximity murmur: grunt when the player lingers nearby (not mid-fight).
+    if (!fighting && state.state !== 'home' && tNow >= nextVoiceAt.current) {
       const p = getPlayer()
       if (Math.hypot(p.x - state.x, p.z - state.z) < VOICE_RANGE) {
         villagerVoice(state.seed)
@@ -164,8 +274,8 @@ export function VillagerView({ state }: Props) {
       }
     }
 
-    // Inside the house: hide and skip movement.
-    const inside = state.state === 'home'
+    // Inside the house: hide + skip movement (but a guard always comes out).
+    const inside = !fighting && state.state === 'home'
     if (ref.current) ref.current.visible = !inside
 
     let moving = false
@@ -207,7 +317,7 @@ export function VillagerView({ state }: Props) {
         const dz = stepTargetZ - state.z
         const dist = Math.hypot(dx, dz)
         if (dist > 0.0001) {
-          const step = Math.min(SPEED * dt, dist)
+          const step = Math.min((fighting ? GUARD_SPEED : SPEED) * dt, dist)
           state.x += (dx / dist) * step
           state.z += (dz / dist) * step
           const targetFacing = Math.atan2(dx, dz)
@@ -242,6 +352,12 @@ export function VillagerView({ state }: Props) {
       }
     }
 
+    // While fighting, drop the daily-task poses so the sword-arm chop reads.
+    if (fighting) {
+      bodyTilt = 0
+      armOverride = null
+    }
+
     if (ref.current) {
       ref.current.position.set(state.x, state.y, state.z)
       ref.current.rotation.y = state.facing
@@ -249,7 +365,7 @@ export function VillagerView({ state }: Props) {
     if (bodyRef.current) bodyRef.current.rotation.x = bodyTilt
     if (legRRef.current) legRRef.current.rotation.x = legSwing
     if (legLRef.current) legLRef.current.rotation.x = -legSwing
-    if (armRRef.current) armRRef.current.rotation.x = armOverride ?? -armSwing
+    if (armRRef.current) armRRef.current.rotation.x = attackArm ?? armOverride ?? -armSwing
     if (armLRef.current) armLRef.current.rotation.x = armOverride ?? armSwing
     if (headRef.current) {
       headRef.current.rotation.y =
@@ -294,6 +410,17 @@ export function VillagerView({ state }: Props) {
           <mesh position={[0, 0.02, 0]} castShadow material={armorMat}>
             <boxGeometry args={[0.18, 0.16, 0.26]} />
           </mesh>
+        )}
+        {/* Guard's sword — brandished forward from the fist (armour tier 1+) */}
+        {armorTier > 0 && (
+          <group position={[0, -0.46, 0.1]}>
+            <mesh position={[0, 0, 0]} material={SWORD_GUARD}>
+              <boxGeometry args={[0.18, 0.06, 0.05]} />
+            </mesh>
+            <mesh position={[0, 0, 0.32]} castShadow material={SWORD_BLADE}>
+              <boxGeometry args={[0.05, 0.06, 0.5]} />
+            </mesh>
+          </group>
         )}
       </group>
       <group ref={armLRef} position={[-0.27, 0.92, 0]}>

@@ -11,6 +11,7 @@ import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
 import { isCulled } from './cull'
+import { playOrkGrunt } from '../audio/sfx'
 
 const ORK_AGGRO = 9 // grid units to start chase
 const ORK_MELEE = 1.5 // grid units to attempt swing
@@ -69,6 +70,8 @@ export function OrkView({ state }: OrkViewProps) {
   const hpFgRef = useRef<THREE.Mesh>(null!)
   const billboardGroupRef = useRef<THREE.Group>(null!)
   const skinFlashRef = useRef<THREE.Color>(new THREE.Color(state.paletteIndex === 0 ? SKIN : SKIN_ALT))
+  const wasAggroRef = useRef(false)
+  const lastGruntRef = useRef(0)
 
   const [visible, setVisible] = useState(true)
   const deadFadeFrom = useRef<number | null>(null)
@@ -111,6 +114,13 @@ export function OrkView({ state }: OrkViewProps) {
     const inMelee = dist < ORK_MELEE && isPlayerAlive()
     const attacking = state.attackingSince > 0
 
+    // Grunt when first spotting the player (sampled CC0 voice, distance-scaled).
+    if (inAggro && !wasAggroRef.current && tNow - lastGruntRef.current > 1.5) {
+      playOrkGrunt(dist)
+      lastGruntRef.current = tNow
+    }
+    wasAggroRef.current = inAggro
+
     // Face the player when aggroed or attacking
     if (inAggro || attacking) {
       const targetFacing = Math.atan2(vx, vz)
@@ -126,6 +136,10 @@ export function OrkView({ state }: OrkViewProps) {
     if (!attacking && inMelee && tNow >= state.attackReadyAt) {
       state.attackingSince = tNow
       state.attackHitDealt = false
+      if (tNow - lastGruntRef.current > 1.2) {
+        playOrkGrunt(dist)
+        lastGruntRef.current = tNow
+      }
     }
 
     // Chase: walk toward player via A* path
@@ -327,16 +341,16 @@ export function OrkView({ state }: OrkViewProps) {
         <mesh position={[0.08, 0.02, 0.175]} material={EYE_MAT}>
           <boxGeometry args={[0.05, 0.04, 0.008]} />
         </mesh>
-        <mesh position={[-0.08, -0.1, 0.17]} rotation={[0, 0, -0.15]} castShadow material={TUSK_MAT}>
+        <mesh position={[-0.08, -0.1, 0.17]} rotation={[0, 0, -0.15]} material={TUSK_MAT}>
           <coneGeometry args={[0.026, 0.13, 5]} />
         </mesh>
-        <mesh position={[0.08, -0.1, 0.17]} rotation={[0, 0, 0.15]} castShadow material={TUSK_MAT}>
+        <mesh position={[0.08, -0.1, 0.17]} rotation={[0, 0, 0.15]} material={TUSK_MAT}>
           <coneGeometry args={[0.026, 0.13, 5]} />
         </mesh>
-        <mesh position={[-0.2, 0, 0]} castShadow material={skinMat}>
+        <mesh position={[-0.2, 0, 0]} material={skinMat}>
           <boxGeometry args={[0.06, 0.12, 0.14]} />
         </mesh>
-        <mesh position={[0.2, 0, 0]} castShadow material={skinMat}>
+        <mesh position={[0.2, 0, 0]} material={skinMat}>
           <boxGeometry args={[0.06, 0.12, 0.14]} />
         </mesh>
       </group>
@@ -366,7 +380,6 @@ export function OrkView({ state }: OrkViewProps) {
                 Math.sin((i * Math.PI) / 2) * 0.1,
               ]}
               rotation={[0, (i * Math.PI) / 2, Math.PI / 2]}
-              castShadow
               material={BAND_MAT}
             >
               <coneGeometry args={[0.03, 0.09, 4]} />

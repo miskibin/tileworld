@@ -1,73 +1,40 @@
-# React + TypeScript + Vite
+# tileworld
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A single-player 3D action-RPG that runs entirely in the browser. Explore a procedurally generated island — castle, villages, ork camps, wandering wildlife — fight orks, level up, loot chests, and spend gold at the shop and upgrade tree. No backend, no install beyond `npm`.
 
-Currently, two official plugins are available:
+Built with **React 19 + react-three-fiber + three.js + TypeScript + Vite**. The map, scattered props, mobs, and most sound effects are generated deterministically at runtime.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run it
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev      # dev server with hot reload → open the printed localhost URL
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Controls
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+| Action | Input |
+|--------|-------|
+| Move | WASD / arrow keys |
+| Sprint | Shift |
+| Jump | Space |
+| Look | Mouse |
+| Attack | Left-click |
+| Interact (chests) | F |
+| Hotbar | Number keys 1–5 / right-click |
+| Pause | Esc |
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Scripts
+
+```bash
+npm run dev      # Vite dev server (HMR)
+npm run build    # typecheck (tsc -b) + production bundle
+npm run lint     # eslint
+npm run preview  # serve the production build
 ```
+
+`npm run build` is the correctness gate — it typechecks before bundling. There is no test suite; verify changes by running the game.
+
+## Architecture
+
+See [CLAUDE.md](CLAUDE.md) for a full map of the codebase — the store pattern, grid coordinate system, navigation/pathfinding stack, per-frame game loop, HUD, and audio.

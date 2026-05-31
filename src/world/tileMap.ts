@@ -51,18 +51,20 @@ function lakeAt(x: number, z: number): number {
   )
 }
 
-// Push the coastline closer to the grid edge so more of the 96×72 grid is
-// walkable land (was −8/−6). Existing camps/villages sit well inside, so this
-// only adds land around them — no hardcoded placement needs to move.
-const islandRx = COLS / 2 - 3
-const islandRz = ROWS / 2 - 3
+// Push the coastline almost to the grid edge AND use a superellipse (rounded
+// rectangle) instead of a plain ellipse so the island fills the grid corners
+// too — ~30% more walkable land within the same 96×72 grid. Existing camps /
+// villages / castle sit well inside, so this only adds land around them.
+const islandRx = COLS / 2 - 1
+const islandRz = ROWS / 2 - 1
+const ISLAND_EXP = 2.6 // 2 = ellipse; higher = squarer (more corner land)
 
 function isLandShape(x: number, z: number): boolean {
-  const dx = (x - CENTER_X) / islandRx
-  const dz = (z - CENTER_Z) / islandRz
-  const r2 = dx * dx + dz * dz
-  const coast = noiseA(x, z) * 0.1
-  return r2 + coast < 1.0
+  const dx = Math.abs(x - CENTER_X) / islandRx
+  const dz = Math.abs(z - CENTER_Z) / islandRz
+  const r = Math.pow(dx, ISLAND_EXP) + Math.pow(dz, ISLAND_EXP)
+  const coast = noiseA(x, z) * 0.08
+  return r + coast < 1.0
 }
 
 function distFromCoast(x: number, z: number): number {
@@ -174,6 +176,14 @@ function classifyBiome(x: number, z: number): Tile | null {
       // Higher plateau near the core for visual relief.
       const core = Math.hypot(x - reg.x, z - reg.z) < reg.r * 0.5
       return { biome: 'snow', height: core ? 3 : 2 }
+    }
+    if (reg.biome === 'rock') {
+      // East stone highlands read as a distant mountain range: tall, jagged
+      // peaks near the core that taper down toward the foothills.
+      const dc = Math.hypot(x - reg.x, z - reg.z)
+      const t = Math.max(0, 1 - dc / reg.r)
+      const peak = 2 + Math.round(t * t * 6 + (noiseB(x, z) + 1) * 1.2)
+      return { biome: 'rock', height: peak }
     }
     return { biome: reg.biome, height: reg.height ?? 1 }
   }

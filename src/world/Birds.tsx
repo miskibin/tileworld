@@ -31,9 +31,11 @@ interface Flock {
 }
 // Flock centres are in world coords (already offset by -CENTER_X/-CENTER_Z).
 const FLOCKS: Flock[] = [
-  { cx: -28, cy: 11, cz: 18, radius: 10, count: 4, speed: 0.32, phase: 0.0 },
-  { cx: 24, cy: 12, cz: -22, radius: 12, count: 4, speed: 0.28, phase: 1.5 },
+  { cx: -28, cy: 11, cz: 18, radius: 10, count: 5, speed: 0.32, phase: 0.0 },
+  { cx: 24, cy: 12, cz: -22, radius: 12, count: 5, speed: 0.28, phase: 1.5 },
   { cx: 18, cy: 11, cz: 22, radius: 9, count: 4, speed: 0.36, phase: 3.2 },
+  { cx: 6, cy: 13, cz: -2, radius: 13, count: 5, speed: 0.24, phase: 2.1 }, // over the castle
+  { cx: -10, cy: 10, cz: -20, radius: 8, count: 4, speed: 0.4, phase: 4.6 },
 ]
 const TOTAL = FLOCKS.reduce((s, f) => s + f.count, 0)
 

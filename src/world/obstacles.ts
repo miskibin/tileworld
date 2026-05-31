@@ -5,6 +5,7 @@ import { isRoadTile } from './roads'
 export type ObstacleKind =
   | 'tree'
   | 'birch'
+  | 'snowPine'
   | 'deadTree'
   | 'bush'
   | 'rock'
@@ -42,6 +43,8 @@ const RESERVED = new Set<string>(
     box(47, 53, 10, 16)
     // Western hamlet
     box(23, 31, 27, 33)
+    // Market stall just outside the south gate
+    box(59, 65, 43, 47)
     // Bridge approaches — keep clear so the player can walk on
     box(30, 44, 28, 33)
     box(30, 44, 48, 53)
@@ -73,6 +76,7 @@ function rng(seed: number) {
 const RADIUS_BY_KIND: Record<ObstacleKind, number> = {
   tree: 0.16,
   birch: 0.14,
+  snowPine: 0.16,
   deadTree: 0.12,
   bush: 0, // small bushes are walk-through
   rock: 0,
@@ -145,10 +149,11 @@ const ROLLS: Record<Biome, Roll[]> = {
     { kind: 'tuft', until: 0.32 },
   ],
   snow: [
-    { kind: 'deadTree', until: 0.06 },
-    { kind: 'birch', until: 0.1 },
-    { kind: 'rock', until: 0.16 },
-    { kind: 'boulder', until: 0.18 },
+    { kind: 'snowPine', until: 0.26 },
+    { kind: 'deadTree', until: 0.29 },
+    { kind: 'rock', until: 0.37 },
+    { kind: 'boulder', until: 0.4 },
+    { kind: 'bush', until: 0.44 },
   ],
   desert: [
     { kind: 'cactus', until: 0.08 },
@@ -189,6 +194,12 @@ function generate(): Obstacle[] {
         }
       }
       if (!picked) continue
+
+      // Thin the forest: drop ~30% of would-be trees so the canopy reads full
+      // without being overgrown (user request). Bushes/rocks/decor untouched.
+      if (picked.kind === 'tree' || picked.kind === 'birch' || picked.kind === 'snowPine') {
+        if (rand() < 0.3) continue
+      }
 
       const cx = x + 0.5 + (rand() - 0.5) * 0.4
       const cz = z + 0.5 + (rand() - 0.5) * 0.4

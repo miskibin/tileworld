@@ -7,6 +7,8 @@ import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
 import { isCulled } from './cull'
+import { getPlayer } from './playerStore'
+import { playDogBark } from '../audio/sfx'
 
 const DOG_PALETTES: { body: string; dark: string }[] = [
   { body: '#8a5a3a', dark: '#5a3a22' },
@@ -86,6 +88,9 @@ function DogView({ state }: DogViewProps) {
   // Death fade
   const [visible, setVisible] = useState(true)
   const deadFadeFrom = useRef<number | null>(null)
+  // Stuck detection (so a dog blocked by a river abandons its target) + barking.
+  const stuckRef = useRef({ x: 0, z: 0, since: 0 })
+  const nextBarkRef = useRef(2 + Math.abs(state.seed))
 
   useFrame(({ clock }, dtFrame) => {
     if (isFrozen()) return
@@ -117,9 +122,22 @@ function DogView({ state }: DogViewProps) {
       return
     }
 
+    // Bark occasionally when the player is nearby.
+    if (t >= nextBarkRef.current) {
+      const p = getPlayer()
+      const dd = Math.hypot(p.x - s.x, p.z - s.z)
+      if (dd < 16) {
+        playDogBark(dd)
+        nextBarkRef.current = t + 4 + rand() * 6
+      } else {
+        nextBarkRef.current = t + 1.5
+      }
+    }
+
     // AI: pick target if idle expired
     if (!s.target && t >= s.idleUntil) {
       s.target = randomNearbyLand(s.x, s.z, 6, rand)
+      if (s.target) stuckRef.current = { x: s.x, z: s.z, since: t }
     }
 
     let moving = false
@@ -133,15 +151,30 @@ function DogView({ state }: DogViewProps) {
       } else {
         moving = true
         const step = DOG_SPEED * dt
-        const stepX = (dx / d) * step
-        const stepZ = (dz / d) * step
-        const nx = s.x + stepX
-        const nz = s.z + stepZ
-        const tNX = tileAt(Math.floor(nx), Math.floor(s.z))
-        const tNZ = tileAt(Math.floor(s.x), Math.floor(nz))
-        if (tNX && tNX.height < 2 && !obstacleCollidesAt(nx, s.z, DOG_RADIUS)) s.x = nx
-        if (tNZ && tNZ.height < 2 && !obstacleCollidesAt(s.x, nz, DOG_RADIUS)) s.z = nz
-        s.facing = lerpAngle(s.facing, Math.atan2(stepX, stepZ), Math.min(1, dt * 8))
+        const nx = s.x + (dx / d) * step
+        const nz = s.z + (dz / d) * step
+        const land = (lx: number, lz: number) => {
+          const tl = tileAt(Math.floor(lx), Math.floor(lz))
+          return !!tl && tl.height < 2
+        }
+        // Never step onto water/cliffs — and don't corner-cut diagonally across
+        // one (check the diagonal tile first, else slide on a single safe axis).
+        if (land(nx, nz) && !obstacleCollidesAt(nx, nz, DOG_RADIUS)) {
+          s.x = nx
+          s.z = nz
+        } else if (land(nx, s.z) && !obstacleCollidesAt(nx, s.z, DOG_RADIUS)) {
+          s.x = nx
+        } else if (land(s.x, nz) && !obstacleCollidesAt(s.x, nz, DOG_RADIUS)) {
+          s.z = nz
+        }
+        s.facing = lerpAngle(s.facing, Math.atan2(dx, dz), Math.min(1, dt * 8))
+        // Blocked (e.g. by a river) with no real progress → abandon the target.
+        if (Math.hypot(s.x - stuckRef.current.x, s.z - stuckRef.current.z) > 0.35) {
+          stuckRef.current = { x: s.x, z: s.z, since: t }
+        } else if (t - stuckRef.current.since > 1.0) {
+          s.target = null
+          s.idleUntil = t + 0.4 + rand() * 1.2
+        }
       }
     }
     s.moving = moving
@@ -264,6 +297,11 @@ const DOG_SPAWNS: Array<{ pos: [number, number]; palette: number; seed: number }
   { pos: [26, 24], palette: 3, seed: 4.7 },
   { pos: [40, 30], palette: 0, seed: 5.9 },
   { pos: [22, 28], palette: 1, seed: 7.2 },
+  // A few more roaming the grassland around the castle.
+  { pos: [52, 46], palette: 2, seed: 8.4 },
+  { pos: [62, 44], palette: 3, seed: 9.6 },
+  { pos: [48, 30], palette: 1, seed: 10.8 },
+  { pos: [66, 38], palette: 0, seed: 12.1 },
 ]
 
 export function Wildlife() {

@@ -2,20 +2,38 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { openTree, closeTree, isTreeOpen } from './townHallStore'
 import { KEEP_INTERACT, INTERACT_DIST, CITY_WALL_HEIGHT } from './cityPlan'
+import { stoneTexture, woodTexture, shingleTexture, soilTexture } from './textures'
 
-// Shared procedural materials (flat-shaded, matching House.tsx / Shop.tsx).
-const STONE = new THREE.MeshStandardMaterial({ color: '#7d7e86', roughness: 0.95, flatShading: true })
-const DARK_STONE = new THREE.MeshStandardMaterial({ color: '#5c5d64', roughness: 0.95, flatShading: true })
-const LIGHT_STONE = new THREE.MeshStandardMaterial({ color: '#969aa4', roughness: 0.95, flatShading: true })
-const BEAM = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 1, flatShading: true })
-const ROOF = new THREE.MeshStandardMaterial({ color: '#7a2f28', roughness: 0.85, flatShading: true })
+// Shared procedural materials. Surface detail comes from canvas textures
+// (textures.ts); when those are unavailable (headless inspect) the generators
+// return null and we fall back to the flat palette colour.
+function texMat(
+  map: THREE.Texture | null,
+  fallback: string,
+  opts: THREE.MeshStandardMaterialParameters = {},
+): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color: map ? '#ffffff' : fallback,
+    map: map ?? undefined,
+    roughness: 0.95,
+    flatShading: !map,
+    ...opts,
+  })
+}
+
+const STONE = texMat(stoneTexture('#7d7e86'), '#7d7e86')
+const DARK_STONE = texMat(stoneTexture('#5c5d64'), '#5c5d64')
+const LIGHT_STONE = texMat(stoneTexture('#969aa4'), '#969aa4')
+const BEAM = texMat(woodTexture('#5a3a22'), '#5a3a22', { roughness: 1 })
+const ROOF = texMat(shingleTexture('#7a2f28'), '#7a2f28', { roughness: 0.85 })
 const BANNER = new THREE.MeshStandardMaterial({ color: '#2f5fa6', roughness: 0.8, side: THREE.DoubleSide })
-const WOOD = new THREE.MeshStandardMaterial({ color: '#3a2618', roughness: 1 })
-const SOIL = new THREE.MeshStandardMaterial({ color: '#6b4a2a', roughness: 1, flatShading: true })
+const WOOD = texMat(woodTexture('#3a2618'), '#3a2618', { roughness: 1 })
+const SOIL = texMat(soilTexture('#6b4a2a'), '#6b4a2a', { roughness: 1 })
 const CROP = new THREE.MeshStandardMaterial({ color: '#8fae4a', roughness: 0.9, flatShading: true })
 const GOLD = new THREE.MeshStandardMaterial({
   color: '#e0b04a',
@@ -26,13 +44,30 @@ const GOLD = new THREE.MeshStandardMaterial({
   toneMapped: false,
 })
 
+/** Multiply a geometry's UVs in place so a shared, repeat=1 texture keeps a
+ *  consistent block scale regardless of the part's world size. */
+function scaleUv(geo: THREE.BufferGeometry, su: number, sv: number): THREE.BufferGeometry {
+  const uv = geo.attributes.uv as THREE.BufferAttribute | undefined
+  if (uv) {
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv)
+    uv.needsUpdate = true
+  }
+  return geo
+}
+
+function box(w: number, h: number, d: number, x: number, y: number, z: number): THREE.BoxGeometry {
+  const g = new THREE.BoxGeometry(w, h, d)
+  g.translate(x, y, z)
+  return g
+}
+
 // ---------------------------------------------------------------------------
 // Keep — the castle's central, multi-tile stronghold. It exists from the start
 // and is the player's interactable: press E within range to open the upgrade
 // tree (mirrors Shop.tsx's interaction pattern).
 // ---------------------------------------------------------------------------
 const KEEP_W = 7
-const KEEP_H = 4.2
+const KEEP_H = 3.0
 const KEEP_D = 6
 const KEEP_FOUND = 0.35
 
@@ -69,23 +104,24 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Crenellation merlons around the keep roof.
-  const merlons = useMemo(() => {
-    const out: [number, number][] = []
+  const roofY = KEEP_FOUND + KEEP_H
+
+  // All battlement merlons merged into one geometry → a single draw call
+  // instead of ~16 separate meshes.
+  const merlonGeo = useMemo(() => {
+    const geos: THREE.BufferGeometry[] = []
     const stepX = 1.0
     const stepZ = 1.0
     for (let x = -KEEP_W / 2 + 0.4; x <= KEEP_W / 2 - 0.4; x += stepX) {
-      out.push([x, -KEEP_D / 2 + 0.2])
-      out.push([x, KEEP_D / 2 - 0.2])
+      geos.push(box(0.5, 0.5, 0.5, x, roofY + 0.25, -KEEP_D / 2 + 0.2))
+      geos.push(box(0.5, 0.5, 0.5, x, roofY + 0.25, KEEP_D / 2 - 0.2))
     }
     for (let z = -KEEP_D / 2 + 1.2; z <= KEEP_D / 2 - 1.2; z += stepZ) {
-      out.push([-KEEP_W / 2 + 0.2, z])
-      out.push([KEEP_W / 2 - 0.2, z])
+      geos.push(box(0.5, 0.5, 0.5, -KEEP_W / 2 + 0.2, roofY + 0.25, z))
+      geos.push(box(0.5, 0.5, 0.5, KEEP_W / 2 - 0.2, roofY + 0.25, z))
     }
-    return out
-  }, [])
-
-  const roofY = KEEP_FOUND + KEEP_H
+    return mergeGeometries(geos, false) as THREE.BufferGeometry
+  }, [roofY])
 
   return (
     <group position={position} rotation={[0, rotation, 0]}>
@@ -97,20 +133,16 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       <mesh position={[0, KEEP_FOUND + KEEP_H / 2, 0]} castShadow receiveShadow material={STONE}>
         <boxGeometry args={[KEEP_W, KEEP_H, KEEP_D]} />
       </mesh>
-      {/* Battlement merlons */}
-      {merlons.map(([x, z], i) => (
-        <mesh key={i} position={[x, roofY + 0.25, z]} castShadow material={DARK_STONE}>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-        </mesh>
-      ))}
+      {/* Battlement merlons (merged) */}
+      <mesh geometry={merlonGeo} material={DARK_STONE} castShadow />
       {/* Central tower rising above the roof */}
-      <mesh position={[0, roofY + 1.0, 0]} castShadow receiveShadow material={LIGHT_STONE}>
-        <boxGeometry args={[2.4, 2.0, 2.4]} />
+      <mesh position={[0, roofY + 0.9, 0]} castShadow receiveShadow material={LIGHT_STONE}>
+        <boxGeometry args={[2.2, 1.6, 2.2]} />
       </mesh>
-      <mesh position={[0, roofY + 2.6, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
-        <coneGeometry args={[1.9, 1.4, 4]} />
+      <mesh position={[0, roofY + 1.9, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
+        <coneGeometry args={[1.7, 1.2, 4]} />
       </mesh>
-      <mesh position={[0, roofY + 3.5, 0]} material={GOLD}>
+      <mesh position={[0, roofY + 2.7, 0]} material={GOLD}>
         <sphereGeometry args={[0.18, 10, 8]} />
       </mesh>
       {/* Grand door on the +Z (player-facing) front */}
@@ -120,7 +152,7 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       <mesh position={[0, KEEP_FOUND + 0.95, KEEP_D / 2 + 0.09]} material={BEAM}>
         <boxGeometry args={[0.1, 1.9, 0.05]} />
       </mesh>
-      {/* Banners flanking the door */}
+      {/* Banners flanking the door (planes — no shadow) */}
       <mesh position={[-1.4, KEEP_FOUND + 2.4, KEEP_D / 2 + 0.08]} material={BANNER}>
         <planeGeometry args={[0.7, 1.6]} />
       </mesh>
@@ -141,7 +173,7 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       </Text>
 
       {/* "Press E" prompt */}
-      <group ref={promptRef} position={[0, roofY + 4.2, 0]} visible={false}>
+      <group ref={promptRef} position={[0, roofY + 3.4, 0]} visible={false}>
         <Text fontSize={0.34} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.025}>
           Press E — Upgrades
         </Text>
@@ -151,7 +183,8 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Wall segment — a stone box with crenellations along the top.
+// Wall segment — a stone box with crenellations along the top. Body + merlons
+// are merged into ONE geometry so each wall is a single draw call (was ~13).
 // ---------------------------------------------------------------------------
 const WALL_THICK = 0.6
 
@@ -162,31 +195,28 @@ interface WallProps {
 }
 
 export function Wall({ position, rotation = 0, len }: WallProps) {
-  const merlons = useMemo(() => {
-    const out: number[] = []
+  const geo = useMemo(() => {
+    const geos: THREE.BufferGeometry[] = []
+    const body = box(len, CITY_WALL_HEIGHT, WALL_THICK, 0, CITY_WALL_HEIGHT / 2, 0)
+    scaleUv(body, len * 0.4, CITY_WALL_HEIGHT * 0.5)
+    geos.push(body)
     const step = 0.8
     const count = Math.max(1, Math.floor(len / step))
     const start = -((count - 1) * step) / 2
-    for (let i = 0; i < count; i++) out.push(start + i * step)
-    return out
+    for (let i = 0; i < count; i++) {
+      geos.push(box(0.38, 0.4, WALL_THICK + 0.06, start + i * step, CITY_WALL_HEIGHT + 0.2, 0))
+    }
+    return mergeGeometries(geos, false) as THREE.BufferGeometry
   }, [len])
 
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
-      <mesh position={[0, CITY_WALL_HEIGHT / 2, 0]} castShadow receiveShadow material={STONE}>
-        <boxGeometry args={[len, CITY_WALL_HEIGHT, WALL_THICK]} />
-      </mesh>
-      {merlons.map((x, i) => (
-        <mesh key={i} position={[x, CITY_WALL_HEIGHT + 0.2, 0]} castShadow material={DARK_STONE}>
-          <boxGeometry args={[0.38, 0.4, WALL_THICK + 0.06]} />
-        </mesh>
-      ))}
-    </group>
+    <mesh position={position} rotation={[0, rotation, 0]} geometry={geo} material={STONE} castShadow receiveShadow />
   )
 }
 
 // ---------------------------------------------------------------------------
-// Watchtower — square stone tower with a pitched roof (grid-aligned).
+// Watchtower — square stone tower with a pitched roof (grid-aligned). Body +
+// battlement ring merged into one stone mesh.
 // ---------------------------------------------------------------------------
 const TOWER_H = 3.4
 
@@ -195,16 +225,17 @@ interface TowerProps {
   rotation?: number
 }
 
+const TOWER_GEO = (() => {
+  const body = box(1.8, TOWER_H, 1.8, 0, TOWER_H / 2, 0)
+  scaleUv(body, 0.9, TOWER_H * 0.5)
+  const batt = box(2.1, 0.4, 2.1, 0, TOWER_H + 0.1, 0)
+  return mergeGeometries([body, batt], false) as THREE.BufferGeometry
+})()
+
 export function Tower({ position, rotation = 0 }: TowerProps) {
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <mesh position={[0, TOWER_H / 2, 0]} castShadow receiveShadow material={STONE}>
-        <boxGeometry args={[1.8, TOWER_H, 1.8]} />
-      </mesh>
-      {/* Battlement ring */}
-      <mesh position={[0, TOWER_H + 0.1, 0]} castShadow material={DARK_STONE}>
-        <boxGeometry args={[2.1, 0.4, 2.1]} />
-      </mesh>
+      <mesh geometry={TOWER_GEO} material={STONE} castShadow receiveShadow />
       {/* Pitched roof — 45° so the 4-sided cone's faces align with the square */}
       <mesh position={[0, TOWER_H + 0.95, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
         <coneGeometry args={[1.5, 1.3, 4]} />
@@ -284,9 +315,9 @@ export function Farm({ position, rotation = 0, w, d }: FarmProps) {
       <mesh position={[0, 0.06, 0]} receiveShadow material={SOIL}>
         <boxGeometry args={[w, 0.12, d]} />
       </mesh>
-      {/* Crop rows */}
+      {/* Crop rows (small — skip shadow casting) */}
       {rows.map((x, i) => (
-        <mesh key={i} position={[x, 0.22, 0]} castShadow material={CROP}>
+        <mesh key={i} position={[x, 0.22, 0]} material={CROP}>
           <boxGeometry args={[0.28, 0.24, d - 0.6]} />
         </mesh>
       ))}

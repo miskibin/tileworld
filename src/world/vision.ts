@@ -53,11 +53,24 @@ export function applyVisionShader(material: THREE.Material): void {
          uniform float uViewRadius;
          uniform float uViewFalloff;
          uniform float uViewMaxDarken;
-         varying vec3 vFogOfWarWorldPos;`,
+         varying vec3 vFogOfWarWorldPos;
+         float fowHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+         float fowNoise(vec2 p){
+           vec2 i = floor(p); vec2 f = fract(p);
+           float a = fowHash(i), b = fowHash(i + vec2(1.0, 0.0));
+           float c = fowHash(i + vec2(0.0, 1.0)), d = fowHash(i + vec2(1.0, 1.0));
+           vec2 u = f * f * (3.0 - 2.0 * f);
+           return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+         }`,
       )
       .replace(
         '#include <dithering_fragment>',
         `#include <dithering_fragment>
+         // Procedural ground mottle — world-space value noise at three octaves
+         // breaks the flat per-tile colour into organic patches (no visible grid).
+         vec2 fowWp = vFogOfWarWorldPos.xz;
+         float fowN = fowNoise(fowWp * 0.55) * 0.6 + fowNoise(fowWp * 2.1) * 0.3 + fowNoise(fowWp * 6.5) * 0.1;
+         gl_FragColor.rgb *= 0.88 + fowN * 0.24;
          float fowD = length(vFogOfWarWorldPos.xz - uPlayerPos.xz);
          float fowDark = smoothstep(uViewRadius, uViewRadius + uViewFalloff, fowD) * uViewMaxDarken;
          // Fade toward a dark cool tint, not pure black — keeps the look moody

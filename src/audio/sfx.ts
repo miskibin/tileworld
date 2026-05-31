@@ -1,4 +1,4 @@
-import { getListener, isEnabled } from './audio'
+import { getListener, isEnabled, playSfx } from './audio'
 
 // Procedurally-synthesized SFX via WebAudio — no asset files needed. All sounds
 // reuse the THREE.AudioListener's AudioContext so they share the same enabled/
@@ -194,12 +194,126 @@ export function playEquip(): void {
   noise(c, t, 0.06, 0.05, 'highpass', 4000, 2000)
 }
 
-/** Bear roar — low growl sweep. */
+/** Bear roar — low growl sweep (synth fallback for the sampled clip). */
 export function playRoar(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
   tone(c, 'sawtooth', 130, t, 0.5, 0.18, 70)
   noise(c, t, 0.45, 0.12, 'lowpass', 700, 200)
+}
+
+/** Guttural ork grunt — synth fallback if the sampled clip is unavailable. */
+function orkGruntSynth(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  const f0 = 92 + Math.random() * 34
+  const osc = c.createOscillator()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(f0 * 1.4, t)
+  osc.frequency.exponentialRampToValueAtTime(f0, t + 0.18)
+  const formant = c.createBiquadFilter()
+  formant.type = 'bandpass'
+  formant.frequency.value = 520
+  formant.Q.value = 4
+  const g = c.createGain()
+  g.gain.setValueAtTime(0.0001, t)
+  g.gain.exponentialRampToValueAtTime(0.2, t + 0.04)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3)
+  osc.connect(formant).connect(g).connect(c.destination)
+  osc.start(t)
+  osc.stop(t + 0.34)
+  noise(c, t, 0.16, 0.06, 'lowpass', 900, 300)
+}
+
+// ─── Sampled creature voices (CC0 clips in public/audio) ─────────────────────
+// rubberduck — "80 CC0 creature SFX" (OpenGameArt, CC0 / public domain).
+// Each play is volume-scaled by distance to the player and falls back to a
+// synth grunt/roar if the clip fails to load.
+const ORK_GRUNTS = ['/audio/ork-grunt-1.ogg', '/audio/ork-grunt-2.ogg', '/audio/ork-grunt-3.ogg']
+const ORK_ROAR = '/audio/ork-roar.ogg'
+const BEAR_ROAR = '/audio/bear-roar.ogg'
+const BEAR_GROWL = '/audio/bear-growl.ogg'
+
+const AUDIBLE_RANGE = 28 // tiles; beyond this a creature voice is silent
+
+function volForDist(dist: number, base: number): number {
+  if (dist >= AUDIBLE_RANGE) return 0
+  return base * (1 - dist / AUDIBLE_RANGE)
+}
+
+/** Ork grunt on aggro/attack — random clip, distance-scaled. */
+export function playOrkGrunt(dist = 0): void {
+  const v = volForDist(dist, 0.55)
+  if (v <= 0) return
+  const f = ORK_GRUNTS[(Math.random() * ORK_GRUNTS.length) | 0]
+  playSfx(f, v, 0.14).catch(orkGruntSynth)
+}
+
+/** Heavier ork roar (e.g. on a charge). */
+export function playOrkRoar(dist = 0): void {
+  const v = volForDist(dist, 0.6)
+  if (v <= 0) return
+  playSfx(ORK_ROAR, v, 0.1).catch(orkGruntSynth)
+}
+
+/** Bear roar on aggro — distance-scaled, synth fallback. */
+export function playBearRoar(dist = 0): void {
+  const v = volForDist(dist, 0.7)
+  if (v <= 0) return
+  playSfx(BEAR_ROAR, v, 0.08).catch(playRoar)
+}
+
+/** Bear growl on attack — distance-scaled, synth fallback. */
+export function playBearGrowl(dist = 0): void {
+  const v = volForDist(dist, 0.55)
+  if (v <= 0) return
+  playSfx(BEAR_GROWL, v, 0.12).catch(playRoar)
+}
+
+// Sampled dog/cat voices (CC0 — rubberduck barks + IgnasD/AntumDeluge meows,
+// OpenGameArt). Random clip per call, distance-scaled, synth fallback.
+const DOG_BARKS = ['/audio/dog-bark-1.ogg', '/audio/dog-bark-2.ogg']
+const CAT_MEOWS = ['/audio/cat-meow-1.ogg', '/audio/cat-meow-2.ogg']
+
+/** Dog bark — synth fallback (two short "ruff" bursts). */
+function dogBarkSynth(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  const ruff = (t0: number) => {
+    const osc = c.createOscillator()
+    osc.type = 'sawtooth'
+    const f = 280 + Math.random() * 90
+    osc.frequency.setValueAtTime(f, t0)
+    osc.frequency.exponentialRampToValueAtTime(f * 0.5, t0 + 0.12)
+    const g = c.createGain()
+    g.gain.setValueAtTime(0.0001, t0)
+    g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14)
+    osc.connect(g).connect(c.destination)
+    osc.start(t0)
+    osc.stop(t0 + 0.16)
+    noise(c, t0, 0.08, 0.2, 'bandpass', 1200, 600)
+  }
+  ruff(t)
+  if (Math.random() < 0.6) ruff(t + 0.16 + Math.random() * 0.08)
+}
+
+/** Dog bark — sampled clip, distance-scaled. */
+export function playDogBark(dist = 0): void {
+  const v = volForDist(dist, 0.3)
+  if (v <= 0) return
+  const f = DOG_BARKS[(Math.random() * DOG_BARKS.length) | 0]
+  playSfx(f, v, 0.12).catch(dogBarkSynth)
+}
+
+/** Cat meow — sampled clip, distance-scaled. */
+export function playCatMeow(dist = 0): void {
+  const v = volForDist(dist, 0.22)
+  if (v <= 0) return
+  const f = CAT_MEOWS[(Math.random() * CAT_MEOWS.length) | 0]
+  playSfx(f, v, 0.1).catch(() => {})
 }
 

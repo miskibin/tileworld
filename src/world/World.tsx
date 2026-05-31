@@ -20,6 +20,7 @@ import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
 import { City } from './City'
 import { Birds } from './Birds'
+import { Ships } from './Boat'
 import { Cat } from './Cat'
 import { Shop } from './Shop'
 import { MouseLookCamera } from './MouseLookCamera'
@@ -76,24 +77,40 @@ export function World() {
         <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
 
         {/* Ork camps near the biome corners + a northern warcamp */}
-        <OrkCamp position={[22, 1, 52]} rotation={0.3} seed={3.3} />
-        <OrkCamp position={[76, 1, 20]} rotation={-0.8} seed={7.7} />
-        <OrkCamp position={[74, 1, 54]} rotation={1.1} seed={5.1} />
+        <OrkCamp position={[22, 1, 52]} rotation={0} seed={3.3} />
+        <OrkCamp position={[76, 1, 20]} rotation={-Math.PI / 2} seed={7.7} />
+        <OrkCamp position={[74, 1, 54]} rotation={Math.PI / 2} seed={5.1} />
         <OrkCamp position={[50, 1, 13]} rotation={0} seed={9.2} />
 
         {/* Remote hamlet west of the castle */}
-        <Village position={[26, 30]} rotation={1.2} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        <Village position={[26, 30]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
 
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
         <VillagerCrowd />
 
-        {/* Market shop just inside the castle's south side */}
-        <Shop position={[50, 1, 41]} rotation={Math.PI} />
+        {/* Market stall just outside the south gate (the castle interior is a
+            packed grid). Counter faces the gate; its tile is reserved from
+            scatter in obstacles.ts so no tree spawns on it. */}
+        <Shop position={[62, 1, 45]} rotation={Math.PI} />
 
-        {/* A cat hangs around each village */}
+        {/* Cats hang around the villages + castle */}
         <Cat home={[58, 1, 46]} seed={0.7} />
         <Cat home={[26, 1, 32]} seed={2.1} />
+        <Cat home={[50, 1, 30]} seed={3.4} />
+        <Cat home={[64, 1, 40]} seed={5.6} />
+
+        {/* Butterflies / pollen drifting over the castle meadow */}
+        <Sparkles
+          position={[57, 1.3, 46]}
+          scale={[22, 2, 16]}
+          count={36}
+          size={5}
+          speed={0.35}
+          opacity={0.5}
+          color={'#ffe27a'}
+          noise={1.2}
+        />
 
         {/* Wandering dogs */}
         <Wildlife />
@@ -128,16 +145,16 @@ export function World() {
         {audioEnabled && (
           <>
             <group position={[6, 0.5, 36]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.07) }} />
+              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
             <group position={[90, 0.5, 36]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.07) }} />
+              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
             <group position={[48, 0.5, 6]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.07) }} />
+              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
             <group position={[48, 0.5, 66]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.07) }} />
+              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
           </>
         )}
@@ -149,6 +166,9 @@ export function World() {
       {/* Birds circling above the map — placed in world-space, outside the
           grid-offset group. */}
       <Birds />
+
+      {/* Ships slowly circling the island on the open sea (world-space). */}
+      <Ships />
 
       {/* Drifting atmospheric motes across the island */}
       <Sparkles
