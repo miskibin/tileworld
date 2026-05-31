@@ -37,11 +37,11 @@ const START_OFFSET = sunDirAt(DAY_START_T, new THREE.Vector3()).multiplyScalar(
   SUN_DIST,
 )
 
-// Half-extent of the shadow frustum in world units. At the map centre (spawn)
-// this still reaches the island edges, so spawn shadows are unchanged; it only
-// trims casters once the player walks toward a corner. 48 also gives a slightly
-// crisper map than the old ±60 (more texels per unit) at the same 2048 size.
-const SHADOW_HALF = 48
+// Half-extent of the shadow frustum in world units. Kept just past the FogExp2
+// view distance (~40) so casters the player can't see don't get drawn into the
+// depth map — fewer casters per shadow pass, and a crisper map (more texels per
+// unit at the same 2048 size). Trades a little shadow pop-in at the far fog edge.
+const SHADOW_HALF = 38
 
 // Re-aim/re-render the shadow map only after the player drifts this far from
 // where it was last centred (world units). Keeps the frustum locked — and the
@@ -50,9 +50,10 @@ const RECENTER_DIST = 6
 const RECENTER_DIST_SQ = RECENTER_DIST * RECENTER_DIST
 
 // Even when not recentering, refresh every Nth frame so animated casters (orks,
-// bears, the knight) get fresh shadows. 3 ≈ 20fps shadow updates at 60fps —
-// imperceptible for soft shadows, ~⅓ the shadow-pass cost of every-frame.
-const ANIM_REFRESH_INTERVAL = 3
+// bears, the knight) get fresh shadows. 6 ≈ 10fps shadow updates at 60fps —
+// imperceptible for soft shadows, and halves the shadow-pass frequency (the
+// periodic 300→1300 draw-call spikes) vs the old every-3rd-frame.
+const ANIM_REFRESH_INTERVAL = 6
 
 interface Props {
   intensity: number
@@ -101,27 +102,34 @@ export function SunShadow({ intensity }: Props) {
     // pause/modal). The light transform below still updates so shading is right.
     if (!isFrozen()) {
       frame.current++
-      const p = getPlayer()
-      // The light lives inside World's grid-offset group, so player grid coords
-      // (p.x, p.z) are the right frame for both the light and its target.
-      const px = p.x
-      const pz = p.z
-      const movedSq =
-        (px - lastCenter.current.x) ** 2 + (pz - lastCenter.current.z) ** 2
-      if (movedSq > RECENTER_DIST_SQ) {
-        // Snap the follow centre to the texel grid so shadow edges don't swim
-        // as the frustum slides with the player.
-        const snappedX = Math.round(px / texelSize) * texelSize
-        const snappedZ = Math.round(pz / texelSize) * texelSize
-        target.position.set(snappedX, 0, snappedZ)
-        target.updateMatrixWorld()
-        lastCenter.current.set(px, 0, pz)
-        gl.shadowMap.needsUpdate = true
-      } else if (frame.current % ANIM_REFRESH_INTERVAL === 0) {
-        // Standing still / small moves: still refresh occasionally so moving
-        // casters (mobs) AND the drifting sun get updated shadows, without
-        // redrawing every frame.
-        gl.shadowMap.needsUpdate = true
+      // Sun below the horizon (night, e.g. during a wave) → the directional
+      // light is dark and its shadow is invisible, so don't spend a whole
+      // shadow pass re-rendering it. Skipping this is what removes the periodic
+      // 300→1300 draw-call spikes during night combat. Dawn re-arms it: the
+      // player has usually drifted > RECENTER_DIST, so the recenter below fires.
+      if (sample.sunVis > 0.001) {
+        const p = getPlayer()
+        // The light lives inside World's grid-offset group, so player grid coords
+        // (p.x, p.z) are the right frame for both the light and its target.
+        const px = p.x
+        const pz = p.z
+        const movedSq =
+          (px - lastCenter.current.x) ** 2 + (pz - lastCenter.current.z) ** 2
+        if (movedSq > RECENTER_DIST_SQ) {
+          // Snap the follow centre to the texel grid so shadow edges don't swim
+          // as the frustum slides with the player.
+          const snappedX = Math.round(px / texelSize) * texelSize
+          const snappedZ = Math.round(pz / texelSize) * texelSize
+          target.position.set(snappedX, 0, snappedZ)
+          target.updateMatrixWorld()
+          lastCenter.current.set(px, 0, pz)
+          gl.shadowMap.needsUpdate = true
+        } else if (frame.current % ANIM_REFRESH_INTERVAL === 0) {
+          // Standing still / small moves: still refresh occasionally so moving
+          // casters (mobs) AND the drifting sun get updated shadows, without
+          // redrawing every frame.
+          gl.shadowMap.needsUpdate = true
+        }
       }
     }
 
