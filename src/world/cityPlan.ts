@@ -1,19 +1,24 @@
-import { tileAt, tileTopY } from './tileMap'
+import { tileAt, tileTopY, CENTER_X, CENTER_Z } from './tileMap'
 
 // The central castle the player upgrades via the Keep's upgrade tree. All coords
 // are absolute grid coords in the offset-group space used by World.tsx. The
 // castle is "fully tree-built": only the Keep exists at the start; the upgrade
 // tree raises the walls, gates, towers, houses and farm.
 //
+// The whole layout is anchored on the map centre (CENTER_X, CENTER_Z) = (72,54)
+// so the keep sits dead-centre on the island, ringed by the flat grass
+// safe-zone (see CASTLE_SAFE_R in tileMap) with biomes/mountains set well back.
+//
 // Grid-based design: every placed model uses one of four cardinal rotations
 // (0, 90, 180, 270°) — see snapToCardinal — so the layout stays grid-aligned
 // and easy to reason about.
 
-export const CITY_CENTER = { x: 57, z: 33 } as const
+export const CITY_CENTER = { x: CENTER_X, z: CENTER_Z } as const
 
-/** Wall perimeter (also the footprint reserved from scatter). Sits on the
- *  central plain, clear of both rivers (N-S bends to ~x42, E-W reaches ~z23). */
-export const CASTLE_BOUNDS = { minX: 44, maxX: 70, minZ: 24, maxZ: 42 } as const
+/** Wall perimeter (also the footprint reserved from scatter). Centred on the
+ *  island's middle, deep inside the castle safe-zone (radius 18), so no river,
+ *  lake or mountain comes near. */
+export const CASTLE_BOUNDS = { minX: 59, maxX: 85, minZ: 45, maxZ: 63 } as const
 
 /** How close the player must be to the Keep to press E (keep is multi-tile). */
 export const INTERACT_DIST = 4.2
@@ -92,56 +97,56 @@ function house(x: number, z: number): HouseSlot {
 /** Eight houses in two grid rows inside the walls, clear of the gates, Keep
  *  and farm (≥1.5 tiles from every wall). */
 export const HOUSE_SLOTS: HouseSlot[] = [
-  // north interior row (z=27) — flanking the north gate
-  house(48, 27),
-  house(52, 27),
-  house(62, 27),
-  house(66, 27),
-  // south interior row (z=39) — flanking the south gate
-  house(48, 39),
-  house(52, 39),
-  house(62, 39),
-  house(66, 39),
+  // north interior row (z=48) — flanking the north gate
+  house(63, 48),
+  house(67, 48),
+  house(77, 48),
+  house(81, 48),
+  // south interior row (z=60) — flanking the south gate
+  house(63, 60),
+  house(67, 60),
+  house(77, 60),
+  house(81, 60),
 ]
 
 const WALL_H = 1.35
 
-// Perimeter walls (bounds x44..70, z24..42). rotation 0 = runs along X; 90° =
+// Perimeter walls (bounds x59..85, z45..63). rotation 0 = runs along X; 90° =
 // runs along Z. Each side is split around its central gate, with segments that
-// span exactly tower→gate→tower so there are no gaps. Gate gaps: N/S at x55..59,
-// W/E at z31..35.
+// span exactly tower→gate→tower so there are no gaps. Gate gaps: N/S at x70..74,
+// W/E at z52..56.
 export const WALL_SLOTS: WallSlot[] = [
-  // North edge (z=24)
-  { x: 49.5, z: 24, rotation: 0, len: 11 }, // x44..55
-  { x: 64.5, z: 24, rotation: 0, len: 11 }, // x59..70
-  // South edge (z=42)
-  { x: 49.5, z: 42, rotation: 0, len: 11 },
-  { x: 64.5, z: 42, rotation: 0, len: 11 },
-  // West edge (x=44)
-  { x: 44, z: 27.5, rotation: HALF_PI, len: 7 }, // z24..31
-  { x: 44, z: 38.5, rotation: HALF_PI, len: 7 }, // z35..42
-  // East edge (x=70)
-  { x: 70, z: 27.5, rotation: HALF_PI, len: 7 },
-  { x: 70, z: 38.5, rotation: HALF_PI, len: 7 },
+  // North edge (z=45)
+  { x: 64.5, z: 45, rotation: 0, len: 11 }, // x59..70
+  { x: 79.5, z: 45, rotation: 0, len: 11 }, // x74..85
+  // South edge (z=63)
+  { x: 64.5, z: 63, rotation: 0, len: 11 },
+  { x: 79.5, z: 63, rotation: 0, len: 11 },
+  // West edge (x=59)
+  { x: 59, z: 48.5, rotation: HALF_PI, len: 7 }, // z45..52
+  { x: 59, z: 59.5, rotation: HALF_PI, len: 7 }, // z56..63
+  // East edge (x=85)
+  { x: 85, z: 48.5, rotation: HALF_PI, len: 7 },
+  { x: 85, z: 59.5, rotation: HALF_PI, len: 7 },
 ]
 
 /** Four gates, one centred on each wall. */
 export const GATE_SLOTS: GateSlot[] = [
-  { x: 57, z: 24, rotation: 0, width: GATE_GAP }, // north
-  { x: 57, z: 42, rotation: 0, width: GATE_GAP }, // south
-  { x: 44, z: 33, rotation: HALF_PI, width: GATE_GAP }, // west
-  { x: 70, z: 33, rotation: HALF_PI, width: GATE_GAP }, // east
+  { x: 72, z: 45, rotation: 0, width: GATE_GAP }, // north
+  { x: 72, z: 63, rotation: 0, width: GATE_GAP }, // south
+  { x: 59, z: 54, rotation: HALF_PI, width: GATE_GAP }, // west
+  { x: 85, z: 54, rotation: HALF_PI, width: GATE_GAP }, // east
 ]
 
 export const TOWER_SLOTS: TowerSlot[] = [
-  { x: 44, z: 24, rotation: snapToCardinal(Math.PI * 1.25) },
-  { x: 70, z: 24, rotation: snapToCardinal(Math.PI * 1.75) },
-  { x: 70, z: 42, rotation: snapToCardinal(Math.PI * 0.25) },
-  { x: 44, z: 42, rotation: snapToCardinal(Math.PI * 0.75) },
+  { x: 59, z: 45, rotation: snapToCardinal(Math.PI * 1.25) },
+  { x: 85, z: 45, rotation: snapToCardinal(Math.PI * 1.75) },
+  { x: 85, z: 63, rotation: snapToCardinal(Math.PI * 0.25) },
+  { x: 59, z: 63, rotation: snapToCardinal(Math.PI * 0.75) },
 ]
 
-/** A tended farm plot in the NE interior. */
-export const FARM_SLOT: FarmSlot = { x: 49, z: 33, rotation: 0, w: 5, d: 4 }
+/** A tended farm plot in the west interior. */
+export const FARM_SLOT: FarmSlot = { x: 64, z: 54, rotation: 0, w: 5, d: 4 }
 
 export const CITY_WALL_HEIGHT = WALL_H
 

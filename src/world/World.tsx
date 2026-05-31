@@ -56,8 +56,8 @@ function DebugExpose() {
 }
 
 export function World() {
-  // Knight spawn near map center of the larger 96×72 map.
-  const posRef = useRef<PlayerStateRef>({ x: 48, y: 1, z: 36, moving: false })
+  // Knight spawns at the centred castle (matches PLAYER_SPAWN in playerStore).
+  const posRef = useRef<PlayerStateRef>({ x: 72, y: 1, z: 58, moving: false })
   const audioEnabled = useAudioEnabled()
   // Lower flat fills than before — the HDRI environment now supplies most of
   // the ambient/bounce light, so ambient+hemi are dialled back and the sun is
@@ -98,10 +98,10 @@ export function World() {
         <Terrain />
         <Paths />
         <Scatter />
-        <Character initial={[48, 1, 36]} facing0={Math.PI} posRef={posRef} />
+        <Character initial={[72, 1, 58]} facing0={Math.PI} posRef={posRef} />
 
-        {/* Remote hamlet west of the castle */}
-        <Village position={[26, 30]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        {/* Remote hamlet northwest of the castle, out in the grass belt */}
+        <Village position={[50, 38]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
 
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
@@ -110,17 +110,17 @@ export function World() {
         {/* Market stall just outside the south gate (the castle interior is a
             packed grid). Counter faces the gate; its tile is reserved from
             scatter in obstacles.ts so no tree spawns on it. */}
-        <Shop position={[62, 1, 45]} rotation={Math.PI} />
+        <Shop position={[68, 1, 71]} rotation={Math.PI} />
 
         {/* Cats hang around the villages + castle */}
-        <Cat home={[58, 1, 46]} seed={0.7} />
-        <Cat home={[26, 1, 32]} seed={2.1} />
-        <Cat home={[50, 1, 30]} seed={3.4} />
-        <Cat home={[64, 1, 40]} seed={5.6} />
+        <Cat home={[72, 1, 67]} seed={0.7} />
+        <Cat home={[50, 1, 40]} seed={2.1} />
+        <Cat home={[66, 1, 50]} seed={3.4} />
+        <Cat home={[80, 1, 58]} seed={5.6} />
 
         {/* Butterflies / pollen drifting over the castle meadow */}
         <Sparkles
-          position={[57, 1.3, 46]}
+          position={[72, 1.3, 66]}
           scale={[22, 2, 16]}
           count={36}
           size={5}
@@ -145,9 +145,9 @@ export function World() {
             out and clear. Orks here guard their camp (home anchor) instead of
             marching on the keep; blue warband so they read apart from the red
             night-horde (and brawl any wave ork that strays near). */}
-        <OrkCamp position={[88, 1, 62]} rotation={0.6} seed={1.2} faction="blue" />
-        <OrkCamp position={[28, 1, 58]} rotation={-0.4} seed={2.7} faction="blue" />
-        <OrkCamp position={[98, 1, 30]} rotation={1.2} seed={4.1} faction="blue" />
+        <OrkCamp position={[32, 1.5, 54]} rotation={1.4} seed={1.2} faction="blue" />
+        <OrkCamp position={[109, 1.5, 56]} rotation={-1.6} seed={2.7} faction="blue" />
+        <OrkCamp position={[72, 1.5, 25]} rotation={0.1} seed={4.1} faction="blue" />
 
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
@@ -166,20 +166,20 @@ export function World() {
         {/* Lean loot: small gold + a few potions, and ONE starter Iron Sword.
             Strong weapons (Battle Axe / Golden Blade) are shop/arsenal-only now,
             so exploring no longer pays for the whole defense. */}
-        <Chest position={[44, 1, 38]} rotation={0.3} gold={6} loot={['sword_iron']} />
-        <Chest position={[24, 1, 52]} rotation={-0.5} gold={8} loot={['potion']} />
-        <Chest position={[78, 1, 24]} rotation={1.0} gold={12} loot={['potion']} />
-        <Chest position={[60, 1, 16]} rotation={2.2} gold={5} loot={['bread']} />
-        {/* Reward chests out toward the newly expanded coastline */}
-        <Chest position={[14, 1, 28]} rotation={0.8} gold={7} loot={['potion']} />
-        <Chest position={[88, 1, 64]} rotation={-1.2} gold={14} loot={['feast']} />
-        <Chest position={[12, 1, 64]} rotation={1.6} gold={9} loot={['bread']} />
-        <Chest position={[88, 1, 10]} rotation={2.6} gold={10} loot={['potion']} />
-        {/* Frontier chests out in the new eastern / southern wilds */}
-        <Chest position={[106, 1, 50]} rotation={0.4} gold={12} loot={['potion']} />
-        <Chest position={[100, 1, 80]} rotation={-0.9} gold={12} loot={['feast']} />
-        <Chest position={[58, 1, 84]} rotation={1.9} gold={9} loot={['bread']} />
-        <Chest position={[112, 1, 44]} rotation={2.3} gold={13} loot={['potion']} />
+        <Chest position={[59, 1, 59]} rotation={0.3} gold={6} loot={['sword_iron']} />
+        <Chest position={[60, 1, 40]} rotation={-0.5} gold={8} loot={['potion']} />
+        <Chest position={[90, 1, 46]} rotation={1.0} gold={12} loot={['potion']} />
+        <Chest position={[78, 1, 38]} rotation={2.2} gold={5} loot={['bread']} />
+        {/* Reward chests out in the biome ring */}
+        <Chest position={[44, 1, 46]} rotation={0.8} gold={7} loot={['potion']} />
+        <Chest position={[104, 1, 80]} rotation={-1.2} gold={14} loot={['feast']} />
+        <Chest position={[40, 1, 80]} rotation={1.6} gold={9} loot={['bread']} />
+        <Chest position={[96, 1, 30]} rotation={2.6} gold={10} loot={['potion']} />
+        {/* Frontier chests out toward the mountains + far coast */}
+        <Chest position={[120, 1, 66]} rotation={0.4} gold={12} loot={['potion']} />
+        <Chest position={[60, 1, 88]} rotation={-0.9} gold={12} loot={['feast']} />
+        <Chest position={[50, 1, 66]} rotation={1.9} gold={9} loot={['bread']} />
+        <Chest position={[100, 1, 44]} rotation={2.3} gold={13} loot={['potion']} />
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />
@@ -192,16 +192,16 @@ export function World() {
         {/* Shoreline water loops — positional for stereo, placed at new map edges */}
         {audioEnabled && (
           <>
-            <group position={[6, 0.5, 47]}>
+            <group position={[6, 0.5, 54]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[118, 0.5, 47]}>
+            <group position={[138, 0.5, 54]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[62, 0.5, 6]}>
+            <group position={[72, 0.5, 6]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
-            <group position={[62, 0.5, 88]}>
+            <group position={[72, 0.5, 102]}>
               <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
             </group>
           </>

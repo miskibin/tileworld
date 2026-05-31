@@ -17,7 +17,8 @@ import {
 } from './blockStore'
 
 export const PLAYER_MAX_HP = 100
-export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
+// Player boots at the centred castle (just south of the keep, inside the walls).
+export const PLAYER_SPAWN = { x: 72, y: 1, z: 58 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
 export const PLAYER_STARTING_GOLD = 30
 

@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState, useEffect, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { tileAt, tileTopY, CENTER_X, CENTER_Z } from './tileMap'
+import { tileAt, tileTopY, canStepOrDrop, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
@@ -19,6 +19,7 @@ import { houseBlocksAt } from './houseBlockers'
 import {
   addGold,
   addXp,
+  damagePlayer,
   getAttackDamage,
   getPlayer,
   PLAYER_RESPAWN_DELAY,
@@ -58,6 +59,12 @@ const TURN_RATE = 12 // higher = snappier rotation
 const STEP_FREQ = 7 // walk-cycle radians per second
 const GRAVITY = 20 // y units / sec^2
 const JUMP_SPEED = 6.5 // initial vertical velocity on jump
+// Fall damage: a drop taller than FALL_SAFE world-units (≈ a 2-class cliff; a
+// normal jump rises only ~1.06 so it never triggers) hurts, scaled by how far
+// past the threshold you fell, capped so a tall peak isn't an instant kill.
+const FALL_SAFE = 1.1
+const FALL_DMG_PER_UNIT = 16
+const FALL_DMG_MAX = 45
 const PLAYER_RADIUS = 0.22 // collision radius for obstacle blocking
 const ATTACK_DURATION = 0.45 // seconds for full swing
 const ATTACK_RANGE = 1.8 // grid units reach
@@ -111,6 +118,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const movingAmt = useRef(0) // 0..1 smoothly tracks isMoving
   const velY = useRef(0)
   const onGround = useRef(true)
+  // World-Y the player last left the ground at — drives fall-damage on landing.
+  const airTakeoffY = useRef(initial[1])
   const lastStepHalfCycle = useRef(0)
 
   // Attack state — left-click triggers a single swing.
@@ -165,6 +174,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         pos.current.z = PLAYER_SPAWN.z
         velY.current = 0
         onGround.current = true
+        airTakeoffY.current = PLAYER_SPAWN.y
         facing.current = Math.PI
         attacking.current = false
       } else {
@@ -215,25 +225,18 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
       const czFloor = Math.floor(pos.current.z)
-      // Cliffs (height ≥ 2) are impassable like in pathfinding: you can't scale a
-      // tile higher than the one you stand on. Level/downhill moves and bridges
-      // stay free, so this only stops climbing the cliff faces — not normal walking.
-      const curTile = tileAt(cxFloor, czFloor)
-      const curH = curTile ? curTile.height : 1
-      const climbable = (t: ReturnType<typeof tileAt>) => !t || t.height < 2 || t.height <= curH
-      const txTile = tileAt(Math.floor(nx), czFloor)
-      const tzTile = tileAt(cxFloor, Math.floor(nz))
+      // Terrain step uses the player climb rule (canStepOrDrop): climbing is
+      // capped at one height-class (Δ ≥ 2 faces block), but you may walk OFF any
+      // height — gravity carries you down and fall damage is applied on landing.
       const canMoveX =
-        (txTile !== null || bridgeAt(nx, pos.current.z) !== null) &&
-        climbable(txTile) &&
+        canStepOrDrop(cxFloor, czFloor, Math.floor(nx), czFloor) &&
         !obstacleCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !animalCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
-        (tzTile !== null || bridgeAt(pos.current.x, nz) !== null) &&
-        climbable(tzTile) &&
+        canStepOrDrop(cxFloor, czFloor, cxFloor, Math.floor(nz)) &&
         !obstacleCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
@@ -251,6 +254,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     const onBridge = bridgeAt(pos.current.x, pos.current.z)
     const tileBelow = tileAt(Math.floor(pos.current.x), Math.floor(pos.current.z))
     const groundY = onBridge ? onBridge.y : tileBelow ? tileTopY(Math.floor(pos.current.x), Math.floor(pos.current.z)) : 0
+    const wasOnGround = onGround.current
     if (k.jump && onGround.current) {
       velY.current = JUMP_SPEED
       onGround.current = false
@@ -258,10 +262,22 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     velY.current -= GRAVITY * dt
     pos.current.y += velY.current * dt
     if (pos.current.y <= groundY) {
+      // Landed. If we fell from far enough above (walked off a cliff or jumped
+      // off a peak), take fall damage scaled by the drop past the safe height.
+      if (!wasOnGround) {
+        const fall = airTakeoffY.current - groundY
+        if (fall > FALL_SAFE) {
+          const dmg = Math.min(FALL_DMG_MAX, Math.round((fall - FALL_SAFE) * FALL_DMG_PER_UNIT))
+          if (dmg > 0) damagePlayer(dmg, tNow)
+        }
+      }
       pos.current.y = groundY
       velY.current = 0
       onGround.current = true
     } else {
+      // Just left the ground (walked off an edge or jumped) — remember from how
+      // high, so the landing can measure the drop.
+      if (wasOnGround) airTakeoffY.current = pos.current.y
       onGround.current = false
     }
 

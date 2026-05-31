@@ -292,17 +292,18 @@ function DogView({ state }: DogViewProps) {
 }
 
 const DOG_SPAWNS: Array<{ pos: [number, number]; palette: number; seed: number }> = [
-  { pos: [34, 28], palette: 0, seed: 1.1 },
-  { pos: [30, 30], palette: 1, seed: 2.3 },
-  { pos: [38, 26], palette: 2, seed: 3.5 },
-  { pos: [26, 24], palette: 3, seed: 4.7 },
-  { pos: [40, 30], palette: 0, seed: 5.9 },
-  { pos: [22, 28], palette: 1, seed: 7.2 },
-  // A few more roaming the grassland around the castle.
-  { pos: [52, 46], palette: 2, seed: 8.4 },
-  { pos: [62, 44], palette: 3, seed: 9.6 },
-  { pos: [48, 30], palette: 1, seed: 10.8 },
-  { pos: [66, 38], palette: 0, seed: 12.1 },
+  // Pack around the NW hamlet (village at ~50,38).
+  { pos: [48, 40], palette: 0, seed: 1.1 },
+  { pos: [52, 36], palette: 1, seed: 2.3 },
+  { pos: [46, 36], palette: 2, seed: 3.5 },
+  { pos: [54, 44], palette: 3, seed: 4.7 },
+  { pos: [44, 42], palette: 0, seed: 5.9 },
+  // A few roaming the grass belt just outside the castle walls.
+  { pos: [56, 50], palette: 1, seed: 7.2 },
+  { pos: [66, 68], palette: 2, seed: 8.4 },
+  { pos: [78, 68], palette: 3, seed: 9.6 },
+  { pos: [88, 56], palette: 1, seed: 10.8 },
+  { pos: [88, 50], palette: 0, seed: 12.1 },
 ]
 
 export function Wildlife() {

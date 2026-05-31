@@ -57,7 +57,7 @@ The map itself is procedural and deterministic (no seed input, no external noise
 
 Mobs and villagers navigate by A* over the tile grid:
 
-- [pathfinding.ts](src/world/pathfinding.ts) — 8-directional A*, returns waypoints at tile centers. `isWalkable()` is the chokepoint that consults all the blockers below.
+- [pathfinding.ts](src/world/pathfinding.ts) — 8-directional A*, returns waypoints at tile centers. `isWalkable()` is the chokepoint that consults all the blockers below; the climb feasibility of each step is the shared `canStep()` from tileMap (≤ 1 height-class change), so A* routes around Δ ≥ 2 cliff faces but follows climbable slopes up the mountains.
 - [obstacles.ts](src/world/obstacles.ts) — procedural trees/rocks/bushes with collision radii; precomputes a `blockedTiles` set. Reserves footprints (camps, villages, castle, bridge approaches) so scatter doesn't spawn there.
 - [roads.ts](src/world/roads.ts) / [bridges.ts](src/world/bridges.ts) — hand-authored road polylines from the 4 castle gates; water crossings emit bridges. Bridges make otherwise-water tiles walkable (`bridgeAt`).
 - [houseBlockers.ts](src/world/houseBlockers.ts) — AABB footprints registered by House/City components on mount, cleared on unmount (scoped per owner so unmounting one structure doesn't wipe others).

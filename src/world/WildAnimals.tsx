@@ -13,27 +13,27 @@ import { RabbitView } from './Rabbit'
 // the right view per species from the shared animalStore. Positions auto-snap
 // to valid land via findSpawnNear.
 
-// Scattered out across the wilds — deliberately kept clear of the player spawn
-// ([48,36]) so nothing crowds you on start. A light, lived-in population: small
-// deer herds + rabbit clusters in the open, wolf packs at the forest edges,
-// lone boars rooting around. Every entry is >=14 tiles from spawn.
+// Scattered across the wilds in the grass belt + biome edges, kept clear of the
+// castle safe-zone (player spawn ~[72,58]) so nothing crowds you on start. A
+// light, lived-in population: deer herds + rabbit clusters in the open, wolf
+// packs at the forest edges, lone boars rooting around.
 type Spawn = { species: AnimalSpecies; pos: [number, number]; seed: number }
 const ANIMAL_SPAWNS: Spawn[] = [
-  // Deer — a couple grazing the meadows
-  { species: 'deer', pos: [30, 40], seed: 1.5 },
-  { species: 'deer', pos: [70, 52], seed: 3.9 },
-  { species: 'deer', pos: [92, 28], seed: 6.3 },
+  // Deer — grazing the grass belt around the castle
+  { species: 'deer', pos: [60, 38], seed: 1.5 },
+  { species: 'deer', pos: [96, 62], seed: 3.9 },
+  { species: 'deer', pos: [54, 74], seed: 6.3 },
   // Rabbits — loosely scattered
-  { species: 'rabbit', pos: [30, 52], seed: 1.1 },
-  { species: 'rabbit', pos: [66, 60], seed: 3.3 },
-  { species: 'rabbit', pos: [84, 40], seed: 4.4 },
-  // Wolf pair prowling the western forest edge (hunts roaming deer)
-  { species: 'wolf', pos: [16, 22], seed: 1.2 },
-  { species: 'wolf', pos: [19, 24], seed: 2.4 },
-  { species: 'wolf', pos: [98, 58], seed: 3.6 },
+  { species: 'rabbit', pos: [52, 62], seed: 1.1 },
+  { species: 'rabbit', pos: [90, 46], seed: 3.3 },
+  { species: 'rabbit', pos: [66, 76], seed: 4.4 },
+  // Wolf packs prowling the southern forest edges (hunt roaming deer)
+  { species: 'wolf', pos: [40, 82], seed: 1.2 },
+  { species: 'wolf', pos: [104, 82], seed: 2.4 },
+  { species: 'wolf', pos: [46, 46], seed: 3.6 },
   // Lone boars rooting around the wilds
-  { species: 'boar', pos: [80, 34], seed: 1.3 },
-  { species: 'boar', pos: [22, 60], seed: 2.6 },
+  { species: 'boar', pos: [92, 72], seed: 1.3 },
+  { species: 'boar', pos: [48, 68], seed: 2.6 },
 ]
 
 // Seconds after an animal dies before a fresh one of the same species returns to
