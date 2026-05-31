@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { getObstacles, type Obstacle } from './obstacles'
 
 // ─── Shared materials (module singletons) ───────────────────────────────────
@@ -200,6 +201,42 @@ const PARTS: Record<string, Part[]> = {
   ],
 }
 
+// Coalesce a kind's parts: every part sharing the same material AND shadow flag
+// can be welded into a single geometry, so the kind draws in one InstancedMesh
+// per (material, castShadow) bucket instead of one per part. Pixels are
+// identical — same material, same shadow casting — only the draw count drops.
+// e.g. tuft (3 cones, one mat) 3→1; cactus (5 body + 3 cap) 8→2; tree 4→4
+// (four distinct mats, already minimal).
+const mergedPartCache = new Map<string, Part[]>()
+function mergedParts(key: string): Part[] {
+  const cached = mergedPartCache.get(key)
+  if (cached) return cached
+  const raw = PARTS[key]
+  const buckets = new Map<string, { geos: THREE.BufferGeometry[]; mat: THREE.Material; castShadow: boolean }>()
+  // Preserve first-seen order so any draw ordering stays stable.
+  const order: string[] = []
+  for (const part of raw) {
+    const cast = part.castShadow ?? false
+    // Bucket by material identity (module singletons) + shadow flag.
+    const matId = (part.mat as THREE.Material).uuid
+    const bk = `${matId}|${cast ? 1 : 0}`
+    let b = buckets.get(bk)
+    if (!b) {
+      b = { geos: [], mat: part.mat, castShadow: cast }
+      buckets.set(bk, b)
+      order.push(bk)
+    }
+    b.geos.push(part.geo)
+  }
+  const out: Part[] = order.map((bk) => {
+    const b = buckets.get(bk)!
+    const geo = b.geos.length === 1 ? b.geos[0] : (mergeGeometries(b.geos, false) as THREE.BufferGeometry)
+    return { geo, mat: b.mat, castShadow: b.castShadow }
+  })
+  mergedPartCache.set(key, out)
+  return out
+}
+
 function obstacleSubKind(o: Obstacle): string {
   if (o.kind === 'bush') return `bush-${o.variant % 3}`
   if (o.kind === 'mushroom') return `mushroom-${o.variant % 2}`
@@ -250,8 +287,8 @@ export function Scatter() {
   return (
     <group>
       {Array.from(groups.entries()).flatMap(([key, list]) => {
-        const parts = PARTS[key]
-        if (!parts) return []
+        if (!PARTS[key]) return []
+        const parts = mergedParts(key)
         return parts.map((part, i) => (
           <InstancedPart key={`${key}-${i}`} part={part} obstacles={list} />
         ))

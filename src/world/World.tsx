@@ -37,6 +37,7 @@ import { MouseLookCamera } from './MouseLookCamera'
 import { Paths } from './Paths'
 import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
+import { SunShadow } from './SunShadow'
 import { CENTER_X, CENTER_Z } from './tileMap'
 
 // Golden-hour sun. One direction drives three things that must agree:
@@ -44,7 +45,6 @@ import { CENTER_X, CENTER_Z } from './tileMap'
 // far-away emissive sphere that the GodRays post-effect rays out from.
 const SUN_DIR = new THREE.Vector3(92, 36, 60)
 const SUN_FAR = SUN_DIR.clone().normalize().multiplyScalar(700)
-const SUN_LIGHT_POS = SUN_DIR.clone().normalize().multiplyScalar(130)
 
 function DebugExpose() {
   const state = useThree()
@@ -96,24 +96,12 @@ export function World() {
         <meshBasicMaterial color="#fff0cc" toneMapped={false} fog={false} />
       </mesh>
 
+      {/* Position-independent fills stay in world space. The shadow-casting
+          sun is a separate follow-the-player component (see SunShadow) placed
+          inside the grid group below, so its shadow frustum can track the
+          player in grid coords instead of statically covering the whole map. */}
       <hemisphereLight args={['#e7eef8', '#5a6a44', lights.hemi]} />
       <ambientLight intensity={lights.ambient} />
-      <directionalLight
-        position={SUN_LIGHT_POS}
-        intensity={lights.dir}
-        color="#ffe6b3"
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-60}
-        shadow-camera-right={60}
-        shadow-camera-top={60}
-        shadow-camera-bottom={-60}
-        shadow-camera-near={0.5}
-        shadow-camera-far={260}
-        shadow-bias={-0.0004}
-        shadow-normalBias={0.035}
-      />
 
       {/* Day fog — exponential falloff in a warm haze colour so the horizon
           melts into golden-hour atmosphere and the map isn't fully visible
@@ -122,6 +110,9 @@ export function World() {
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
+        {/* Sun shadow lives in here so its frustum can follow the player in
+            grid coords. Driven by lights.dir (leva-tunable, like before). */}
+        <SunShadow intensity={lights.dir} />
         <Terrain />
         <Paths />
         <Scatter />
