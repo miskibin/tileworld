@@ -1,0 +1,13 @@
+{
+  "drawCalls": 1112,
+  "drawCallsRange": [
+    1107,
+    1115
+  ],
+  "triangles": 658686,
+  "geometries": 552,
+  "textures": 57,
+  "programs": 40,
+  "fps": 0,
+  "nSamples": 12
+}
