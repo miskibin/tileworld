@@ -7,17 +7,18 @@ export default function App() {
   return (
     <div className="app-root">
       <Canvas
-        shadows="basic"
+        shadows="soft"
         dpr={[1, 1.5]}
         gl={{
           antialias: true,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 1.0,
         }}
         camera={{ position: [36, 40, 40], fov: 32 }}
       >
-        <color attach="background" args={['#bccad6']} />
+        {/* Fallback clear colour — the <Sky> dome covers this once mounted. */}
+        <color attach="background" args={['#cfd8e2']} />
         <World />
       </Canvas>
       <Hud />
