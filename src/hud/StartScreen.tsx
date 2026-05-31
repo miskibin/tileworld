@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react'
-import { isStarted, startGame, subscribeStarted } from '../world/gameStore'
-import { setPaused } from '../world/pauseStore'
+import { isStarted, setPhase, subscribePhase } from '../world/gameStore'
 
 export function StartScreen() {
   const [started, setStarted] = useState<boolean>(isStarted())
-  useEffect(() => subscribeStarted(setStarted), [])
+  useEffect(() => subscribePhase((p) => setStarted(p !== 'menu')), [])
 
   if (started) return null
 
   const play = () => {
-    startGame()
-    setPaused(false) // unfreeze the world
+    setPhase('prep')
   }
 
   return (
