@@ -27,7 +27,7 @@ function Float({ f }: { f: FloatText }) {
   return (
     <group ref={ref} position={[f.x, f.y, f.z]}>
       <Billboard>
-        <Text fontSize={0.55} anchorX="center" anchorY="middle" outlineWidth={0.045} outlineColor="#000000">
+        <Text fontSize={0.34} anchorX="center" anchorY="middle" outlineWidth={0.028} outlineColor="#000000">
           {f.text}
           <meshBasicMaterial ref={matRef} attach="material" transparent toneMapped={false} color={f.color} />
         </Text>

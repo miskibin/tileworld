@@ -72,8 +72,18 @@ function notify(): void {
 }
 
 export function selectSlot(i: number): void {
-  if (i < 0 || i >= HOTBAR_SIZE || i === state.selected) return
+  if (i < 0 || i >= HOTBAR_SIZE) return
   state.selected = i
+  // Auto-wield: selecting a weapon slot equips it, so the held model + damage
+  // follow the hotbar (picking the axe = holding the axe). Consumables stay on
+  // Q / right-click so simply browsing the bar doesn't eat them.
+  const slot = state.slots[i]
+  const def = slot?.itemId ? ITEM_DEFS[slot.itemId] : null
+  if (def?.kind === 'weapon' && state.equippedId !== def.id) {
+    state.weaponBonus = def.damageBonus ?? 0
+    state.equippedId = def.id
+    playEquip()
+  }
   notify()
 }
 

@@ -34,7 +34,7 @@ export function Inventory() {
                 e.preventDefault()
                 activateSlot(i)
               }}
-              title={def ? `${def.name} — right-click to ${def.kind === 'weapon' ? 'equip' : 'use'}` : 'Empty'}
+              title={def ? (def.kind === 'weapon' ? `${def.name} — select to wield` : `${def.name} — Q / right-click to use`) : 'Empty'}
             >
               <span className="hotbar-key">{i + 1}</span>
               {def && <span className="hotbar-icon">{def.icon}</span>}
@@ -43,7 +43,7 @@ export function Inventory() {
           )
         })}
       </div>
-      <div className="hotbar-hint">1–5 select · right-click use</div>
+      <div className="hotbar-hint">1–5 select (weapon = wield) · Q use</div>
     </div>
   )
 }

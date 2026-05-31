@@ -114,6 +114,18 @@ export function getAliveOrks(): OrkState[] {
   return orks.filter((o) => o.hp > 0)
 }
 
+/** Living orks belonging to the night assault (no camp home). The wave director
+ * counts these for completion so static camp warbands don't block a wave from
+ * ending — the player clears camps on their own time, not every night. */
+export function countAliveWaveOrks(): number {
+  let n = 0
+  for (let i = 0; i < orks.length; i++) {
+    const o = orks[i]
+    if (o.hp > 0 && o.home === null) n++
+  }
+  return n
+}
+
 /** Remove a dead ork from the roster (called once its death-fade finishes). */
 export function reapOrk(id: number): void {
   const i = orks.findIndex((o) => o.id === id)

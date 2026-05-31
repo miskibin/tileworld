@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { createOrk, getAliveOrks, WAVE_FACTION } from './orkStore'
+import { createOrk, countAliveWaveOrks, WAVE_FACTION } from './orkStore'
 import { CASTLE_CORE, getCastle, repairCastle } from './castleStore'
 import { findSpawnNear } from './obstacles'
 import { tileAt } from './tileMap'
@@ -88,7 +88,9 @@ export function WaveDirector() {
   useFrame(({ clock }, dt) => {
     if (isFrozen()) return
     const now = clock.getElapsedTime()
-    const alive = getAliveOrks().length
+    // Only night-assault orks count — camp warbands (home set) are optional
+    // targets and must not block a wave from completing.
+    const alive = countAliveWaveOrks()
     // Track alive count for the HUD.
     setEnemiesAlive(alive)
 
