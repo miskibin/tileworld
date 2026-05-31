@@ -25,8 +25,10 @@ import { WildAnimals } from './WildAnimals'
 import { Mobs } from './Mobs'
 import { WaveDirector } from './WaveDirector'
 import { Towers } from './Towers'
+import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
 import { Projectiles } from './Projectiles'
+import { Impacts } from './Impacts'
 import { Chest } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
@@ -133,6 +135,7 @@ export function World() {
         {/* Wave director: spawns escalating ork waves that march on the keep */}
         <WaveDirector />
         <Towers />
+        <KeepArchers />
 
         {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
@@ -146,22 +149,28 @@ export function World() {
         {/* Ork-shaman magic bolts (grid-space → inside the offset group) */}
         <Projectiles />
 
+        {/* Hit-impact spark/splinter bursts (grid-space, pooled like bolts) */}
+        <Impacts />
+
         {/* Treasure chests — interactive (press F) with loot + gold. Positions
             auto-snap to valid land, so they're safe to scatter widely. */}
-        <Chest position={[44, 1, 38]} rotation={0.3} gold={15} loot={['sword_iron']} />
-        <Chest position={[24, 1, 52]} rotation={-0.5} gold={25} loot={['potion', 'potion']} />
-        <Chest position={[78, 1, 24]} rotation={1.0} gold={40} loot={['sword_gold']} />
-        <Chest position={[60, 1, 16]} rotation={2.2} gold={10} loot={['axe', 'bread']} />
+        {/* Lean loot: small gold + a few potions, and ONE starter Iron Sword.
+            Strong weapons (Battle Axe / Golden Blade) are shop/arsenal-only now,
+            so exploring no longer pays for the whole defense. */}
+        <Chest position={[44, 1, 38]} rotation={0.3} gold={6} loot={['sword_iron']} />
+        <Chest position={[24, 1, 52]} rotation={-0.5} gold={8} loot={['potion']} />
+        <Chest position={[78, 1, 24]} rotation={1.0} gold={12} loot={['potion']} />
+        <Chest position={[60, 1, 16]} rotation={2.2} gold={5} loot={['bread']} />
         {/* Reward chests out toward the newly expanded coastline */}
-        <Chest position={[14, 1, 28]} rotation={0.8} gold={20} loot={['potion']} />
-        <Chest position={[88, 1, 64]} rotation={-1.2} gold={50} loot={['feast', 'potion']} />
-        <Chest position={[12, 1, 64]} rotation={1.6} gold={30} loot={['bread', 'bread', 'potion']} />
-        <Chest position={[88, 1, 10]} rotation={2.6} gold={35} loot={['sword_iron']} />
+        <Chest position={[14, 1, 28]} rotation={0.8} gold={7} loot={['potion']} />
+        <Chest position={[88, 1, 64]} rotation={-1.2} gold={14} loot={['feast']} />
+        <Chest position={[12, 1, 64]} rotation={1.6} gold={9} loot={['bread']} />
+        <Chest position={[88, 1, 10]} rotation={2.6} gold={10} loot={['potion']} />
         {/* Frontier chests out in the new eastern / southern wilds */}
-        <Chest position={[106, 1, 50]} rotation={0.4} gold={45} loot={['sword_gold', 'potion']} />
-        <Chest position={[100, 1, 80]} rotation={-0.9} gold={40} loot={['feast']} />
-        <Chest position={[58, 1, 84]} rotation={1.9} gold={35} loot={['potion', 'bread']} />
-        <Chest position={[112, 1, 44]} rotation={2.3} gold={50} loot={['axe', 'potion']} />
+        <Chest position={[106, 1, 50]} rotation={0.4} gold={12} loot={['potion']} />
+        <Chest position={[100, 1, 80]} rotation={-0.9} gold={12} loot={['feast']} />
+        <Chest position={[58, 1, 84]} rotation={1.9} gold={9} loot={['bread']} />
+        <Chest position={[112, 1, 44]} rotation={2.3} gold={13} loot={['potion']} />
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />

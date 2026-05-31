@@ -12,9 +12,13 @@ import {
 } from './orkStore'
 import { ORK_CONFIG, FACTION_COLOR } from './orkConfig'
 import { CASTLE_CORE, damageCastle } from './castleStore'
-import { KEEP_HALF } from './cityPlan'
+import { KEEP_HALF, TOWER_SLOTS } from './cityPlan'
+import { getCity } from './cityStore'
+import { getDefenderVillagers, damageVillager, type VillagerState } from './villagerStore'
+import { isTowerAlive, damageTower } from './towerStore'
 import { spawnBolt } from './projectileStore'
 import { spawnFloat } from './fxStore'
+import { spawnImpact } from './impactStore'
 import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
@@ -120,13 +124,11 @@ export function OrkView({ state }: OrkViewProps) {
     const g = groupRef.current
     if (!g) return
 
-    // Distance cull: far orks are fog-hidden — hide + skip AI/animation work.
-    if (state.hp > 0 && isCulled(state.x, state.z)) {
-      if (g.visible) g.visible = false
-      return
-    } else if (!g.visible) {
-      g.visible = true
-    }
+    // Distance cull: far orks are fog-hidden, but their AI keeps running so they
+    // keep marching on the keep instead of standing frozen while towers farm
+    // them. Only the mesh is toggled — ork counts are small, so full AI is cheap.
+    const culled = state.hp > 0 && isCulled(state.x, state.z)
+    if (g.visible === culled) g.visible = !culled
 
     // Death fade
     if (state.hp <= 0) {
@@ -156,41 +158,121 @@ export function OrkView({ state }: OrkViewProps) {
     const pdz = player.z - state.z
     const playerDist = Math.hypot(pdx, pdz)
     // Waves widen player aggro so the horde marches on you, not just the keep.
-    const aggroR = getPhase() === 'wave' ? Math.max(cfg.aggro, WAVE_PLAYER_AGGRO) : cfg.aggro
+    // Camp orks (home set) keep their short aggro — they guard the camp and only
+    // engage when you come to them, rather than swarming you across the map.
+    const aggroR =
+      getPhase() === 'wave' && !state.home ? Math.max(cfg.aggro, WAVE_PLAYER_AGGRO) : cfg.aggro
     const playerValid = isPlayerAlive() && playerDist < aggroR
     const enemy = nearestEnemyOrk(state, cfg.aggro)
     const enemyDist = enemy ? Math.hypot(enemy.x - state.x, enemy.z - state.z) : Infinity
+
+    // Nearby defenders (militia + standing towers). Melee orks turn on whatever
+    // is closest rather than marching past it; kept to the normal (short) aggro
+    // so the wide wave aggro still pulls the horde toward the player. Shamans
+    // skip defenders — their bolts only home on the player/rival orks.
+    let defVillager: VillagerState | null = null
+    let defTowerIdx = -1
+    let defDist = cfg.aggro
+    let defX = 0
+    let defZ = 0
+    if (!isShaman) {
+      for (const v of getDefenderVillagers()) {
+        const d = Math.hypot(v.x - state.x, v.z - state.z)
+        if (d < defDist) {
+          defDist = d
+          defVillager = v
+          defTowerIdx = -1
+          defX = v.x
+          defZ = v.z
+        }
+      }
+      if (getCity().towersBuilt) {
+        for (let i = 0; i < TOWER_SLOTS.length; i++) {
+          if (!isTowerAlive(i)) continue
+          const tw = TOWER_SLOTS[i]
+          const d = Math.hypot(tw.x - state.x, tw.z - state.z)
+          if (d < defDist) {
+            defDist = d
+            defTowerIdx = i
+            defVillager = null
+            defX = tw.x
+            defZ = tw.z
+          }
+        }
+      }
+    }
+    const hasDefender = defVillager !== null || defTowerIdx >= 0
 
     let tx = 0
     let tz = 0
     let dist = Infinity
     let targetOrk: OrkState | null = null
+    let targetVillager: VillagerState | null = null
+    let targetTowerIdx = -1
     let targetIsPlayer = false
     let targetIsCastle = false
-    if (playerValid && playerDist <= enemyDist) {
+    let targetIsHome = false
+    // Pick the closest valid target: player ≻ defender ≻ rival ork (ties favour
+    // the player so the horde still hunts you).
+    const playerD = playerValid ? playerDist : Infinity
+    const defD = hasDefender ? defDist : Infinity
+    const minD = Math.min(playerD, defD, enemyDist)
+    if (playerValid && playerD === minD) {
       tx = player.x
       tz = player.z
       dist = playerDist
       targetIsPlayer = true
+    } else if (hasDefender && defD === minD) {
+      tx = defX
+      tz = defZ
+      dist = defDist
+      if (defVillager) targetVillager = defVillager
+      else targetTowerIdx = defTowerIdx
     } else if (enemy) {
       tx = enemy.x
       tz = enemy.z
       dist = enemyDist
       targetOrk = enemy
     }
-    // Fallback goal: if no player/rival-ork target, march on the keep.
-    if (!targetIsPlayer && !targetOrk) {
-      tx = CASTLE_CORE.x
-      tz = CASTLE_CORE.z
-      // Distance to the keep's AABB edge (not its centre) so orks stop at the
-      // wall and strike it, instead of trying to stand inside the keep.
-      const ddx = Math.max(0, Math.abs(CASTLE_CORE.x - state.x) - KEEP_HALF.x)
-      const ddz = Math.max(0, Math.abs(CASTLE_CORE.z - state.z) - KEEP_HALF.z)
-      dist = Math.hypot(ddx, ddz)
-      targetIsCastle = true
+    // Fallback goal: camp orks (home set) drift back to guard their camp; wave
+    // invaders march on the keep.
+    if (!targetIsPlayer && !targetOrk && !targetVillager && targetTowerIdx < 0) {
+      if (state.home) {
+        const hdx = state.home.x - state.x
+        const hdz = state.home.z - state.z
+        const hd = Math.hypot(hdx, hdz)
+        // Only walk back if we've strayed; within ~2 tiles just idle around camp
+        // so they don't jitter or "attack" the empty camp centre.
+        if (hd > 2.2) {
+          tx = state.home.x
+          tz = state.home.z
+          dist = hd
+          targetIsHome = true
+        }
+      } else {
+        tx = CASTLE_CORE.x
+        tz = CASTLE_CORE.z
+        // Distance to the keep's AABB edge (not its centre) so orks stop at the
+        // wall and strike it, instead of trying to stand inside the keep.
+        const ddx = Math.max(0, Math.abs(CASTLE_CORE.x - state.x) - KEEP_HALF.x)
+        const ddz = Math.max(0, Math.abs(CASTLE_CORE.z - state.z) - KEEP_HALF.z)
+        dist = Math.hypot(ddx, ddz)
+        targetIsCastle = true
+      }
     }
-    const hasTarget = targetIsPlayer || targetOrk !== null || targetIsCastle
-    const triggerRange = isShaman ? cfg.rangedRange ?? cfg.aggro : cfg.melee
+    const hasTarget =
+      targetIsPlayer ||
+      targetOrk !== null ||
+      targetVillager !== null ||
+      targetTowerIdx >= 0 ||
+      targetIsCastle ||
+      targetIsHome
+    // Towers are wide — let orks strike them from a bit farther than a body.
+    const triggerRange = isShaman
+      ? cfg.rangedRange ?? cfg.aggro
+      : targetTowerIdx >= 0
+        ? cfg.melee + 1.2
+        : cfg.melee
     const inRange = hasTarget && dist < triggerRange
     const attacking = state.attackingSince > 0
 
@@ -299,19 +381,41 @@ export function OrkView({ state }: OrkViewProps) {
           if (isShaman) {
             // Lob a homing bolt from the staff orb toward the target.
             const oy = state.y + 1.7
+            const boltOpts = { team: 'ork' as const, maxRange: (cfg.rangedRange ?? 12) + 4 }
             if (targetIsPlayer && isPlayerAlive()) {
-              spawnBolt(state.x, oy, state.z, { kind: 'player' }, cfg.damage)
+              spawnBolt(state.x, oy, state.z, { kind: 'player' }, cfg.damage, boltOpts)
             } else if (targetOrk && targetOrk.hp > 0) {
-              spawnBolt(state.x, oy, state.z, { kind: 'ork', ref: targetOrk }, cfg.damage)
+              spawnBolt(state.x, oy, state.z, { kind: 'ork', ref: targetOrk }, cfg.damage, boltOpts)
             }
-          } else if (dist <= cfg.melee + 0.2) {
+          } else if (dist <= triggerRange + 0.2) {
             if (targetIsPlayer && isPlayerAlive()) {
-              damagePlayer(cfg.damage, tNow)
+              // Pass the ork's position so a raised shield can block the hit.
+              damagePlayer(cfg.damage, tNow, state.x, state.z)
             } else if (targetOrk && targetOrk.hp > 0) {
               damageOrk(targetOrk, cfg.damage, tNow)
+            } else if (targetVillager && !targetVillager.downed) {
+              const downed = damageVillager(targetVillager, cfg.damage)
+              spawnFloat(
+                downed ? 'DOWN' : `-${cfg.damage}`,
+                '#ff9a6a',
+                targetVillager.x,
+                targetVillager.y + 2.2,
+                targetVillager.z,
+              )
+            } else if (targetTowerIdx >= 0) {
+              const tw = TOWER_SLOTS[targetTowerIdx]
+              damageTower(targetTowerIdx, cfg.damage)
+              spawnFloat(`-${cfg.damage}`, '#ff9a6a', tw.x, 3, tw.z)
+              // Stone chips spray off the struck tower.
+              spawnImpact(tw.x, 2.4, tw.z, { color: '#b8b4ac', count: 7, spread: 2.2, up: 1.0 })
             } else if (targetIsCastle) {
               damageCastle(cfg.damage)
               spawnFloat(`-${cfg.damage}`, '#ff7a3a', CASTLE_CORE.x, 4, CASTLE_CORE.z)
+              // Wood splinters burst from the gate at the point of impact (near
+              // the attacking ork, nudged toward the keep).
+              const gx = state.x + (CASTLE_CORE.x - state.x) * 0.15
+              const gz = state.z + (CASTLE_CORE.z - state.z) * 0.15
+              spawnImpact(gx, 1.5, gz, { color: '#9c7a48', count: 9, spread: 2.6, up: 1.2 })
             }
           }
         }

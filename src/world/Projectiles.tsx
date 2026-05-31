@@ -4,21 +4,30 @@ import * as THREE from 'three'
 import { getBolts, resetBolts, stepProjectiles } from './projectileStore'
 import { isFrozen } from './pauseStore'
 
-// Renders + drives the shaman bolt pool. Bolts live in grid coords, so this
-// must mount inside World's offset group. One instanced mesh, capped pool.
+// Renders + drives the bolt pool. Bolts live in grid coords, so this must mount
+// inside World's offset group. Two instanced meshes — one per team — so ork
+// arcane bolts (purple) read distinctly from defender tower/archer bolts (cyan).
 
 const MAX = 32
 const GEO = new THREE.IcosahedronGeometry(0.14, 0)
-const MAT = new THREE.MeshStandardMaterial({
+const ORK_MAT = new THREE.MeshStandardMaterial({
   color: '#c89cff',
   emissive: '#7a3aff',
   emissiveIntensity: 1.6,
   roughness: 0.3,
   toneMapped: false,
 })
+const DEFENDER_MAT = new THREE.MeshStandardMaterial({
+  color: '#bfeeff',
+  emissive: '#2aa6ff',
+  emissiveIntensity: 1.8,
+  roughness: 0.3,
+  toneMapped: false,
+})
 
 export function Projectiles() {
-  const ref = useRef<THREE.InstancedMesh>(null!)
+  const orkRef = useRef<THREE.InstancedMesh>(null!)
+  const defRef = useRef<THREE.InstancedMesh>(null!)
   const dummy = useRef(new THREE.Object3D())
 
   useEffect(() => () => resetBolts(), [])
@@ -26,21 +35,35 @@ export function Projectiles() {
   useFrame(({ clock }, dtFrame) => {
     if (isFrozen()) return
     stepProjectiles(Math.min(0.05, dtFrame), clock.getElapsedTime())
-    const im = ref.current
-    if (!im) return
+    const ork = orkRef.current
+    const def = defRef.current
+    if (!ork || !def) return
     const bolts = getBolts()
-    const n = Math.min(bolts.length, MAX)
     const d = dummy.current
     const pulse = 1 + Math.sin(clock.getElapsedTime() * 18) * 0.15
-    for (let i = 0; i < n; i++) {
-      d.position.set(bolts[i].x, bolts[i].y, bolts[i].z)
+
+    let orkN = 0
+    let defN = 0
+    for (let i = 0; i < bolts.length; i++) {
+      const b = bolts[i]
+      const isOrk = b.team !== 'defender'
+      if (isOrk ? orkN >= MAX : defN >= MAX) continue
+      d.position.set(b.x, b.y, b.z)
       d.scale.setScalar(pulse)
       d.updateMatrix()
-      im.setMatrixAt(i, d.matrix)
+      if (isOrk) ork.setMatrixAt(orkN++, d.matrix)
+      else def.setMatrixAt(defN++, d.matrix)
     }
-    im.count = n
-    im.instanceMatrix.needsUpdate = true
+    ork.count = orkN
+    def.count = defN
+    ork.instanceMatrix.needsUpdate = true
+    def.instanceMatrix.needsUpdate = true
   })
 
-  return <instancedMesh ref={ref} args={[GEO, MAT, MAX]} frustumCulled={false} />
+  return (
+    <>
+      <instancedMesh ref={orkRef} args={[GEO, ORK_MAT, MAX]} frustumCulled={false} />
+      <instancedMesh ref={defRef} args={[GEO, DEFENDER_MAT, MAX]} frustumCulled={false} />
+    </>
+  )
 }

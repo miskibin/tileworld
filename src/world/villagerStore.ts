@@ -1,4 +1,9 @@
+import { isInsideCastle } from './cityPlan'
+
 export type VillagerStateName = 'idle' | 'wander' | 'tend' | 'rest' | 'home'
+
+/** HP a militia/villager can soak before being downed. */
+export const VILLAGER_MAX_HP = 70
 
 export interface VillagerState {
   id: number
@@ -38,6 +43,13 @@ export interface VillagerState {
   attackReadyAt: number
   /** whether the current swing already landed its hit */
   attackHitDealt: boolean
+  // ── Defender combat (orks can now down villagers; revived each prep) ──
+  hp: number
+  maxHp: number
+  /** downed by orks — lies still until revived at the next prep phase */
+  downed: boolean
+  /** castle-dwelling villagers double as militia — orks single these out */
+  isGuard: boolean
 }
 
 const villagers: VillagerState[] = []
@@ -73,6 +85,10 @@ export function createVillager(
     | 'attackingSince'
     | 'attackReadyAt'
     | 'attackHitDealt'
+    | 'hp'
+    | 'maxHp'
+    | 'downed'
+    | 'isGuard'
   >,
 ): VillagerState {
   const v: VillagerState = {
@@ -89,11 +105,39 @@ export function createVillager(
     attackingSince: 0,
     attackReadyAt: 0,
     attackHitDealt: false,
+    hp: VILLAGER_MAX_HP,
+    maxHp: VILLAGER_MAX_HP,
+    downed: false,
+    isGuard: isInsideCastle(init.homeX, init.homeZ),
     ...init,
   }
   villagers.push(v)
   notifyVillagers()
   return v
+}
+
+/** Apply damage to a villager. Returns true if this hit downs them. */
+export function damageVillager(v: VillagerState, amount: number): boolean {
+  if (v.downed) return false
+  v.hp = Math.max(0, v.hp - amount)
+  if (v.hp <= 0) {
+    v.downed = true
+    return true
+  }
+  return false
+}
+
+/** Stand every downed villager back up at full HP (called each prep phase). */
+export function reviveVillagers(): void {
+  for (const v of villagers) {
+    v.downed = false
+    v.hp = v.maxHp
+  }
+}
+
+/** Living militia (castle guards) orks can target. Allocation-free-ish scan. */
+export function getDefenderVillagers(): VillagerState[] {
+  return villagers.filter((v) => v.isGuard && !v.downed)
 }
 
 export function resetVillagers(): void {

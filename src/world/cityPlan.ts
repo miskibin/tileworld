@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 
 // The central castle the player upgrades via the Keep's upgrade tree. All coords
 // are absolute grid coords in the offset-group space used by World.tsx. The
@@ -148,7 +148,7 @@ export const CITY_WALL_HEIGHT = WALL_H
 /** Ground height at a grid coord (1 if off-map / water). */
 export function slotGroundY(x: number, z: number): number {
   const tile = tileAt(Math.floor(x), Math.floor(z))
-  return tile ? tile.height : 1
+  return tile ? tileTopY(Math.floor(x), Math.floor(z)) : 1
 }
 
 /** True if a grid tile lies within the castle wall perimeter. */

@@ -1,5 +1,5 @@
 import { healPlayer } from './playerStore'
-import { playConsume, playEquip } from '../audio/sfx'
+import { playConsume, playEquip, playAbilityCast } from '../audio/sfx'
 
 // 5-slot Minecraft-style hotbar. Items are either consumables (right-click to
 // use → heal) or weapons (right-click to equip → sets player attack bonus).
@@ -107,6 +107,7 @@ export function activateSlot(i: number): void {
   if (def.kind === 'consumable') {
     healPlayer(def.heal ?? 0)
     playConsume()
+    playAbilityCast()
     slot.count -= 1
     if (slot.count <= 0) {
       slot.itemId = null

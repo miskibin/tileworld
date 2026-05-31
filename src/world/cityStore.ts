@@ -9,6 +9,8 @@ export interface CityState {
   gateBuilt: boolean
   towersBuilt: boolean
   farmBuilt: boolean
+  /** Keep Archers upgrade — auto-firing bowmen on the keep roof */
+  keepArchers: boolean
   /** global villager armour tier (0 = none); applies to all villagers */
   villagerArmorTier: number
 }
@@ -19,6 +21,7 @@ const state: CityState = {
   gateBuilt: false,
   towersBuilt: false,
   farmBuilt: false,
+  keepArchers: false,
   villagerArmorTier: 0,
 }
 
@@ -65,6 +68,11 @@ export function setFarmBuilt(v: boolean): void {
   notify()
 }
 
+export function setKeepArchers(v: boolean): void {
+  state.keepArchers = v
+  notify()
+}
+
 export function bumpVillagerArmor(): void {
   state.villagerArmorTier += 1
   notify()
@@ -76,6 +84,7 @@ export function resetCity(): void {
   state.gateBuilt = false
   state.towersBuilt = false
   state.farmBuilt = false
+  state.keepArchers = false
   state.villagerArmorTier = 0
   notify()
 }

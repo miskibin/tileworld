@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 
 let listener: THREE.AudioListener | null = null
-let enabled = false
+let enabled = true
 const subscribers = new Set<(v: boolean) => void>()
 const buffers = new Map<string, Promise<AudioBuffer>>()
 const sfxPools = new Map<string, { instances: THREE.Audio[]; idx: number }>()

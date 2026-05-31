@@ -1,4 +1,4 @@
-import { tileAt, COLS, ROWS, type Biome } from './tileMap'
+import { tileAt, tileTopY, COLS, ROWS, type Biome } from './tileMap'
 import { isInsideCastle, snapToCardinal } from './cityPlan'
 import { isRoadTile } from './roads'
 
@@ -97,7 +97,7 @@ export function getObstacles(): Obstacle[] {
 
 function push(out: Obstacle[], kind: ObstacleKind, x: number, z: number, scale: number, rot: number, variant: number) {
   const baseTile = tileAt(Math.floor(x), Math.floor(z))
-  const y = baseTile ? baseTile.height : 1
+  const y = baseTile ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   out.push({
     kind,
     x,

@@ -9,7 +9,7 @@ import { addItem } from './inventoryStore'
 import { spawnFloat } from './fxStore'
 import { playChestOpen } from '../audio/sfx'
 import { findSpawnNear } from './obstacles'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 
 interface ChestProps {
   position: [number, number, number]
@@ -33,7 +33,7 @@ export function Chest({ position, rotation = 0, loot = [], gold = 0 }: ChestProp
   const pos = useMemo<[number, number, number]>(() => {
     const s = findSpawnNear(position[0], position[2])
     const tile = tileAt(Math.floor(s.x), Math.floor(s.z))
-    return [s.x, tile ? tile.height : position[1], s.z]
+    return [s.x, tile ? tileTopY(Math.floor(s.x), Math.floor(s.z)) : position[1], s.z]
   }, [position])
 
   const lidRef = useRef<THREE.Group>(null!)

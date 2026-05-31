@@ -28,6 +28,8 @@ export interface WaveStepInput {
   now: number
   /** living wave orks this frame (from getAliveOrks) */
   alive: number
+  /** player pressed "Skip" — start the next wave now without waiting out prep */
+  skip?: boolean
 }
 
 export interface WaveStepResult {
@@ -43,13 +45,13 @@ export interface WaveStepResult {
  *    wave is fully spawned and cleared, go 'victory' (last wave) or 'prep'.
  */
 export function stepWaveDirector(input: WaveStepInput): WaveStepResult {
-  const { phase, wave, now, alive } = input
+  const { phase, wave, now, alive, skip } = input
   const timers: WaveTimers = { ...input.timers }
   const actions: WaveAction[] = []
 
   if (phase === 'prep') {
     if (timers.prepEndsAt === 0) timers.prepEndsAt = now + PREP_DURATION
-    if (now >= timers.prepEndsAt) {
+    if (skip || now >= timers.prepEndsAt) {
       actions.push({ type: 'beginWave', index: wave.index + 1 })
       timers.spawnIndex = 0
       timers.nextSpawnAt = now

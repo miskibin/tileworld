@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { houseBlocksAt } from './houseBlockers'
 import { bridgeAt } from './bridges'
@@ -207,7 +207,7 @@ function BearView({ state }: { state: BearState }) {
     state.moving = moving
 
     const tile = tileAt(Math.floor(state.x), Math.floor(state.z))
-    if (tile) state.y = tile.height
+    if (tile) state.y = tileTopY(Math.floor(state.x), Math.floor(state.z))
 
     // Resolve swing — deal damage mid-strike.
     let attackArm = 0
@@ -220,7 +220,8 @@ function BearView({ state }: { state: BearState }) {
         attackArm = phase < 0.5 ? -1.4 * (phase / 0.5) : -1.4 + 2.0 * ((phase - 0.5) / 0.5)
         if (!state.attackHitDealt && phase >= 0.5) {
           state.attackHitDealt = true
-          if (dist <= BEAR_MELEE + 0.3 && isPlayerAlive()) damagePlayer(BEAR_ATTACK_DAMAGE, tNow)
+          if (dist <= BEAR_MELEE + 0.3 && isPlayerAlive())
+            damagePlayer(BEAR_ATTACK_DAMAGE, tNow, state.x, state.z)
         }
       }
     }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { buildTiles, type Biome } from './tileMap'
+import { buildTiles, tileTopY, type Biome } from './tileMap'
 import { applyVisionShader } from './vision'
 import { getDetailTextures } from './terrainDetail'
 
@@ -90,6 +90,8 @@ interface TilePos {
   x: number
   z: number
   h: number
+  /** world-Y of the tile's top surface (stepped class height + rolling relief) */
+  top: number
 }
 
 interface InstancedTilesProps {
@@ -102,8 +104,10 @@ function InstancedTiles({ positions, materials }: InstancedTilesProps) {
   useEffect(() => {
     const dummy = new THREE.Object3D()
     positions.forEach((p, i) => {
-      dummy.position.set(p.x + 0.5, p.h / 2, p.z + 0.5)
-      dummy.scale.set(1, p.h, 1)
+      // Box spans y=0 → p.top; the exposed side height between a tile and its
+      // lower neighbour is the (now halved) terrace step.
+      dummy.position.set(p.x + 0.5, p.top / 2, p.z + 0.5)
+      dummy.scale.set(1, p.top, 1)
       dummy.rotation.set(0, 0, 0)
       dummy.updateMatrix()
       ref.current.setMatrixAt(i, dummy.matrix)
@@ -139,7 +143,7 @@ export function Terrain() {
           }
           buckets.set(key, { positions: [], mats })
         }
-        buckets.get(key)!.positions.push({ x, z, h })
+        buckets.get(key)!.positions.push({ x, z, h, top: tileTopY(x, z) })
       }),
     )
     return Array.from(buckets.values())

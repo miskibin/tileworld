@@ -1,10 +1,18 @@
 import { useEffect } from 'react'
 import * as THREE from 'three'
 import { registerBridge } from './bridges'
+import { woodTexture } from './textures'
 
-const PLANK_LIGHT = new THREE.MeshStandardMaterial({ color: '#8a5a32', roughness: 1 })
-const PLANK_DARK = new THREE.MeshStandardMaterial({ color: '#6b4222', roughness: 1 })
-const RAIL = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 1 })
+// Plank grain to match the gate/house timber. Map is null in headless
+// (`npm run inspect`), where we fall back to the flat colour.
+function woodMat(color: string, planks: number): THREE.MeshStandardMaterial {
+  const map = woodTexture(color, 1, planks)
+  return new THREE.MeshStandardMaterial({ color: map ? '#ffffff' : color, map, roughness: 1 })
+}
+
+const PLANK_LIGHT = woodMat('#8a5a32', 1)
+const PLANK_DARK = woodMat('#6b4222', 1)
+const RAIL = woodMat('#5a3a22', 2)
 
 interface Props {
   /** Bridge start in grid coords inside the offset group. */

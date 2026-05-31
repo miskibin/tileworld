@@ -425,6 +425,27 @@
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
 }
 
+/* ---- Stamina (shield) bar ---- */
+.stamina-bar {
+  position: relative;
+  width: 240px;
+  height: 7px;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.stamina-bar-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #8fa8c8 0%, #4a6690 100%);
+  transition: width 90ms linear;
+}
+
 /* ---- Level-up flash ---- */
 .levelup-flash {
   position: absolute;
@@ -888,6 +909,38 @@
 
 .upgrade-node.is-owned .upgrade-node-cost {
   color: #71e07a;
+}
+
+/* Prep countdown + skip button in the objective banner */
+.prep-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.prep-clock {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffe6a8;
+  font-variant-numeric: tabular-nums;
+}
+.prep-skip {
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0d1320;
+  background: linear-gradient(180deg, #ffd58c, #e0a84a);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  padding: 3px 10px;
+  transition: filter 120ms ease;
+}
+.prep-skip:hover {
+  filter: brightness(1.1);
 }
 
 /* Castle keep HP bar in the objective banner */

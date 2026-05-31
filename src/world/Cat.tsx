@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isFrozen } from './pauseStore'
 import { getBirds } from './Birds'
-import { CENTER_X, CENTER_Z, tileAt } from './tileMap'
+import { CENTER_X, CENTER_Z, tileAt, tileTopY } from './tileMap'
 import { getPlayer } from './playerStore'
 import { playCatMeow } from '../audio/sfx'
 
@@ -176,7 +176,7 @@ export function Cat({ home, seed = 0 }: CatProps) {
           st.stateUntil = t + 0.8
         }
         const tl = tileAt(Math.floor(st.x), Math.floor(st.z))
-        if (tl) st.y = tl.height
+        if (tl) st.y = tileTopY(Math.floor(st.x), Math.floor(st.z))
         const targetFacing = Math.atan2(dx, dz)
         let dF = targetFacing - st.facing
         while (dF > Math.PI) dF -= 2 * Math.PI

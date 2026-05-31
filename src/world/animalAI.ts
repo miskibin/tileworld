@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
@@ -170,7 +170,6 @@ function preyThreat(a: AnimalState, cfg: AnimalConfig): { x: number; z: number }
     const p = getPlayer()
     const d = (p.x - a.x) ** 2 + (p.z - a.z) ** 2
     if (d < bestD) {
-      bestD = d
       bx = p.x
       bz = p.z
       found = true
@@ -190,7 +189,7 @@ function applyMeleeHit(a: AnimalState, cfg: AnimalConfig, tNow: number): void {
   }
   const p = getPlayer()
   if (isPlayerAlive() && Math.hypot(p.x - a.x, p.z - a.z) <= reach) {
-    damagePlayer(cfg.attackDamage, tNow)
+    damagePlayer(cfg.attackDamage, tNow, a.x, a.z)
   }
 }
 
@@ -257,7 +256,7 @@ export function stepAnimalAI(a: AnimalState, dt: number, tNow: number): AnimalSt
   // Settle onto the terrain (bridge height already tracked in moveToward).
   if (!bridgeAt(a.x, a.z)) {
     const tile = tileAt(Math.floor(a.x), Math.floor(a.z))
-    if (tile) a.y = tile.height
+    if (tile) a.y = tileTopY(Math.floor(a.x), Math.floor(a.z))
   }
 
   a.moving = moving

@@ -10,18 +10,21 @@ export interface WaveDef {
   spawnInterval: number
 }
 
+// Tuned harder than the first pass: early waves carry a scout/berserker so
+// they're a real fight, and counts/HP ramp steeper to match the stronger
+// defenses (keep archers, reinforced keep, tower mastery, militia).
 export const WAVES: WaveDef[] = [
-  { count: 5, hpScale: 1.0, variants: ['grunt'], spawnInterval: 1.6 },
-  { count: 7, hpScale: 1.0, variants: ['grunt', 'grunt', 'scout'], spawnInterval: 1.4 },
-  { count: 9, hpScale: 1.1, variants: ['grunt', 'scout', 'berserker'], spawnInterval: 1.3 },
-  { count: 11, hpScale: 1.2, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.2 },
-  { count: 13, hpScale: 1.3, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.1 },
-  { count: 15, hpScale: 1.45, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 1.0 },
-  { count: 18, hpScale: 1.6, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.9 },
-  { count: 1, hpScale: 8.0, variants: ['berserker'], spawnInterval: 0.5 }, // boss
+  { count: 9, hpScale: 1.1, variants: ['grunt', 'grunt', 'scout', 'berserker'], spawnInterval: 1.1 },
+  { count: 9, hpScale: 1.05, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.25 },
+  { count: 12, hpScale: 1.15, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
+  { count: 15, hpScale: 1.25, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
+  { count: 18, hpScale: 1.4, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },
+  { count: 22, hpScale: 1.55, variants: ['berserker', 'scout', 'shaman', 'grunt'], spawnInterval: 0.85 },
+  { count: 26, hpScale: 1.75, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.75 },
+  { count: 1, hpScale: 14.0, variants: ['berserker'], spawnInterval: 0.5 }, // boss
 ]
 
-export const PREP_DURATION = 12 // seconds between waves
+export const PREP_DURATION = 120 // seconds between waves — a full "day" to rebuild
 
 export interface WaveProgress {
   /** 0-based index into WAVES; -1 before the first wave starts. */
@@ -31,9 +34,19 @@ export interface WaveProgress {
   enemiesAlive: number
   /** orks spawned so far this wave */
   spawned: number
+  /** whole seconds left in the prep breather (drives the HUD countdown) */
+  prepSecondsLeft: number
 }
 
-const state: WaveProgress = { index: -1, total: WAVES.length, enemiesAlive: 0, spawned: 0 }
+const state: WaveProgress = {
+  index: -1,
+  total: WAVES.length,
+  enemiesAlive: 0,
+  spawned: 0,
+  prepSecondsLeft: 0,
+}
+// Set by the HUD "Skip" button; consumed by the wave director next frame.
+let skipRequested = false
 const subs = new Set<(s: WaveProgress) => void>()
 
 function notify(): void {
@@ -42,6 +55,11 @@ function notify(): void {
 
 export function getWave(): WaveProgress {
   return state
+}
+
+/** True while the final wave — the boss push — is the active one. */
+export function isBossWave(): boolean {
+  return state.index === WAVES.length - 1
 }
 
 /** Begin wave `i`: reset per-wave counters. */
@@ -64,10 +82,31 @@ export function setEnemiesAlive(n: number): void {
   notify()
 }
 
+/** Prep countdown: set whole seconds left; notify only when the number changes. */
+export function setPrepSecondsLeft(n: number): void {
+  if (state.prepSecondsLeft === n) return
+  state.prepSecondsLeft = n
+  notify()
+}
+
+/** HUD "Skip" button → start the next wave immediately. */
+export function requestPrepSkip(): void {
+  skipRequested = true
+}
+
+/** Director reads + clears the skip flag once per check. */
+export function consumePrepSkip(): boolean {
+  if (!skipRequested) return false
+  skipRequested = false
+  return true
+}
+
 export function resetWaves(): void {
   state.index = -1
   state.enemiesAlive = 0
   state.spawned = 0
+  state.prepSecondsLeft = 0
+  skipRequested = false
   notify()
 }
 

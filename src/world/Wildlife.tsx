@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
@@ -180,7 +180,7 @@ function DogView({ state }: DogViewProps) {
     s.moving = moving
 
     const tile = tileAt(Math.floor(s.x), Math.floor(s.z))
-    s.y = tile ? tile.height : 1
+    s.y = tile ? tileTopY(Math.floor(s.x), Math.floor(s.z)) : 1
 
     if (groupRef.current) {
       groupRef.current.position.set(s.x, s.y, s.z)

@@ -4,6 +4,7 @@
 
 import { spendGold, getGold, bumpMaxHp, bumpAttackDamage } from './playerStore'
 import { isUnlimitedMoney } from './debugStore'
+import { playMenuClick } from '../audio/sfx'
 import {
   getCity,
   addHouse,
@@ -11,8 +12,11 @@ import {
   setGateBuilt,
   setTowersBuilt,
   setFarmBuilt,
+  setKeepArchers,
   bumpVillagerArmor,
 } from './cityStore'
+import { reinforceCastle } from './castleStore'
+import { setTowerMastery } from './towerStore'
 import { unlockWeapon } from './weaponUnlockStore'
 import { createVillager } from './villagerStore'
 import { HOUSE_SLOTS, slotGroundY } from './cityPlan'
@@ -181,6 +185,47 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     },
   },
   {
+    id: 'def_tower_mastery',
+    branch: 'defense',
+    name: 'Tower Mastery',
+    desc: 'Watchtowers fire faster, farther, and hit harder.',
+    icon: '🎯',
+    cost: 120,
+    prereqId: 'def_towers',
+    apply() {
+      if (!spendGold(this.cost)) return false
+      setTowerMastery(true)
+      return true
+    },
+  },
+  {
+    id: 'def_keep_archers',
+    branch: 'defense',
+    name: 'Keep Archers',
+    desc: 'Station bowmen on the keep roof to rain arrows on attackers.',
+    icon: '🏹',
+    cost: 100,
+    apply() {
+      if (getCity().keepArchers) return false
+      if (!spendGold(this.cost)) return false
+      setKeepArchers(true)
+      return true
+    },
+  },
+  {
+    id: 'def_reinforce',
+    branch: 'defense',
+    name: 'Reinforced Keep',
+    desc: 'Greatly raise keep HP; it slowly self-repairs between waves.',
+    icon: '🏰',
+    cost: 130,
+    apply() {
+      if (!spendGold(this.cost)) return false
+      reinforceCastle()
+      return true
+    },
+  },
+  {
     id: 'def_armor_1',
     branch: 'defense',
     name: 'Town Guard Armor',
@@ -317,6 +362,7 @@ export function purchase(node: UpgradeNode): boolean {
   if (!canBuy(node)) return false
   if (!node.apply()) return false
   purchasedIds.add(node.id)
+  playMenuClick()
   notify()
   return true
 }

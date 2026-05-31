@@ -16,6 +16,9 @@ export interface OrkState {
   variant: OrkVariant
   /** warband; orks fight rival-faction orks */
   faction: OrkFaction
+  /** camp anchor: when set, the ork guards here instead of marching on the keep
+   * (wave invaders leave this null so they still assault the castle) */
+  home: { x: number; z: number } | null
   seed: number
   /** radius used for blocking the player */
   collisionRadius: number
@@ -65,6 +68,7 @@ export function createOrk(
   variant: OrkVariant,
   faction: OrkFaction,
   seed: number,
+  home: { x: number; z: number } | null = null,
 ): OrkState {
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
@@ -80,6 +84,7 @@ export function createOrk(
     hurtFlashUntil: 0,
     variant,
     faction,
+    home,
     seed,
     collisionRadius: cfg.collisionRadius,
     attackingSince: 0,
