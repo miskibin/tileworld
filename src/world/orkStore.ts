@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { ORK_CONFIG, type OrkVariant } from './orkConfig'
 import { orksHostile, type OrkFaction } from './factions'
 
@@ -39,6 +39,25 @@ export interface OrkState {
 const orks: OrkState[] = []
 let nextId = 0
 
+// All wave invaders share one warband so they never brawl each other and all
+// march on the keep together.
+export const WAVE_FACTION: OrkFaction = 'red'
+
+const rosterSubs = new Set<(list: OrkState[]) => void>()
+
+/** Notified whenever an ork is added or reaped, so Mobs re-renders the list. */
+export function subscribeOrks(fn: (list: OrkState[]) => void): () => void {
+  rosterSubs.add(fn)
+  fn(orks)
+  return () => {
+    rosterSubs.delete(fn)
+  }
+}
+
+function notifyRoster(): void {
+  rosterSubs.forEach((fn) => fn(orks))
+}
+
 export function createOrk(
   x: number,
   z: number,
@@ -48,7 +67,7 @@ export function createOrk(
   seed: number,
 ): OrkState {
   const t = tileAt(Math.floor(x), Math.floor(z))
-  const y = t ? t.height : 1
+  const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   const cfg = ORK_CONFIG[variant]
   const o: OrkState = {
     id: nextId++,
@@ -72,12 +91,14 @@ export function createOrk(
     pathRecomputeAt: 0,
   }
   orks.push(o)
+  notifyRoster()
   return o
 }
 
 export function resetOrks(): void {
   orks.length = 0
   nextId = 0
+  notifyRoster()
 }
 
 export function getOrks(): OrkState[] {
@@ -86,6 +107,14 @@ export function getOrks(): OrkState[] {
 
 export function getAliveOrks(): OrkState[] {
   return orks.filter((o) => o.hp > 0)
+}
+
+/** Remove a dead ork from the roster (called once its death-fade finishes). */
+export function reapOrk(id: number): void {
+  const i = orks.findIndex((o) => o.id === id)
+  if (i === -1) return
+  orks.splice(i, 1)
+  notifyRoster()
 }
 
 /** Returns true if ork dies on this hit. */
