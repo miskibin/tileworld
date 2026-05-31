@@ -85,6 +85,28 @@ export function damagePlayer(amount: number, now: number): void {
   notifyHp()
 }
 
+/** Full reset to a fresh game (new run / wave-survival restart). Wipes all
+ *  progression, unlike respawnPlayer which keeps it. */
+export function resetPlayer(): void {
+  state.x = PLAYER_SPAWN.x
+  state.y = PLAYER_SPAWN.y
+  state.z = PLAYER_SPAWN.z
+  state.moving = false
+  state.hp = PLAYER_MAX_HP
+  state.maxHp = PLAYER_MAX_HP
+  state.hurtFlashUntil = 0
+  state.deadSince = null
+  state.gold = PLAYER_STARTING_GOLD
+  state.level = 1
+  state.xp = 0
+  state.xpToNext = XP_FIRST_LEVEL
+  state.attackDamage = PLAYER_BASE_DAMAGE
+  state.levelUpFlashUntil = 0
+  notifyHp()
+  notifyGold()
+  notifyStats()
+}
+
 /** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset. */
 export function respawnPlayer(): void {
   state.hp = state.maxHp
