@@ -3,7 +3,6 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { Sky } from '@react-three/drei'
 import * as THREE from 'three'
 import {
-  advanceDay,
   getDay,
   makeDaySample,
   notifyDay,
@@ -12,11 +11,19 @@ import {
   DAY_START_T,
 } from './timeStore'
 import { isFrozen } from './pauseStore'
+import { subscribePhase } from './gameStore'
 
 // How far out the sun glow sphere + moon sit (matches the old SUN_FAR).
 const SUN_FAR = 700
 // Notify subscribers (the leva slider) at most this often while the clock runs.
 const NOTIFY_INTERVAL = 0.2
+
+// Phase-driven day/night: waves fall at night and the night holds for the whole
+// 'wave' phase (which only ends when every ork is dead); the breather/menu/end
+// are daytime. The clock eases toward the target instead of free-running.
+const NIGHT_T = 0.0 // midnight — deepest dark while a wave is live
+const DAY_T = DAY_START_T // golden-hour daytime
+const DAY_LERP_RATE = 0.7 // ease speed toward target time (≈ a few-second dusk/dawn)
 
 interface Props {
   /** Daytime baseline intensities from the leva panel (the noon values). */
@@ -71,6 +78,18 @@ export function DayNight({ lights, onSunMesh }: Props) {
     [],
   )
   const notifyAcc = useRef(0)
+  // Time-of-day the current game phase wants the clock to ease toward.
+  const dayTarget = useRef(DAY_T)
+
+  // Drive time of day from the game phase: night while a wave is live, day
+  // otherwise. useFrame eases the clock toward this target each frame.
+  useEffect(
+    () =>
+      subscribePhase((p) => {
+        dayTarget.current = p === 'wave' ? NIGHT_T : DAY_T
+      }),
+    [],
+  )
 
   // Bubble the sun mesh once it exists (GodRays needs it).
   useEffect(() => {
@@ -84,17 +103,15 @@ export function DayNight({ lights, onSunMesh }: Props) {
   useFrame((_, dt) => {
     const day = getDay()
 
-    // Advance only when the world is live AND the clock isn't frozen. Visuals
-    // below are applied EVERY frame regardless, so scrubbing the debug slider
-    // updates the scene even while the world is paused behind a panel.
+    // Ease the clock toward the phase's target time (night for waves, day
+    // otherwise) so dusk/dawn fall smoothly when a wave starts/ends. Held still
+    // behind a pause/menu (visuals below still apply, so the look is correct).
     if (!isFrozen()) {
-      advanceDay(dt)
-      if (!day.frozen) {
-        notifyAcc.current += dt
-        if (notifyAcc.current >= NOTIFY_INTERVAL) {
-          notifyAcc.current = 0
-          notifyDay() // keep the leva slider tracking the running clock
-        }
+      day.t += (dayTarget.current - day.t) * Math.min(1, dt * DAY_LERP_RATE)
+      notifyAcc.current += dt
+      if (notifyAcc.current >= NOTIFY_INTERVAL) {
+        notifyAcc.current = 0
+        notifyDay() // keep the leva slider tracking the clock
       }
     }
 

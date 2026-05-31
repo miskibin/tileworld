@@ -22,10 +22,26 @@ import { houseBlocksAt } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { getPhase } from './gameStore'
 import { isCulled } from './cull'
 import { playOrkGrunt } from '../audio/sfx'
 
 const TURN_RATE_FALLBACK = 6
+
+// During a wave, orks lock onto the player from much farther so the horde
+// converges on you instead of trickling toward the keep. ~cull distance so any
+// non-culled ork is hunting the player.
+const WAVE_PLAYER_AGGRO = 46
+
+// Shared ember glow worn by every ork so they stay locatable in the dark. The
+// >1 colour pushes it past the Bloom luminance threshold so it reads as a
+// little carried light. Module-level (shared) — cheap, no per-ork allocation.
+const ORK_GLOW_GEO = new THREE.SphereGeometry(0.13, 10, 10)
+const ORK_GLOW_MAT = new THREE.MeshBasicMaterial({
+  color: new THREE.Color('#ff8a3a').multiplyScalar(2.4),
+  toneMapped: false,
+  fog: false,
+})
 
 const SKIN_DARK_ACCENT = 0.62 // multiplier off the variant skin for shoulders/accents
 const TUSK = '#ece1c2'
@@ -139,7 +155,9 @@ export function OrkView({ state }: OrkViewProps) {
     const pdx = player.x - state.x
     const pdz = player.z - state.z
     const playerDist = Math.hypot(pdx, pdz)
-    const playerValid = isPlayerAlive() && playerDist < cfg.aggro
+    // Waves widen player aggro so the horde marches on you, not just the keep.
+    const aggroR = getPhase() === 'wave' ? Math.max(cfg.aggro, WAVE_PLAYER_AGGRO) : cfg.aggro
+    const playerValid = isPlayerAlive() && playerDist < aggroR
     const enemy = nearestEnemyOrk(state, cfg.aggro)
     const enemyDist = enemy ? Math.hypot(enemy.x - state.x, enemy.z - state.z) : Infinity
 
@@ -365,6 +383,8 @@ export function OrkView({ state }: OrkViewProps) {
       rotation={[0, state.facing, 0]}
       scale={0.7 * cfg.scale}
     >
+      {/* Ember glow — locatable in the dark; blooms via post-processing. */}
+      <mesh position={[0, 1.5, 0.16]} geometry={ORK_GLOW_GEO} material={ORK_GLOW_MAT} />
       {/* Legs */}
       <mesh position={[-0.13, 0.18, 0]} castShadow material={skinMat}>
         <boxGeometry args={[0.2, 0.36, 0.22]} />
