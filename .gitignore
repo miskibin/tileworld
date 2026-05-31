@@ -2,7 +2,9 @@
 logs
 *.log
 
-# capture-probe.mjs screenshot output
+# npm run shot output
+scripts/shot.png
+scripts/*-shot.png
 scripts/_shot-*.png
 npm-debug.log*
 yarn-debug.log*
