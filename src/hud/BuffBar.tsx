@@ -22,8 +22,11 @@ export function BuffBar() {
     return subscribeBuffs(sync)
   }, [])
 
-  // Drive the shrinking bars + prune expired pips via rAF.
+  // Drive the shrinking bars + prune expired pips via rAF. Only runs while at
+  // least one pip is shown — with no buffs the loop never starts (no idle rAF),
+  // and applying a buff updates `kinds` via the subscription, restarting it.
   useEffect(() => {
+    if (kinds.length === 0) return
     let raf = 0
     const tick = () => {
       const now = performance.now() * 0.001
