@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   PLAYER_MAX_HP,
-  PLAYER_RESPAWN_DELAY,
   getPlayer,
   subscribeHp,
   subscribeStats,
@@ -13,7 +12,6 @@ export function PlayerHud() {
   const [dead, setDead] = useState(false)
   const [stats, setStats] = useState({ level: 1, xp: 0, xpToNext: 50 })
   const overlayRef = useRef<HTMLDivElement>(null)
-  const respawnRef = useRef<HTMLDivElement>(null)
   const levelUpRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,10 +37,6 @@ export function PlayerHud() {
       if (levelUpRef.current) {
         const remain = Math.max(0, p.levelUpFlashUntil - tNow)
         levelUpRef.current.style.opacity = String(Math.min(1, remain))
-      }
-      if (respawnRef.current && p.deadSince !== null) {
-        const remain = Math.max(0, PLAYER_RESPAWN_DELAY - (tNow - p.deadSince))
-        respawnRef.current.textContent = `Respawn in ${remain.toFixed(1)}s`
       }
       raf = requestAnimationFrame(tick)
     }
@@ -78,10 +72,8 @@ export function PlayerHud() {
       </div>
       {dead && (
         <div className="death-screen">
-          <div className="death-title">You Died</div>
-          <div ref={respawnRef} className="death-respawn">
-            Respawn in {PLAYER_RESPAWN_DELAY.toFixed(1)}s
-          </div>
+          <div className="death-title">You Fell</div>
+          <div className="death-respawn">The blade passes…</div>
         </div>
       )}
     </>

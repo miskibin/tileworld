@@ -113,6 +113,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // spirit is flying to (the chosen villager's spot), or null if the town is
   // empty and the bloodline ends.
   const successionStarted = useRef(false)
+  const deathAt = useRef(0)
   const heir = useRef<{ x: number; y: number; z: number } | null>(null)
 
   const keys = useKeyboard()
@@ -151,11 +152,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // the new hero with all progression intact. If no villager remains, the
     // bloodline — and the run — ends.
     if (player.deadSince !== null) {
-      const elapsed = tNow - player.deadSince
-
       // Resolve the heir + plant the grave once, on the first frame of death.
       if (!successionStarted.current) {
         successionStarted.current = true
+        deathAt.current = tNow
         const dx = pos.current.x
         const dy = pos.current.y
         const dz = pos.current.z
@@ -170,6 +170,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           heir.current = null // no one left — the line ends
         }
       }
+
+      // Measure from our own death stamp, not player.deadSince: attackers set
+      // deadSince in the R3F clock (a different origin than performance.now()),
+      // so the two can't be subtracted. deathAt shares the wisp's clock.
+      const elapsed = tNow - deathAt.current
 
       // No successor: lie still, then lose the run (bloodline ended).
       if (heir.current === null) {
