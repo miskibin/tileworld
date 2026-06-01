@@ -44,6 +44,9 @@ function classOf(biome: Biome, _h: number): TopClass {
   // are all near-identical greens, so unifying them avoids "off grass" seams.
   // Forest still reads as forest from its dense trees, not the ground colour.
   if (biome === 'grass' || biome === 'forest' || biome === 'plains') return 'grass'
+  // Beach sand and desert sand were two slightly different tans that clashed at
+  // every desert coast — collapse them into one sand look (same cure as grass).
+  if (biome === 'sand' || biome === 'desert') return 'sand'
   return biome as TopClass
 }
 
@@ -75,7 +78,16 @@ const TOP_SPECS: Record<TopClass, TopSpec> = {
 const CLASSES = Object.keys(TOP_SPECS) as TopClass[]
 
 function makeTopMat(s: TopSpec, edgeAlpha: boolean): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ color: s.color, roughness: s.rough, flatShading: s.flat })
+  const m = new THREE.MeshStandardMaterial({
+    color: s.color,
+    roughness: s.rough,
+    flatShading: s.flat,
+    // Seam overlays sit coplanar with the base top (see OVERLAY_EPS): a negative
+    // polygon offset wins the depth test without lifting the quad, so the frayed
+    // neighbour biome no longer leaves a ~0.03 hairline lip along every seam at
+    // grazing angles (the "line artifacts" at biome edges).
+    ...(edgeAlpha ? { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 } : {}),
+  })
   applyVisionShader(m, {
     detail: s.tex,
     detailMean: s.tex.userData.mean as number,
@@ -83,6 +95,10 @@ function makeTopMat(s: TopSpec, edgeAlpha: boolean): THREE.MeshStandardMaterial 
     detailStrength: s.detailStrength,
     variation: s.variation,
     edgeAlpha,
+    // Biome seams are wide and often diagonal, so the fray needs coarse, strong
+    // noise to dissolve the tile staircase into organic lobes (a fine feather
+    // like the road's just traces the zigzag). Deeper creep too (lower cutoff).
+    ...(edgeAlpha ? { edgeNoiseScale: 0.5, edgeNoiseAmp: 1.25, edgeThreshold: 0.5 } : {}),
   })
   return m
 }
@@ -142,9 +158,12 @@ interface OverlayPos {
   cov: [number, number, number, number]
 }
 
-// Sits just above the base top so the frayed neighbour biome covers it where the
-// shader keeps the fragment, and reveals the base biome where it discards.
-const OVERLAY_EPS = 0.03
+// Sits flush with the base top (depth handled by the overlay material's negative
+// polygonOffset, see makeTopMat) so the frayed neighbour biome covers it where
+// the shader keeps the fragment and reveals the base where it discards — with no
+// floating lip. A hair of lift avoids exactly-coincident verts on the few seams
+// where base and overlay share a height.
+const OVERLAY_EPS = 0.004
 
 function OverlayLayer({ tiles, material }: { tiles: OverlayPos[]; material: THREE.Material }) {
   const geo = useMemo(() => {
@@ -199,17 +218,26 @@ export function Terrain() {
     )
     const classAt = (x: number, z: number): TopClass | null =>
       z >= 0 && z < classGrid.length && x >= 0 && x < classGrid[z].length ? classGrid[z][x] : null
-    // Corner coverage for an overlay of class N: 1 if any of the four tiles
-    // meeting at the corner is class N, else 0. Interpolated across the quad it
-    // gives a gradient from the seam (1) inland (0); the shader's noise discard
-    // then frays that gradient into an irregular, sub-tile edge.
-    const cornerCov = (cx: number, cz: number, n: TopClass): number =>
-      classAt(cx - 1, cz - 1) === n ||
-      classAt(cx, cz - 1) === n ||
-      classAt(cx - 1, cz) === n ||
-      classAt(cx, cz) === n
-        ? 1
-        : 0
+    // Corner coverage for an overlay of class N, graded by ring so the creep is
+    // ~2 tiles deep: 1 if a class-N tile touches the corner (ring 1), 0.5 if one
+    // sits in the surrounding 4×4 block (ring 2), else 0. Interpolated across the
+    // quad it gives a 1→0.5→0 gradient from the seam inland; the shader's coarse
+    // noise then frays that into organic lobes that bury the diagonal staircase.
+    const cornerCov = (cx: number, cz: number, n: TopClass): number => {
+      if (
+        classAt(cx - 1, cz - 1) === n ||
+        classAt(cx, cz - 1) === n ||
+        classAt(cx - 1, cz) === n ||
+        classAt(cx, cz) === n
+      )
+        return 1
+      for (let dz = -2; dz <= 1; dz++) {
+        for (let dx = -2; dx <= 1; dx++) {
+          if (classAt(cx + dx, cz + dz) === n) return 0.5
+        }
+      }
+      return 0
+    }
 
     const baseBuckets = new Map<TopClass, TilePos[]>()
     const overlayBuckets = new Map<TopClass, OverlayPos[]>()
@@ -225,12 +253,13 @@ export function Terrain() {
         if (!bList) baseBuckets.set(own, (bList = []))
         bList.push({ x, z, top })
 
-        // The single highest-ranked neighbouring class (8-neighbourhood) that
-        // outranks this tile creeps over it.
+        // The single highest-ranked neighbouring class within 2 tiles that
+        // outranks this tile creeps over it (radius 2 → the overlay band is ~2
+        // tiles deep, enough for the noisy fray to bury the staircase).
         let creep: TopClass | null = null
         let creepRank = -1
-        for (let dz = -1; dz <= 1; dz++) {
-          for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -2; dz <= 2; dz++) {
+          for (let dx = -2; dx <= 2; dx++) {
             if (!dx && !dz) continue
             const c = classAt(x + dx, z + dz)
             if (!c || c === own) continue

@@ -103,6 +103,18 @@ export function MouseLookCamera({ posRef }: Props) {
   }, [gl])
 
   useFrame(() => {
+    // TEMP capture-only fly-cam: ?look=x,z,dist,height aims at a fixed grid tile
+    // (in centered world space) so headless shots can inspect coasts/biome seams.
+    const look = /[?&]look=([\d.]+),([\d.]+),([\d.]+),([\d.]+)/.exec(window.location.search)
+    if (look) {
+      const gx = Number(look[1]) - CENTER_X
+      const gz = Number(look[2]) - CENTER_Z
+      const d = Number(look[3])
+      const h = Number(look[4])
+      camera.position.set(gx + d, h, gz + d)
+      camera.lookAt(gx, 1, gz)
+      return
+    }
     const tx = posRef.current.x - CENTER_X
     const ty = posRef.current.y + 1
     const tz = posRef.current.z - CENTER_Z

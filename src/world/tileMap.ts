@@ -302,8 +302,18 @@ function classifyBiome(x: number, z: number): Tile | null {
   // deliberate lake lives in a basin instead (see DELIBERATE_LAKE).
   if (isDeliberateLake(x, z)) return null // carve the one hand-placed lake
 
-  // Beach ring around coastlines and lake edges.
-  if (d <= 1) return { biome: 'sand', height: 1 }
+  // Shore ring (one tile from water). Rather than ringing EVERY coast in the
+  // same tan sand — which clashes against a snow / swamp / rock biome sitting
+  // right behind it — the shore adopts the bordering biome so the edge reads as
+  // that biome's own coast. Only warm/green coasts (grass, forest, desert) keep
+  // a sandy beach. Always flat (height 1) so the waterline stays an even step.
+  if (d <= 1) {
+    const reg = regionAt(x, z)
+    if (reg && (reg.biome === 'snow' || reg.biome === 'swamp' || reg.biome === 'rock')) {
+      return { biome: reg.biome, height: 1 }
+    }
+    return { biome: 'sand', height: 1 }
+  }
 
   // Hand-placed grassy hills (climbable terraces) before regional biomes.
   const ph = plateauHeightAt(x, z)

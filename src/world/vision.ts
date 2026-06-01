@@ -45,6 +45,14 @@ export interface TerrainShaderOpts {
    *  noisy cut — softens the hard road/grass seam (needs an `aCoverage` vertex
    *  attribute, 1 = solid interior, →0 at the open edge) */
   edgeAlpha?: boolean
+  /** edge-fray noise: world scale of the base octave. Lower = bigger, more
+   *  organic lobes (use for wide biome seams); higher = fine feather (roads). */
+  edgeNoiseScale?: number
+  /** how hard the noise pushes the discard contour around (bigger = more organic
+   *  wobble, enough to hide a diagonal tile staircase). */
+  edgeNoiseAmp?: number
+  /** coverage cutoff below which a fragment discards (lower = deeper creep). */
+  edgeThreshold?: number
 }
 
 /**
@@ -61,6 +69,12 @@ export function applyVisionShader(
 
   const hasDetail = !!opts.detail
   const edgeAlpha = !!opts.edgeAlpha
+  // Edge-fray noise params (GLSL float literals). Defaults = the road's fine feather.
+  const glf = (n: number): string => n.toFixed(4)
+  const edgeS = glf(opts.edgeNoiseScale ?? 3.0)
+  const edgeS3 = glf((opts.edgeNoiseScale ?? 3.0) * 3)
+  const edgeA = glf(opts.edgeNoiseAmp ?? 0.5)
+  const edgeT = glf(opts.edgeThreshold ?? 0.62)
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPlayerPos = playerPosUniform
@@ -125,11 +139,13 @@ export function applyVisionShader(
          vec2 terWp = vTerrainWorldPos.xz;
 
          ${edgeAlpha ? `
-         // (0) noisy border feather: ragged-discard the open edge so dirt frays
-         //     into grass instead of stopping on a clean tile line. The solid
-         //     interior (vCoverage ≈ 1) is never touched.
-         float terCovN = terNoise(terWp * 3.0) * 0.6 + terNoise(terWp * 9.0) * 0.4;
-         if (vCoverage + (terCovN - 0.5) * 0.5 < 0.62) discard;
+         // (0) noisy border feather: ragged-discard the open edge so the seam
+         //     frays into the neighbour instead of stopping on a clean tile line.
+         //     The solid interior (vCoverage ≈ 1) is never touched. Coarse, strong
+         //     noise (biome overlays) hides the diagonal tile staircase; fine,
+         //     weak noise (roads) gives a tight feather.
+         float terCovN = terNoise(terWp * ${edgeS}) * 0.6 + terNoise(terWp * ${edgeS3}) * 0.4;
+         if (vCoverage + (terCovN - 0.5) * ${edgeA} < ${edgeT}) discard;
          ` : ''}
 
          // (1) fine value mottle — three octaves break the flat per-tile colour.
