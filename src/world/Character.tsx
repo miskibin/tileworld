@@ -8,6 +8,7 @@ import { playSfx } from '../audio/audio'
 import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
 import { spawnImpact } from './impactStore'
+import { spawnPickup } from './pickupStore'
 import { getWeaponBonus, getInventory, subscribeInventory } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
@@ -477,6 +478,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               killedAny = true
               const c = ANIMAL_CONFIG[animal.species]
               addGold(c.bountyGold)
+              if (c.dropItemId && Math.random() < (c.dropChance ?? 1)) {
+                spawnPickup(c.dropItemId, animal.x, animal.y, animal.z)
+              }
               addXp(c.bountyXp)
               spawnFloat(`+${c.bountyGold} ★`, '#ffd58c', animal.x, animal.y + 2.2, animal.z)
               spawnFloat(`+${c.bountyXp} XP`, '#62c6e8', animal.x - 0.3, animal.y + 1.8, animal.z)
