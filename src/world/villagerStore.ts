@@ -105,3 +105,26 @@ export function resetVillagers(): void {
 export function getVillagers(): VillagerState[] {
   return villagers
 }
+
+/** Remove a villager (e.g. when one takes up the fallen hero's blade). */
+export function removeVillager(id: number): void {
+  const i = villagers.findIndex((v) => v.id === id)
+  if (i === -1) return
+  villagers.splice(i, 1)
+  notifyVillagers()
+}
+
+/** Nearest living villager to a grid point — the heir who inherits the blade.
+ *  Null when the town is empty (the bloodline ends). */
+export function nearestVillager(x: number, z: number): VillagerState | null {
+  let best: VillagerState | null = null
+  let bestD = Infinity
+  for (const v of villagers) {
+    const d = (v.x - x) ** 2 + (v.z - z) ** 2
+    if (d < bestD) {
+      bestD = d
+      best = v
+    }
+  }
+  return best
+}

@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react'
 import { getPlayer } from '../world/playerStore'
 import { getWave, subscribeWave, type WaveProgress } from '../world/waveStore'
 import { getCastle, subscribeCastle, type CastleState } from '../world/castleStore'
-import { getPhase, subscribePhase, type GamePhase } from '../world/gameStore'
+import { getPhase, subscribePhase, getDefeatReason, type GamePhase } from '../world/gameStore'
+import { getVillagers, subscribeVillagers } from '../world/villagerStore'
 import { playVictory } from '../audio/sfx'
 
 export function Objective() {
   const [phase, setPhase] = useState<GamePhase>(() => getPhase())
   const [wave, setWave] = useState<WaveProgress>(() => getWave())
   const [castle, setCastle] = useState<CastleState>(() => getCastle())
+  const [townsfolk, setTownsfolk] = useState<number>(() => getVillagers().length)
 
   useEffect(() => subscribePhase(setPhase), [])
   useEffect(() => subscribeWave((s) => setWave({ ...s })), [])
   useEffect(() => subscribeCastle((s) => setCastle({ ...s })), [])
+  useEffect(() => subscribeVillagers((l) => setTownsfolk(l.length)), [])
 
   // Release pointer-lock + play fanfare on victory.
   useEffect(() => {
@@ -47,10 +50,17 @@ export function Objective() {
   }
 
   if (phase === 'defeat') {
+    const bloodline = getDefeatReason() === 'bloodline'
     return (
       <div className="victory-screen defeat-screen">
-        <div className="victory-title">The Keep Has Fallen</div>
-        <div className="victory-sub">You held until wave {Math.max(1, wave.index + 1)} of {wave.total}.</div>
+        <div className="victory-title">
+          {bloodline ? 'The Line Has Ended' : 'The Keep Has Fallen'}
+        </div>
+        <div className="victory-sub">
+          {bloodline
+            ? `The last of your line fell with no one left to take up the blade — wave ${Math.max(1, wave.index + 1)} of ${wave.total}.`
+            : `You held until wave ${Math.max(1, wave.index + 1)} of ${wave.total}.`}
+        </div>
         <button className="victory-again" onClick={() => location.reload()}>
           Play Again
         </button>
@@ -76,6 +86,11 @@ export function Objective() {
           <div className="castle-hp-fill" style={{ width: `${hpPct}%` }} />
         </div>
       </div>
+      {/* Townsfolk = the run's pool of lives. Each death passes the blade to one
+          of them; when none remain, the next fall ends the run. */}
+      <span className={`objective-townsfolk${townsfolk === 0 ? ' is-last' : ''}`}>
+        🛡 {townsfolk} {townsfolk === 1 ? 'heir' : 'heirs'}
+      </span>
     </div>
   )
 }

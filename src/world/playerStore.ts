@@ -109,12 +109,19 @@ export function resetPlayer(): void {
 
 /** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset. */
 export function respawnPlayer(): void {
+  respawnPlayerAt(PLAYER_SPAWN.x, PLAYER_SPAWN.y, PLAYER_SPAWN.z)
+}
+
+/** Like respawnPlayer but rises at a given spot — used by the succession
+ *  mechanic, where the hero's spirit returns in the body of an heir villager
+ *  who stood elsewhere on the field. Progression is fully preserved. */
+export function respawnPlayerAt(x: number, y: number, z: number): void {
   state.hp = state.maxHp
   state.deadSince = null
   state.hurtFlashUntil = 0
-  state.x = PLAYER_SPAWN.x
-  state.y = PLAYER_SPAWN.y
-  state.z = PLAYER_SPAWN.z
+  state.x = x
+  state.y = y
+  state.z = z
   notifyHp()
 }
 

@@ -31,6 +31,9 @@ import { Chest } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
+import { GraveField } from './Grave'
+import { SoulWisp } from './SoulWisp'
+import { SuccessionDirector } from './SuccessionDirector'
 import { City } from './City'
 import { Birds } from './Birds'
 import { Ships } from './Boat'
@@ -103,6 +106,12 @@ export function World() {
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
         <VillagerCrowd />
+
+        {/* "The Blade Passes": graves the hero leaves behind, the spirit wisp
+            mid-succession, and the dawn director that repopulates the town. */}
+        <GraveField />
+        <SoulWisp />
+        <SuccessionDirector />
 
         {/* Market stall just outside the south gate (the castle interior is a
             packed grid). Counter faces the gate; its tile is reserved from

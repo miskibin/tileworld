@@ -474,6 +474,25 @@
   letter-spacing: 0.04em;
 }
 
+/* Townsfolk = remaining lives (heirs to the blade). */
+.objective-townsfolk {
+  margin-top: 2px;
+  color: #9fd3a0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.objective-townsfolk.is-last {
+  color: #ff8c6b;
+  animation: pulse-warn 1s ease-in-out infinite;
+}
+
+@keyframes pulse-warn {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
 .damage-overlay {
   position: absolute;
   inset: 0;

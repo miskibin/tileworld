@@ -20,14 +20,15 @@ import {
   addXp,
   getAttackDamage,
   getPlayer,
-  PLAYER_RESPAWN_DELAY,
-  PLAYER_SPAWN,
-  respawnPlayer,
+  respawnPlayerAt,
   setPlayerPos,
   XP_PER_ORK,
 } from './playerStore'
 import { isFrozen } from './pauseStore'
 import { setVisionPlayerPos } from './vision'
+import { nearestVillager, removeVillager } from './villagerStore'
+import { addGrave, startSoul, clearSoul, SUCCESSION_DURATION } from './successionStore'
+import { setPhase, setDefeatReason } from './gameStore'
 
 const ARMOR = '#d6d8df'
 const ARMOR_LIGHT = '#e6e8ed'
@@ -108,6 +109,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const attackStart = useRef(0)
   const attackHitDealt = useRef(false)
 
+  // Succession ("Blade Passes"): resolved once per death. heir holds where the
+  // spirit is flying to (the chosen villager's spot), or null if the town is
+  // empty and the bloodline ends.
+  const successionStarted = useRef(false)
+  const heir = useRef<{ x: number; y: number; z: number } | null>(null)
+
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
 
@@ -138,27 +145,71 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     const tNow = performance.now() * 0.001
     const player = getPlayer()
 
-    // ─── Death handling: freeze input, lie down, respawn after delay ──
+    // ─── Death handling: "The Blade Passes" ─────────────────────────────────
+    // The hero never simply respawns. On death his body stays as a grave and
+    // his spirit (a soul wisp) flies to the nearest townsperson, who rises as
+    // the new hero with all progression intact. If no villager remains, the
+    // bloodline — and the run — ends.
     if (player.deadSince !== null) {
       const elapsed = tNow - player.deadSince
-      if (elapsed >= PLAYER_RESPAWN_DELAY) {
-        respawnPlayer()
-        pos.current.x = PLAYER_SPAWN.x
-        pos.current.y = PLAYER_SPAWN.y
-        pos.current.z = PLAYER_SPAWN.z
-        velY.current = 0
-        onGround.current = true
-        facing.current = Math.PI
-        attacking.current = false
-      } else {
-        // Lie-down anim; freeze movement & attack input
+
+      // Resolve the heir + plant the grave once, on the first frame of death.
+      if (!successionStarted.current) {
+        successionStarted.current = true
+        const dx = pos.current.x
+        const dy = pos.current.y
+        const dz = pos.current.z
+        addGrave(dx, dy, dz) // the fallen body becomes a marker on the field
+        const v = nearestVillager(dx, dz)
+        if (v) {
+          heir.current = { x: v.x, y: v.y, z: v.z }
+          removeVillager(v.id) // this townsperson takes up the blade
+          startSoul({ fromX: dx, fromY: dy, fromZ: dz, toX: v.x, toY: v.y, toZ: v.z, startAt: tNow })
+          addShake(0.18, 0.3)
+        } else {
+          heir.current = null // no one left — the line ends
+        }
+      }
+
+      // No successor: lie still, then lose the run (bloodline ended).
+      if (heir.current === null) {
+        if (elapsed >= SUCCESSION_DURATION) {
+          setDefeatReason('bloodline')
+          setPhase('defeat')
+        }
         if (groupRef.current) {
           const tilt = Math.min(1, elapsed / 0.6) * (Math.PI / 2)
           groupRef.current.position.set(pos.current.x, pos.current.y, pos.current.z)
           groupRef.current.rotation.set(0, facing.current, tilt)
         }
         setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false)
-        // Discard queued attack clicks while dead
+        attackProcessed.current = attackClickCount
+        return
+      }
+
+      // Spirit in flight: lie at the death spot until it reaches the heir, then
+      // rise there as the new hero.
+      if (elapsed >= SUCCESSION_DURATION) {
+        const h = heir.current
+        respawnPlayerAt(h.x, h.y, h.z)
+        pos.current.x = h.x
+        pos.current.y = h.y
+        pos.current.z = h.z
+        velY.current = 0
+        onGround.current = true
+        facing.current = Math.PI
+        attacking.current = false
+        clearSoul()
+        successionStarted.current = false
+        heir.current = null
+      } else {
+        // Lie-down anim at the death spot; freeze movement & attack input.
+        if (groupRef.current) {
+          const tilt = Math.min(1, elapsed / 0.6) * (Math.PI / 2)
+          groupRef.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+          groupRef.current.rotation.set(0, facing.current, tilt)
+        }
+        setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false)
         attackProcessed.current = attackClickCount
         return
       }

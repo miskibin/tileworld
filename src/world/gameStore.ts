@@ -8,6 +8,20 @@ export type GamePhase = 'menu' | 'prep' | 'wave' | 'victory' | 'defeat'
 let phase: GamePhase = 'menu'
 const subs = new Set<(p: GamePhase) => void>()
 
+// Why the run ended, so the defeat screen can speak to it. 'keep' = the orks
+// razed the Keep; 'bloodline' = the hero fell with no townsfolk left to take up
+// the blade. Set right before transitioning to 'defeat'.
+export type DefeatReason = 'keep' | 'bloodline'
+let defeatReason: DefeatReason = 'keep'
+
+export function getDefeatReason(): DefeatReason {
+  return defeatReason
+}
+
+export function setDefeatReason(r: DefeatReason): void {
+  defeatReason = r
+}
+
 export function getPhase(): GamePhase {
   return phase
 }

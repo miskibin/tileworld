@@ -32,6 +32,7 @@ import { Wall, Tower, Gate, Keep } from '../src/world/cityModels'
 import { VillagerView } from '../src/world/Villager'
 import { createVillager } from '../src/world/villagerStore'
 import { Boat } from '../src/world/Boat'
+import { Grave } from '../src/world/Grave'
 import { DistantMountains } from '../src/world/DistantMountains'
 import { WolfView } from '../src/world/Wolf'
 import { DeerView } from '../src/world/Deer'
@@ -65,6 +66,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Gate: () => <Gate position={[0, 0, 0]} width={4} />,
   Keep: () => <Keep position={[0, 0, 0]} />,
   Boat: () => <Boat />,
+  Grave: () => <Grave position={[0, 0, 0]} />,
   DistantMountains: () => <DistantMountains />,
   Villager: () => (
     <VillagerView
