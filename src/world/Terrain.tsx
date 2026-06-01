@@ -116,7 +116,7 @@ interface TilePos {
   top: number
 }
 
-function InstancedTiles({ positions, materials }: { positions: TilePos[]; materials: THREE.Material[] }) {
+function InstancedTiles({ positions, materials, cast }: { positions: TilePos[]; materials: THREE.Material[]; cast: boolean }) {
   const ref = useRef<THREE.InstancedMesh>(null!)
   useEffect(() => {
     const dummy = new THREE.Object3D()
@@ -130,7 +130,7 @@ function InstancedTiles({ positions, materials }: { positions: TilePos[]; materi
     ref.current.instanceMatrix.needsUpdate = true
     ref.current.computeBoundingSphere()
   }, [positions])
-  return <instancedMesh ref={ref} args={[BOX_GEO, materials, positions.length]} castShadow receiveShadow />
+  return <instancedMesh ref={ref} args={[BOX_GEO, materials, positions.length]} castShadow={cast} receiveShadow />
 }
 
 // ─── Seam overlay (real neighbour biome, road-style noise fray) ───────
@@ -255,8 +255,24 @@ export function Terrain() {
       }),
     )
 
+    // Split each class into FLAT (top===1, base ground) and TALL (top>1,
+    // elevated terrain) instanced meshes. Flat ground boxes are buried flush
+    // against equal-height neighbours and cast no visible shadow, so they're
+    // marked castShadow=false — they no longer enter the shadow pass, which is
+    // what removes the periodic shadow-frame triangle spike (the bulk of the
+    // map is flat). TALL tiles (mountains, plateaus, cliffs) still cast, so the
+    // terrain relief that DOES throw a shadow is unchanged.
+    const base: { positions: TilePos[]; mats: THREE.Material[]; cast: boolean }[] = []
+    for (const [cls, positions] of baseBuckets) {
+      const mats = classMats(cls)
+      const flat = positions.filter((p) => p.top <= 1)
+      const tall = positions.filter((p) => p.top > 1)
+      if (flat.length) base.push({ positions: flat, mats, cast: false })
+      if (tall.length) base.push({ positions: tall, mats, cast: true })
+    }
+
     return {
-      base: Array.from(baseBuckets.entries()).map(([cls, positions]) => ({ positions, mats: classMats(cls) })),
+      base,
       overlays: Array.from(overlayBuckets.entries()).map(([cls, tiles]) => ({ tiles, material: OVERLAY_TOP[cls] })),
     }
   }, [])
@@ -264,7 +280,7 @@ export function Terrain() {
   return (
     <group>
       {base.map((g, i) => (
-        <InstancedTiles key={`b${i}`} positions={g.positions} materials={g.mats} />
+        <InstancedTiles key={`b${i}`} positions={g.positions} materials={g.mats} cast={g.cast} />
       ))}
       {overlays.map((o, i) => (
         <OverlayLayer key={`o${i}`} tiles={o.tiles} material={o.material} />

@@ -54,6 +54,12 @@ const RECENTER_DIST_SQ = RECENTER_DIST * RECENTER_DIST
 // imperceptible for soft shadows, and halves the shadow-pass frequency (the
 // periodic 300→1300 draw-call spikes) vs the old every-3rd-frame.
 const ANIM_REFRESH_INTERVAL = 6
+// When the player is STANDING STILL the camera is static and the only movers are
+// distant wandering critters, so the soft shadow can refresh far less often
+// without anyone noticing — halving the idle shadow-pass spikes. The moment the
+// player walks we drop back to ANIM_REFRESH_INTERVAL so their own shadow tracks
+// smoothly (a frozen player shadow under a moving knight WOULD read as a bug).
+const IDLE_REFRESH_INTERVAL = 12
 
 interface Props {
   intensity: number
@@ -124,11 +130,14 @@ export function SunShadow({ intensity }: Props) {
           target.updateMatrixWorld()
           lastCenter.current.set(px, 0, pz)
           gl.shadowMap.needsUpdate = true
-        } else if (frame.current % ANIM_REFRESH_INTERVAL === 0) {
-          // Standing still / small moves: still refresh occasionally so moving
+        } else {
+          // Within the recenter threshold: still refresh occasionally so moving
           // casters (mobs) AND the drifting sun get updated shadows, without
-          // redrawing every frame.
-          gl.shadowMap.needsUpdate = true
+          // redrawing every frame. Cadence adapts to whether the player is
+          // moving — full rate while walking (smooth self-shadow), half rate
+          // when idle (fewer draw-call spikes while standing/shopping/aiming).
+          const interval = p.moving ? ANIM_REFRESH_INTERVAL : IDLE_REFRESH_INTERVAL
+          if (frame.current % interval === 0) gl.shadowMap.needsUpdate = true
         }
       }
     }
