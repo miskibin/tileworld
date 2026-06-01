@@ -28,6 +28,37 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
+/* Selected-item stats popup — appears on scroll/select, fades after ~2s. */
+.hotbar-popup {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  background: rgba(20, 22, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  animation: fade-in 120ms ease;
+  white-space: nowrap;
+}
+
+.hotbar-popup-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.hotbar-popup-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f2f4fa;
+}
+
+.hotbar-popup-stat {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9be88a;
+}
+
 .hotbar-slots {
   display: flex;
   gap: 4px;

@@ -8,6 +8,7 @@ import {
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
 import { getDamageTakenMult, resetBuffs } from './buffStore'
+import { getArmorDamageMult } from './inventoryStore'
 import { resetPickups } from './pickupStore'
 import { isUnlimitedMoney } from './debugStore'
 import {
@@ -110,7 +111,9 @@ export function isPlayerAlive(): boolean {
 export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?: number): void {
   if (state.hp <= 0) return
 
-  let dmg = amount * getDamageTakenMult()
+  // Worn armor cuts the hit before any buff/shield math (innate mitigation);
+  // the shield block below then stacks on top of the reduced number.
+  let dmg = amount * getDamageTakenMult() * getArmorDamageMult()
   const blk = getBlockState()
   if (blk.blocking && fromX !== undefined && fromZ !== undefined) {
     const dx = fromX - state.x

@@ -30,7 +30,9 @@ export function MouseLookCamera({ posRef }: Props) {
 
   const azimuth = useRef(Math.PI * 0.85)
   const polar = useRef(Math.PI * 0.18)
-  const dist = useRef(12)
+  // 10% closer default than the old 12 — scroll alone now drives the hotbar,
+  // so zoom moved onto Alt+scroll (see onWheel).
+  const dist = useRef(10.8)
   const locked = useRef(false)
 
   useEffect(() => {
@@ -53,7 +55,9 @@ export function MouseLookCamera({ posRef }: Props) {
       if (isShopOpen() || isPaused() || isTreeOpen()) return
       el.requestPointerLock()
     }
+    // Zoom is Alt+scroll now; plain scroll cycles the hotbar (HotbarInput).
     const onWheel = (e: WheelEvent) => {
+      if (!e.altKey) return
       dist.current = Math.max(
         MIN_DIST,
         Math.min(MAX_DIST, dist.current + e.deltaY * ZOOM_SENS),

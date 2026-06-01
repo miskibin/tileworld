@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { openTree, closeTree, isTreeOpen } from './townHallStore'
+import { setInteractRange } from './interactStore'
 import { KEEP_INTERACT, INTERACT_DIST, CITY_WALL_HEIGHT } from './cityPlan'
 import { stoneTexture, woodTexture, shingleTexture, soilTexture } from './textures'
 
@@ -87,6 +88,8 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
     const dz = p.z - KEEP_INTERACT.z
     const inRange = Math.hypot(dx, dz) < INTERACT_DIST
     inRangeRef.current = inRange
+    // Claim E in range so the hotbar's "E = use item" stands down at the keep.
+    setInteractRange('townhall', inRange)
     if (promptRef.current) promptRef.current.visible = inRange && !isTreeOpen()
   })
 
@@ -101,7 +104,10 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
       openTree()
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      setInteractRange('townhall', false)
+    }
   }, [])
 
   const roofY = KEEP_FOUND + KEEP_H

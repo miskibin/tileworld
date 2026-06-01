@@ -44,6 +44,10 @@ export interface AnimalConfig {
   dropItemId?: string
   /** 0..1 chance to drop (default 1 when dropItemId is set) */
   dropChance?: number
+  /** optional second, rarer drop rolled independently (e.g. armor off a boss) */
+  dropItemId2?: string
+  /** 0..1 chance for the second drop (default 1 when dropItemId2 is set) */
+  dropChance2?: number
 }
 
 export const ANIMAL_CONFIG: Record<AnimalSpecies, AnimalConfig> = {
@@ -147,6 +151,7 @@ export const ANIMAL_CONFIG: Record<AnimalSpecies, AnimalConfig> = {
     attackCooldown: 1.4, turnRate: 6, pathRecompute: 0.45, waypointRadius: 0.5,
     scale: 0.62, collisionRadius: 0.42, blocks: true, bountyGold: 28, bountyXp: 40,
     dropItemId: 'fur', dropChance: 0.8,
+    dropItemId2: 'leather_armor', dropChance2: 0.5,
   },
   // Desert: fast, fragile, venomous predator.
   scorpion: {
@@ -187,5 +192,6 @@ export const ANIMAL_CONFIG: Record<AnimalSpecies, AnimalConfig> = {
     attackCooldown: 1.6, turnRate: 5, pathRecompute: 0.5, waypointRadius: 0.5,
     scale: 0.6, collisionRadius: 0.46, blocks: true, bountyGold: 36, bountyXp: 55,
     dropItemId: 'stone_maul', dropChance: 0.5,
+    dropItemId2: 'iron_armor', dropChance2: 0.4,
   },
 }

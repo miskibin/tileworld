@@ -6,6 +6,7 @@ import { isPaused } from './pauseStore'
 import { getPlayer, spendGold } from './playerStore'
 import { openShop, closeShop, isShopOpen, type ShopItem } from './shopStore'
 import { addItem } from './inventoryStore'
+import { setInteractRange } from './interactStore'
 import { getUnlockedWeapons } from './weaponUnlockStore'
 import { isUnlimitedMoney } from './debugStore'
 
@@ -105,6 +106,8 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
     const dz = p.z - position[2]
     const inRange = Math.hypot(dx, dz) < INTERACT_DIST
     inRangeRef.current = inRange
+    // Claim E while in range so the hotbar's "E = use item" stands down.
+    setInteractRange(`shop:${position[0]},${position[2]}`, inRange)
     if (promptRef.current) promptRef.current.visible = inRange && !isShopOpen()
   })
 
@@ -120,7 +123,10 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
       openShop({ id: `${position[0]},${position[2]}`, title: 'Wandering Merchant', items: buildShopItems() })
     }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      setInteractRange(`shop:${position[0]},${position[2]}`, false)
+    }
   }, [position])
 
   return (

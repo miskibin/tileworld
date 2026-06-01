@@ -9,7 +9,7 @@ import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
 import { spawnImpact } from './impactStore'
 import { spawnPickup } from './pickupStore'
-import { getWeaponBonus, getInventory, subscribeInventory } from './inventoryStore'
+import { getWeaponBonus, getInventory, subscribeInventory, ITEM_DEFS } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
@@ -55,6 +55,9 @@ const SHIELD_RIM = '#6a3a22'
 const SHIELD_EMBLEM = '#d3b14c'
 const GOLD = '#e8b84b' // Golden Blade gilding
 const AXE_STEEL = '#aab0bc' // Battle Axe head
+// Endpoints for deriving light/dark plate shades from an armor tint.
+const WHITE = new THREE.Color('#ffffff')
+const BLACK = new THREE.Color('#000000')
 
 const SPEED = 3.5 // grid units per second
 const SPRINT_MULT = 1.75 // shift-held speed multiplier
@@ -156,9 +159,37 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const goldBladeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.8 }), [])
   const axeHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: AXE_STEEL, roughness: 0.45, metalness: 0.6 }), [])
 
-  // The held weapon mesh follows the equipped item (hotbar right-click → equip).
+  // The held weapon mesh follows the equipped item (hotbar select/E → equip).
   const [equippedId, setEquippedId] = useState<string | null>(getInventory().equippedId)
-  useEffect(() => subscribeInventory(() => setEquippedId(getInventory().equippedId)), [])
+  // Equipped armor id drives the plate re-skin below (separate equip slot).
+  const [armorId, setArmorId] = useState<string | null>(getInventory().equippedArmorId)
+  useEffect(
+    () =>
+      subscribeInventory(() => {
+        const inv = getInventory()
+        setEquippedId(inv.equippedId)
+        setArmorId(inv.equippedArmorId)
+      }),
+    [],
+  )
+
+  // Re-skin the knight's plate to the worn armor. Mutating the shared armor
+  // materials in place recolors every plate mesh at once with no re-render; bare
+  // (armorId === null) restores the exact default steel palette.
+  useEffect(() => {
+    const def = armorId ? ITEM_DEFS[armorId] : null
+    if (!def) {
+      armorMat.color.set(ARMOR); armorMat.metalness = 0.25
+      armorLightMat.color.set(ARMOR_LIGHT); armorLightMat.metalness = 0.3
+      armorDarkMat.color.set(ARMOR_DARK); armorDarkMat.metalness = 0.2
+      return
+    }
+    const c = new THREE.Color(def.armorTint ?? ARMOR)
+    const metal = def.id === 'gold_armor' ? 0.85 : def.id === 'iron_armor' ? 0.6 : 0.18
+    armorMat.color.copy(c); armorMat.metalness = metal
+    armorLightMat.color.copy(c.clone().lerp(WHITE, 0.28)); armorLightMat.metalness = metal
+    armorDarkMat.color.copy(c.clone().lerp(BLACK, 0.3)); armorDarkMat.metalness = metal * 0.8
+  }, [armorId, armorMat, armorLightMat, armorDarkMat])
 
   // Cached working vectors (avoid per-frame allocation).
   const camFwd = useMemo(() => new THREE.Vector3(), [])
@@ -537,6 +568,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               addGold(c.bountyGold)
               if (c.dropItemId && Math.random() < (c.dropChance ?? 1)) {
                 spawnPickup(c.dropItemId, animal.x, animal.y, animal.z)
+              }
+              // Rarer second drop (armor off the boss-tier creatures); offset a
+              // little so the two pickups don't stack on the same tile.
+              if (c.dropItemId2 && Math.random() < (c.dropChance2 ?? 1)) {
+                spawnPickup(c.dropItemId2, animal.x + 0.5, animal.y, animal.z + 0.5)
               }
               addXp(c.bountyXp)
               spawnFloat(`+${c.bountyGold} ★`, '#ffd58c', animal.x, animal.y + 2.2, animal.z)
