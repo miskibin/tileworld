@@ -39,11 +39,13 @@ export function Pickups() {
 
   useEffect(() => () => resetPickups(), [])
 
-  useFrame(({ clock }) => {
+  useFrame(() => {
     if (isFrozen()) return
     const grp = groupRef.current
     if (!grp) return
-    const tNow = clock.getElapsedTime()
+    // Same clock epoch as pickupStore's `born` (performance.now), so a token's
+    // bob/spin phase starts at 0 on spawn rather than at an arbitrary offset.
+    const tNow = performance.now() * 0.001
     const list = getPickups()
     const p = getPlayer()
 

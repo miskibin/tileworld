@@ -8,6 +8,7 @@ import {
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
 import { getDamageTakenMult, resetBuffs } from './buffStore'
+import { resetPickups } from './pickupStore'
 import { isUnlimitedMoney } from './debugStore'
 import {
   absorbBlockedHit,
@@ -165,12 +166,14 @@ export function resetPlayer(): void {
   state.facing = Math.PI
   resetBlock()
   resetBuffs()
+  resetPickups() // clear any ground loot so it doesn't carry into a fresh run
   notifyHp()
   notifyGold()
   notifyStats()
 }
 
-/** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset. */
+/** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset.
+ *  Temporary combat boons (buffs) are cleared: death ends the encounter. */
 export function respawnPlayer(): void {
   state.hp = state.maxHp
   state.deadSince = null
@@ -178,6 +181,7 @@ export function respawnPlayer(): void {
   state.x = PLAYER_SPAWN.x
   state.y = PLAYER_SPAWN.y
   state.z = PLAYER_SPAWN.z
+  resetBuffs()
   notifyHp()
 }
 

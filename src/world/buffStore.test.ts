@@ -52,4 +52,10 @@ describe('buffStore', () => {
     expect(active[0].remain).toBeGreaterThan(0)
     expect(active[0].remain).toBeLessThanOrEqual(2)
   })
+
+  it('reports the full granted duration for the HUD bar ratio', () => {
+    applyBuff('resist', 8000, 0.6)
+    const active = getActiveBuffs(performance.now() * 0.001)
+    expect(active[0].fullSec).toBe(8) // 8000ms, regardless of the buff kind
+  })
 })

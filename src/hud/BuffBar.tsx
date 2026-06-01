@@ -8,8 +8,9 @@ import { getActiveBuffs, subscribeBuffs, type BuffKind } from '../world/buffStor
 
 const ICON: Record<BuffKind, string> = { resist: '🛡️', power: '⚔️', haste: '💨' }
 const LABEL: Record<BuffKind, string> = { resist: 'Resist', power: 'Power', haste: 'Haste' }
-// Full duration per kind (ms) — matches inventoryStore item defs, for the bar ratio.
-const FULL_MS: Record<BuffKind, number> = { resist: 12000, power: 12000, haste: 12000 }
+// NB: the countdown-bar ratio uses each buff's own `fullSec` (from buffStore), so
+// the granted duration lives in exactly one place (the item def → buffStore) and
+// the bar can never drift out of sync with it.
 
 export function BuffBar() {
   const [kinds, setKinds] = useState<BuffKind[]>([])
@@ -32,11 +33,13 @@ export function BuffBar() {
       const now = performance.now() * 0.001
       const active = getActiveBuffs(now)
       const activeKinds = active.map((b) => b.kind)
-      // Prune when a buff expires (keeps the list in sync without a per-frame setState).
-      if (activeKinds.length !== kinds.length) setKinds(activeKinds)
+      // Re-render the pip set whenever it changes — compare CONTENT, not just
+      // length, so a same-frame expire+apply (one out, one in: length unchanged)
+      // still updates which icon shows.
+      if (activeKinds.join(',') !== kinds.join(',')) setKinds(activeKinds)
       for (const b of active) {
         const el = barRefs.current[b.kind]
-        if (el) el.style.width = `${Math.min(100, (b.remain * 1000 / FULL_MS[b.kind]) * 100)}%`
+        if (el) el.style.width = `${Math.min(100, b.fullSec > 0 ? (b.remain / b.fullSec) * 100 : 100)}%`
       }
       raf = requestAnimationFrame(tick)
     }

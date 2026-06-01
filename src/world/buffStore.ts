@@ -11,12 +11,15 @@ interface BuffState {
   until: number
   /** multiplier magnitude for this buff (e.g. resist 0.6, power 1.4); read only while active */
   mag: number
+  /** full granted duration (sec); the HUD uses it for the countdown bar ratio so
+   *  the duration lives in ONE place (here) instead of being duplicated in the HUD */
+  fullSec: number
 }
 
 const buffs: Record<BuffKind, BuffState> = {
-  resist: { until: 0, mag: 1 },
-  power: { until: 0, mag: 1 },
-  haste: { until: 0, mag: 1 },
+  resist: { until: 0, mag: 1, fullSec: 0 },
+  power: { until: 0, mag: 1, fullSec: 0 },
+  haste: { until: 0, mag: 1, fullSec: 0 },
 }
 
 const subs = new Set<() => void>()
@@ -36,6 +39,7 @@ function isActive(k: BuffKind): boolean {
 export function applyBuff(kind: BuffKind, durationMs: number, mag: number): void {
   buffs[kind].until = now() + durationMs / 1000
   buffs[kind].mag = mag
+  buffs[kind].fullSec = durationMs / 1000
   notify()
 }
 
@@ -58,6 +62,8 @@ export interface ActiveBuff {
   kind: BuffKind
   /** seconds remaining */
   remain: number
+  /** full granted duration (sec) — for the HUD countdown ratio */
+  fullSec: number
 }
 
 /** Active buffs with remaining seconds, for the HUD. Pass the current time. */
@@ -65,7 +71,7 @@ export function getActiveBuffs(nowSec: number): ActiveBuff[] {
   const out: ActiveBuff[] = []
   for (const k of Object.keys(buffs) as BuffKind[]) {
     const remain = buffs[k].until - nowSec
-    if (remain > 0) out.push({ kind: k, remain })
+    if (remain > 0) out.push({ kind: k, remain, fullSec: buffs[k].fullSec })
   }
   return out
 }
@@ -82,6 +88,7 @@ export function resetBuffs(): void {
   for (const k of Object.keys(buffs) as BuffKind[]) {
     buffs[k].until = 0
     buffs[k].mag = 1
+    buffs[k].fullSec = 0
   }
   notify()
 }
