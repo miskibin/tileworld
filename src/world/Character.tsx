@@ -185,7 +185,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       return
     }
     const c = new THREE.Color(def.armorTint ?? ARMOR)
-    const metal = def.id === 'gold_armor' ? 0.85 : def.id === 'iron_armor' ? 0.6 : 0.18
+    const metal = def.armorMetal ?? 0.25
     armorMat.color.copy(c); armorMat.metalness = metal
     armorLightMat.color.copy(c.clone().lerp(WHITE, 0.28)); armorLightMat.metalness = metal
     armorDarkMat.color.copy(c.clone().lerp(BLACK, 0.3)); armorDarkMat.metalness = metal * 0.8

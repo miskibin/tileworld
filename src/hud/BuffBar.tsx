@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getActiveBuffs, subscribeBuffs, type BuffKind } from '../world/buffStore'
+import { getActiveBuffs, subscribeBuffs, BUFF_LABEL, type BuffKind } from '../world/buffStore'
 
 // Buff pips — one per active buff (icon + a shrinking duration bar). Renders
 // nothing when no buff is active, so there's no idle HUD chrome. Re-renders only
@@ -7,7 +7,6 @@ import { getActiveBuffs, subscribeBuffs, type BuffKind } from '../world/buffStor
 // requestAnimationFrame, not React state, to avoid per-frame churn (PlayerHud pattern).
 
 const ICON: Record<BuffKind, string> = { resist: '🛡️', power: '⚔️', haste: '💨' }
-const LABEL: Record<BuffKind, string> = { resist: 'Resist', power: 'Power', haste: 'Haste' }
 // NB: the countdown-bar ratio uses each buff's own `fullSec` (from buffStore), so
 // the granted duration lives in exactly one place (the item def → buffStore) and
 // the bar can never drift out of sync with it.
@@ -52,7 +51,7 @@ export function BuffBar() {
   return (
     <div className="buff-bar">
       {kinds.map((k) => (
-        <div key={k} className="buff-pip" title={LABEL[k]}>
+        <div key={k} className="buff-pip" title={BUFF_LABEL[k]}>
           <span className="buff-icon">{ICON[k]}</span>
           <div className="buff-dur">
             <div className="buff-dur-fill" ref={(el) => { barRefs.current[k] = el }} />

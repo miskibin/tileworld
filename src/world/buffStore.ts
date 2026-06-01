@@ -6,6 +6,10 @@
 
 export type BuffKind = 'resist' | 'power' | 'haste'
 
+/** Display labels per buff kind — single source for every HUD panel that names
+ *  a buff (BuffBar pips, the hotbar stats popup). */
+export const BUFF_LABEL: Record<BuffKind, string> = { resist: 'Resist', power: 'Power', haste: 'Haste' }
+
 interface BuffState {
   /** wall-clock (sec) the buff expires; 0 = inactive */
   until: number

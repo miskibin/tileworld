@@ -4,6 +4,10 @@ import { isFrozen } from './pauseStore'
 import { isInteractInRange } from './interactStore'
 import { setWantBlock } from './blockStore'
 
+// Min gap between scroll-driven hotbar steps — coalesces an inertial flick
+// (dozens of wheel events) into a sane stepping rate.
+const WHEEL_STEP_MS = 90
+
 // Non-visual input glue:
 //  • number keys 1–6 select a hotbar slot
 //  • E "uses" the selected slot (consume → heal, weapon/armor → equip) — but a
@@ -26,9 +30,16 @@ export function HotbarInput() {
       }
     }
     // Plain wheel scrolls the hotbar selection; Alt+wheel is the camera zoom
-    // (handled in MouseLookCamera), so bail when Alt is held.
+    // (handled in MouseLookCamera), so bail when Alt is held. Throttle one step
+    // per gesture-tick: a single trackpad/inertial flick fires dozens of wheel
+    // events, which would otherwise machine-gun cycleSelection (equip SFX +
+    // re-skin burst). A vertical-only guard ignores horizontal swipes.
+    let lastWheel = 0
     const onWheel = (e: WheelEvent) => {
-      if (e.altKey || isFrozen()) return
+      if (e.altKey || isFrozen() || e.deltaY === 0) return
+      const t = performance.now()
+      if (t - lastWheel < WHEEL_STEP_MS) return
+      lastWheel = t
       cycleSelection(e.deltaY > 0 ? 1 : -1)
     }
     // Right-mouse raises the shield. We listen on mousedown/up (button 2)

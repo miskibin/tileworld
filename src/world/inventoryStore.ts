@@ -22,6 +22,8 @@ export interface ItemDef {
   defense?: number
   /** armor: base colour the knight's plate is re-skinned to when worn */
   armorTint?: string
+  /** armor: plate metalness when worn (leather matte → gold shiny); default 0.25 */
+  armorMetal?: number
   /** consumables stack; weapons/armor don't */
   stackable: boolean
   /** consumable: timed buff granted on use (in addition to any heal) */
@@ -52,9 +54,9 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   elk_jerky: { id: 'elk_jerky', name: 'Elk Jerky', icon: '🍖', kind: 'consumable', heal: 35, stackable: true },
   stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 26, stackable: false },
   // ─── Wearable armor (equip → re-skins the knight + cuts incoming damage) ──
-  leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', stackable: false },
-  iron_armor: { id: 'iron_armor', name: 'Iron Cuirass', icon: '🛡️', kind: 'armor', defense: 0.28, armorTint: '#aeb4c0', stackable: false },
-  gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.4, armorTint: '#e8b84b', stackable: false },
+  leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },
+  iron_armor: { id: 'iron_armor', name: 'Iron Cuirass', icon: '🛡️', kind: 'armor', defense: 0.28, armorTint: '#aeb4c0', armorMetal: 0.6, stackable: false },
+  gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.4, armorTint: '#e8b84b', armorMetal: 0.85, stackable: false },
 }
 
 export const HOTBAR_SIZE = 6
@@ -100,6 +102,13 @@ export function getArmorDamageMult(): number {
   return state.armorDamageMult
 }
 
+/** Equip a weapon (sets the held mesh id + attack bonus). Internal helper. */
+function equipWeapon(def: ItemDef): void {
+  state.weaponBonus = def.damageBonus ?? 0
+  state.equippedId = def.id
+  playEquip()
+}
+
 /** Equip the armor item by id (sets the re-skin + defense). Internal helper. */
 function equipArmor(def: ItemDef): void {
   state.equippedArmorId = def.id
@@ -128,9 +137,7 @@ export function selectSlot(i: number): void {
   const slot = state.slots[i]
   const def = slot?.itemId ? ITEM_DEFS[slot.itemId] : null
   if (def?.kind === 'weapon' && state.equippedId !== def.id) {
-    state.weaponBonus = def.damageBonus ?? 0
-    state.equippedId = def.id
-    playEquip()
+    equipWeapon(def)
   } else if (def?.kind === 'armor' && state.equippedArmorId !== def.id) {
     equipArmor(def)
   }
@@ -183,9 +190,7 @@ export function activateSlot(i: number): void {
     }
     notify()
   } else if (def.kind === 'weapon') {
-    state.weaponBonus = def.damageBonus ?? 0
-    state.equippedId = def.id
-    playEquip()
+    equipWeapon(def)
     notify()
   } else if (def.kind === 'armor') {
     equipArmor(def)

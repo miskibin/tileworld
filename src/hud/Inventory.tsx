@@ -9,8 +9,7 @@ import {
   HOTBAR_SIZE,
   type ItemDef,
 } from '../world/inventoryStore'
-
-const BUFF_LABEL: Record<string, string> = { resist: 'Resist', power: 'Power', haste: 'Haste' }
+import { BUFF_LABEL } from '../world/buffStore'
 
 /** One-line stat summary for the hover/scroll popup. */
 function statLine(def: ItemDef): string {
@@ -18,7 +17,7 @@ function statLine(def: ItemDef): string {
   if (def.kind === 'armor') return `−${Math.round((def.defense ?? 0) * 100)}% damage taken`
   const parts: string[] = []
   if (def.heal) parts.push(`+${def.heal} HP`)
-  if (def.buff) parts.push(`${BUFF_LABEL[def.buff.kind] ?? def.buff.kind} ${Math.round(def.buff.durationMs / 1000)}s`)
+  if (def.buff) parts.push(`${BUFF_LABEL[def.buff.kind]} ${Math.round(def.buff.durationMs / 1000)}s`)
   return parts.join(' · ') || 'No effect'
 }
 
