@@ -6,6 +6,7 @@ import { isShopOpen, subscribeShop } from './shopStore'
 import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
 import { getShake } from './fxStore'
+import { isAltHeld } from './inputModifiers'
 
 interface Props {
   posRef: MutableRefObject<PlayerStateRef>
@@ -56,11 +57,15 @@ export function MouseLookCamera({ posRef }: Props) {
       el.requestPointerLock()
     }
     // Zoom is Alt+scroll now; plain scroll cycles the hotbar (HotbarInput).
+    // Alt is keyboard-tracked because the wheel event's own altKey is unreliable
+    // on Windows; some setups also convert Alt+wheel to a horizontal delta, so
+    // fall back to deltaX when deltaY is zero.
     const onWheel = (e: WheelEvent) => {
-      if (!e.altKey) return
+      if (!e.altKey && !isAltHeld()) return
+      const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX
       dist.current = Math.max(
         MIN_DIST,
-        Math.min(MAX_DIST, dist.current + e.deltaY * ZOOM_SENS),
+        Math.min(MAX_DIST, dist.current + delta * ZOOM_SENS),
       )
     }
     const onLockChange = () => {

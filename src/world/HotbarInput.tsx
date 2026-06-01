@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { selectSlot, activateSelected, cycleSelection, HOTBAR_SIZE } from './inventoryStore'
 import { isFrozen } from './pauseStore'
 import { isInteractInRange } from './interactStore'
+import { isAltHeld } from './inputModifiers'
 import { setWantBlock } from './blockStore'
 
 // Min gap between scroll-driven hotbar steps — coalesces an inertial flick
@@ -36,7 +37,9 @@ export function HotbarInput() {
     // re-skin burst). A vertical-only guard ignores horizontal swipes.
     let lastWheel = 0
     const onWheel = (e: WheelEvent) => {
-      if (e.altKey || isFrozen() || e.deltaY === 0) return
+      // Alt (keyboard-tracked, since the wheel event's altKey is unreliable on
+      // Windows) means "zoom" — leave it for MouseLookCamera, don't cycle.
+      if (e.altKey || isAltHeld() || isFrozen() || e.deltaY === 0) return
       const t = performance.now()
       if (t - lastWheel < WHEEL_STEP_MS) return
       lastWheel = t
