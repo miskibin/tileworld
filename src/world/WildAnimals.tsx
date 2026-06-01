@@ -8,6 +8,12 @@ import { WolfView } from './Wolf'
 import { DeerView } from './Deer'
 import { BoarView } from './Boar'
 import { RabbitView } from './Rabbit'
+import { PolarBearView } from './PolarBear'
+import { ScorpionView } from './Scorpion'
+import { BogCrocView } from './BogCroc'
+import { ElkView } from './Elk'
+import { GoatView } from './Goat'
+import { GolemView } from './Golem'
 
 // Wild animal population. Mirrors Bears(): register on the first frame, render
 // the right view per species from the shared animalStore. Positions auto-snap
@@ -34,6 +40,16 @@ const ANIMAL_SPAWNS: Spawn[] = [
   // Lone boars rooting around the wilds
   { species: 'boar', pos: [92, 72], seed: 1.3 },
   { species: 'boar', pos: [48, 68], seed: 2.6 },
+  // ─── Biome signature creatures (Phase 2) ──────────────────────
+  { species: 'polar_bear', pos: [40, 30], seed: 7.1 },
+  { species: 'scorpion', pos: [104, 30], seed: 7.4 },
+  { species: 'scorpion', pos: [110, 36], seed: 7.6 },
+  { species: 'bog_croc', pos: [72, 86], seed: 8.2 },
+  { species: 'elk', pos: [40, 72], seed: 8.5 },
+  { species: 'elk', pos: [110, 80], seed: 8.8 },
+  { species: 'goat', pos: [30, 50], seed: 9.1 },
+  { species: 'goat', pos: [118, 60], seed: 9.3 },
+  { species: 'golem', pos: [22, 58], seed: 9.6 },
 ]
 
 // Seconds after an animal dies before a fresh one of the same species returns to
@@ -58,6 +74,18 @@ function AnimalView({ state }: { state: AnimalState }) {
       return <BoarView state={state} />
     case 'rabbit':
       return <RabbitView state={state} />
+    case 'polar_bear':
+      return <PolarBearView state={state} />
+    case 'scorpion':
+      return <ScorpionView state={state} />
+    case 'bog_croc':
+      return <BogCrocView state={state} />
+    case 'elk':
+      return <ElkView state={state} />
+    case 'goat':
+      return <GoatView state={state} />
+    case 'golem':
+      return <GolemView state={state} />
     default:
       return null
   }
