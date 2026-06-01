@@ -266,11 +266,16 @@ export function World() {
           {/* Ambient occlusion grounds props/buildings into the terrain so
               they stop looking pasted-on. Half-res keeps it cheap. */}
           <N8AO halfRes aoRadius={2.0} distanceFalloff={1.5} intensity={2.2} />
-          {/* Volumetric sun shafts from the emissive sun sphere. */}
+          {/* Volumetric sun shafts from the emissive sun sphere. The shafts are
+              low-frequency and `blur`-smoothed, so they tolerate a lower march
+              resolution + fewer samples with no visible change — and that's the
+              single most expensive post pass. (resolutionScale defaults to 0.5;
+              0.4 + 36 samples roughly halves its fill cost vs the old 60.) */}
           <GodRays
             sun={sunMesh}
             blur
-            samples={60}
+            samples={36}
+            resolutionScale={0.4}
             density={0.96}
             decay={0.92}
             weight={0.4}

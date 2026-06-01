@@ -6,7 +6,6 @@ import { isShopOpen, subscribeShop } from './shopStore'
 import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
 import { getShake } from './fxStore'
-import { isAltHeld } from './inputModifiers'
 
 interface Props {
   posRef: MutableRefObject<PlayerStateRef>
@@ -31,8 +30,6 @@ export function MouseLookCamera({ posRef }: Props) {
 
   const azimuth = useRef(Math.PI * 0.85)
   const polar = useRef(Math.PI * 0.18)
-  // 10% closer default than the old 12 — scroll alone now drives the hotbar,
-  // so zoom moved onto Alt+scroll (see onWheel).
   const dist = useRef(10.8)
   const locked = useRef(false)
 
@@ -56,12 +53,10 @@ export function MouseLookCamera({ posRef }: Props) {
       if (isShopOpen() || isPaused() || isTreeOpen()) return
       el.requestPointerLock()
     }
-    // Zoom is Alt+scroll now; plain scroll cycles the hotbar (HotbarInput).
-    // Alt is keyboard-tracked because the wheel event's own altKey is unreliable
-    // on Windows; some setups also convert Alt+wheel to a horizontal delta, so
-    // fall back to deltaX when deltaY is zero.
+    // Plain scroll wheel zooms the camera (the hotbar uses number keys, so the
+    // wheel is free for the conventional zoom gesture). Some setups convert the
+    // wheel to a horizontal delta, so fall back to deltaX when deltaY is zero.
     const onWheel = (e: WheelEvent) => {
-      if (!e.altKey && !isAltHeld()) return
       const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX
       dist.current = Math.max(
         MIN_DIST,

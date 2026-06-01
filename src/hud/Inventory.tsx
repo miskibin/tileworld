@@ -82,8 +82,8 @@ export function Inventory() {
               title={
                 def
                   ? def.kind === 'consumable'
-                    ? `${def.name} — E / right-click to use`
-                    : `${def.name} — select or E to equip`
+                    ? `${def.name} — Q / right-click to use`
+                    : `${def.name} — select or Q to equip`
                   : 'Empty'
               }
             >
@@ -94,7 +94,7 @@ export function Inventory() {
           )
         })}
       </div>
-      <div className="hotbar-hint">1–6 / scroll select · E use/equip</div>
+      <div className="hotbar-hint">1–6 select · Q use/equip</div>
     </div>
   )
 }
