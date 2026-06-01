@@ -30,6 +30,7 @@ import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
 import { Projectiles } from './Projectiles'
 import { Impacts } from './Impacts'
+import { Pickups } from './Pickups'
 import { Chest } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
@@ -161,6 +162,9 @@ export function World() {
 
         {/* Hit-impact spark/splinter bursts (grid-space, pooled like bolts) */}
         <Impacts />
+
+        {/* Ground loot dropped by slain creatures (grid-space, pooled like Impacts) */}
+        <Pickups />
 
         {/* Treasure chests — interactive (press F) with loot + gold. Positions
             auto-snap to valid land, so they're safe to scatter widely. */}
