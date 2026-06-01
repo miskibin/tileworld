@@ -34,6 +34,7 @@ import { createVillager } from '../src/world/villagerStore'
 import { Boat } from '../src/world/Boat'
 import { DistantMountains } from '../src/world/DistantMountains'
 import { WolfView } from '../src/world/Wolf'
+import { ScorpionView } from '../src/world/Scorpion'
 import { DeerView } from '../src/world/Deer'
 import { BoarView } from '../src/world/Boar'
 import { RabbitView } from '../src/world/Rabbit'
@@ -58,6 +59,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Ork: () => <OrkView state={createOrk(0, 0, 0, 'grunt', 'red', 1)} />,
   OrkShaman: () => <OrkView state={createOrk(0, 0, 0, 'shaman', 'blue', 1)} />,
   Wolf: () => <WolfView state={createAnimal('wolf', 0, 0, 1)} />,
+  Scorpion: () => <ScorpionView state={createAnimal('scorpion', 0, 0, 1)} />,
   PolarBear: () => <PolarBearView state={createAnimal('polar_bear', 0, 0, 1)} />,
   Deer: () => <DeerView state={createAnimal('deer', 0, 0, 1)} />,
   Boar: () => <BoarView state={createAnimal('boar', 0, 0, 1)} />,
