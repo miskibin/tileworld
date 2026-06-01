@@ -186,6 +186,15 @@ export function World() {
         <Chest position={[50, 1, 66]} rotation={1.9} gold={9} loot={['bread']} />
         <Chest position={[100, 1, 44]} rotation={2.3} gold={13} loot={['potion']} />
 
+        {/* Biome loot chests — one per creature drop, so each item is also
+            findable by exploring (Phase 2). */}
+        <Chest position={[34, 1, 30]} rotation={0.5} gold={8} loot={['fur']} />
+        <Chest position={[106, 1, 28]} rotation={-0.6} gold={8} loot={['venom']} />
+        <Chest position={[72, 1, 88]} rotation={1.3} gold={8} loot={['croc_steak']} />
+        <Chest position={[40, 1, 74]} rotation={2.0} gold={8} loot={['elk_jerky']} />
+        <Chest position={[120, 1, 58]} rotation={-1.4} gold={8} loot={['goat_charm']} />
+        <Chest position={[24, 1, 56]} rotation={0.9} gold={10} loot={['stone_maul']} />
+
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />
 
