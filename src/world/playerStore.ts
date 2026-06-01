@@ -7,7 +7,7 @@ import {
   playPlayerDeath,
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
-import { getDamageTakenMult } from './buffStore'
+import { getDamageTakenMult, resetBuffs } from './buffStore'
 import { isUnlimitedMoney } from './debugStore'
 import {
   absorbBlockedHit,
@@ -164,6 +164,7 @@ export function resetPlayer(): void {
   state.levelUpFlashUntil = 0
   state.facing = Math.PI
   resetBlock()
+  resetBuffs()
   notifyHp()
   notifyGold()
   notifyStats()
