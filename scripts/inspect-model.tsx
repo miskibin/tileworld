@@ -39,6 +39,7 @@ import { DeerView } from '../src/world/Deer'
 import { BoarView } from '../src/world/Boar'
 import { RabbitView } from '../src/world/Rabbit'
 import { PolarBearView } from '../src/world/PolarBear'
+import { BogCrocView } from '../src/world/BogCroc'
 import { createAnimal } from '../src/world/animalStore'
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Deer: () => <DeerView state={createAnimal('deer', 0, 0, 1)} />,
   Boar: () => <BoarView state={createAnimal('boar', 0, 0, 1)} />,
   Rabbit: () => <RabbitView state={createAnimal('rabbit', 0, 0, 1)} />,
+  BogCroc: () => <BogCrocView state={createAnimal('bog_croc', 0, 0, 1)} />,
   Wall: () => <Wall position={[0, 0, 0]} len={11} />,
   Tower: () => <Tower position={[0, 0, 0]} />,
   Gate: () => <Gate position={[0, 0, 0]} width={4} />,
