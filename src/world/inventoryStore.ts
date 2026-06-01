@@ -132,7 +132,7 @@ export function selectSlot(i: number): void {
   state.selected = i
   // Auto-equip: selecting a weapon/armor slot equips it, so the held model,
   // damage, and worn plate follow the hotbar (picking the axe = holding the
-  // axe; picking plate = wearing it). Consumables stay on E / right-click so
+  // axe; picking plate = wearing it). Consumables stay on Q / right-click so
   // simply browsing the bar doesn't eat them.
   const slot = state.slots[i]
   const def = slot?.itemId ? ITEM_DEFS[slot.itemId] : null

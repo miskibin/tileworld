@@ -83,7 +83,7 @@ export function Inventory() {
                 def
                   ? def.kind === 'consumable'
                     ? `${def.name} — Q / right-click to use`
-                    : `${def.name} — select or Q to equip`
+                    : `${def.name} — select to equip`
                   : 'Empty'
               }
             >
