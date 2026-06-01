@@ -7,6 +7,7 @@ import {
   playPlayerDeath,
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
+import { getDamageTakenMult } from './buffStore'
 import { isUnlimitedMoney } from './debugStore'
 import {
   absorbBlockedHit,
@@ -108,7 +109,7 @@ export function isPlayerAlive(): boolean {
 export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?: number): void {
   if (state.hp <= 0) return
 
-  let dmg = amount
+  let dmg = amount * getDamageTakenMult()
   const blk = getBlockState()
   if (blk.blocking && fromX !== undefined && fromZ !== undefined) {
     const dx = fromX - state.x

@@ -29,6 +29,7 @@ import {
   XP_PER_ORK,
 } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { getDamageDealtMult, getSpeedMult } from './buffStore'
 import { setVisionPlayerPos } from './vision'
 import {
   getBlockState,
@@ -220,7 +221,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // ─── Apply motion with axis-separated collision (tile + props) ──
     const sprinting = moving && k.sprint
     if (moving) {
-      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * dt
+      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * dt
       const nx = pos.current.x + moveDir.x * step
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
@@ -391,7 +392,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
-          const dmg = getAttackDamage() + getWeaponBonus()
+          const dmg = Math.round((getAttackDamage() + getWeaponBonus()) * getDamageDealtMult())
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
           let hitAny = false
