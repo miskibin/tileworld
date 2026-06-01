@@ -1,6 +1,5 @@
 import { useRef, useMemo, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 import {
   damageOrk,
@@ -29,6 +28,7 @@ import { isFrozen } from './pauseStore'
 import { getPhase } from './gameStore'
 import { isCulled } from './cull'
 import { mergeParts, type MergedPart } from './mergeParts'
+import { faceCamera } from './faceCamera'
 import { playOrkGrunt } from '../audio/sfx'
 
 const TURN_RATE_FALLBACK = 6
@@ -192,7 +192,7 @@ export function OrkView({ state }: OrkViewProps) {
   const [visible, setVisible] = useState(true)
   const deadFadeFrom = useRef<number | null>(null)
 
-  useFrame(({ clock }, dtFrame) => {
+  useFrame(({ clock, camera }, dtFrame) => {
     if (isFrozen()) return
     const t = clock.getElapsedTime() + state.seed
     const tNow = clock.getElapsedTime()
@@ -543,6 +543,8 @@ export function OrkView({ state }: OrkViewProps) {
     if (billboardGroupRef.current) {
       const showBar = state.hp < state.maxHp
       billboardGroupRef.current.visible = showBar
+      // Face the camera here (no separate drei <Billboard> useFrame per ork).
+      if (showBar) faceCamera(billboardGroupRef.current, camera)
       if (showBar && hpFgRef.current) {
         const ratio = Math.max(0, state.hp / state.maxHp)
         hpFgRef.current.scale.x = HP_BAR_WIDTH * ratio
@@ -607,18 +609,16 @@ export function OrkView({ state }: OrkViewProps) {
         ))}
       </group>
 
-      {/* HP bar */}
+      {/* HP bar — oriented to camera in the ork's own useFrame via faceCamera. */}
       <group ref={billboardGroupRef} position={[0, 2.6, 0]} visible={false}>
-        <Billboard follow>
-          <mesh material={HP_BAR_BG} geometry={HP_BAR_GEO} scale={[HP_BAR_WIDTH + 0.05, HP_BAR_HEIGHT + 0.03, 1]} />
-          <mesh
-            ref={hpFgRef}
-            material={HP_BAR_FG}
-            geometry={HP_BAR_GEO}
-            position={[0, 0, 0.001]}
-            scale={[HP_BAR_WIDTH, HP_BAR_HEIGHT, 1]}
-          />
-        </Billboard>
+        <mesh material={HP_BAR_BG} geometry={HP_BAR_GEO} scale={[HP_BAR_WIDTH + 0.05, HP_BAR_HEIGHT + 0.03, 1]} />
+        <mesh
+          ref={hpFgRef}
+          material={HP_BAR_FG}
+          geometry={HP_BAR_GEO}
+          position={[0, 0, 0.001]}
+          scale={[HP_BAR_WIDTH, HP_BAR_HEIGHT, 1]}
+        />
       </group>
     </group>
   )
