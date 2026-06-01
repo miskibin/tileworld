@@ -14,7 +14,11 @@ export default function App() {
         shadows={CAPTURE_MODE ? false : 'soft'}
         dpr={CAPTURE_MODE ? 1 : [1, 1.5]}
         gl={{
-          antialias: !CAPTURE_MODE,
+          // No MSAA on the canvas: in normal play the EffectComposer renders the
+          // final image through its own SMAA pass, so context-level MSAA is pure
+          // wasted work (it antialiases a buffer the composer discards). Capture
+          // mode has no composer and also wants the cheap path. Either way: off.
+          antialias: false,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
