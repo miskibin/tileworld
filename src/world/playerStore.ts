@@ -117,7 +117,7 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
     const len = Math.hypot(dx, dz) || 1
     const dot = (dx / len) * Math.sin(state.facing) + (dz / len) * Math.cos(state.facing)
     if (dot > BLOCK_CONE_DOT) {
-      dmg = amount * (1 - BLOCK_REDUCTION)
+      dmg = dmg * (1 - BLOCK_REDUCTION)
       absorbBlockedHit()
       playBlock()
       addShake(0.1, 0.14)
