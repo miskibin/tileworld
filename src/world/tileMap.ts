@@ -175,21 +175,29 @@ interface Region {
   biome: Biome
   /** centre height class for mountain biomes (rock/snow) */
   peak?: number
+  /** azimuth (radians) of the guaranteed climbable ramp up the mountain; if
+   *  omitted the ramp faces the castle (the approach side). See rampClass. */
+  rampAng?: number
 }
+// Biomes are larger than the first pass (the map read as mostly grass): the
+// non-mountain blobs are widened so the biome ring crowds the grass belt, and
+// the mountains are both taller (higher peaks) and broader. Each still sits
+// beyond the castle safe-zone, which is forced flat-grass first regardless.
 const REGIONS: Region[] = [
   // Inner ring around the castle — biomes set back beyond the safe-zone.
-  { x: 30, z: 24, r: 20, biome: 'snow', peak: 7 }, // NW snow massif
-  { x: 110, z: 26, r: 20, biome: 'desert' }, // NE dunes
-  { x: 36, z: 76, r: 18, biome: 'forest' }, // SW deep wood (on solid ground N of the river mouth)
-  { x: 116, z: 86, r: 21, biome: 'forest' }, // SE pinewood
-  { x: 72, z: 92, r: 17, biome: 'swamp' }, // S marsh
-  // Mountain ranges spread around + out toward the edges.
-  { x: 20, z: 54, r: 16, biome: 'rock', peak: 8 }, // W range
-  { x: 122, z: 56, r: 17, biome: 'rock', peak: 8 }, // E range
-  { x: 72, z: 14, r: 15, biome: 'rock', peak: 7 }, // N range
-  { x: 134, z: 14, r: 12, biome: 'rock', peak: 6 }, // NE corner peaks
-  { x: 12, z: 96, r: 12, biome: 'rock', peak: 6 }, // SW corner peaks
-  { x: 96, z: 12, r: 12, biome: 'snow', peak: 6 }, // N snow extension
+  { x: 28, z: 22, r: 24, biome: 'snow', peak: 10 }, // NW snow massif (taller)
+  { x: 110, z: 24, r: 26, biome: 'desert' }, // NE dunes (wider)
+  { x: 34, z: 78, r: 23, biome: 'forest' }, // SW deep wood (N of the river mouth)
+  { x: 116, z: 86, r: 26, biome: 'forest' }, // SE pinewood (wider)
+  { x: 72, z: 94, r: 23, biome: 'swamp' }, // S marsh (wider)
+  // Mountain ranges spread around + out toward the edges — higher + broader, so
+  // they carry real cliffs while a carved ramp keeps one route to each summit.
+  { x: 18, z: 54, r: 20, biome: 'rock', peak: 11 }, // W range
+  { x: 124, z: 56, r: 21, biome: 'rock', peak: 11 }, // E range
+  { x: 72, z: 12, r: 18, biome: 'rock', peak: 9 }, // N range
+  { x: 136, z: 14, r: 14, biome: 'rock', peak: 8 }, // NE corner peaks
+  { x: 10, z: 96, r: 15, biome: 'rock', peak: 8 }, // SW corner peaks
+  { x: 96, z: 10, r: 15, biome: 'snow', peak: 9 }, // N snow extension
 ]
 
 /** True if (x,z) falls inside (or just outside) any mountain region blob
@@ -220,19 +228,62 @@ function regionAt(x: number, z: number): Region | null {
   return best
 }
 
-/** Mountain height at (x,z): a QUADRATIC profile — gentle near the foot, steep
- *  toward the core. `t` runs 0 at the foot → 1 at the centre; `peak·t²` keeps the
- *  outer apron shallow (≤1-class steps → climbable, so camps/roads at the foot
- *  stay reachable) while the upper core climbs fast enough that many faces jump
- *  ≥2 classes — sheer cliffs you can't scale (but can drop off, with fall
- *  damage; see Character). A mild noise wobble breaks the concentric rings so the
- *  steep bands have occasional climbable notches (passes) instead of a sealed
- *  dome, and gives the silhouette a craggy, uneven look. */
+// Half-width (tiles) of the carved ramp corridor that guarantees one walkable
+// route to every summit. ~1.7 → a ≈3.4-tile-wide trail, wide enough that the
+// flood-fill (and the player) always gets through even with a prop or two
+// nearby — and the corridor is reserved from scatter (see obstacles.ts) so it
+// reads as a cleared switchback up the mountain.
+const RAMP_HALF_TILES = 1.7
+
+/** Climbable-ramp height class at (x,z) for mountain region `reg`, or null if the
+ *  tile is outside the ramp corridor. The corridor runs on a fixed azimuth
+ *  (facing the castle by default) and its height is a STRICT one-class staircase
+ *  from the foot (2) to the summit (peak): every adjacent corridor tile differs
+ *  by ≤1 class, so the whole path is climbable end to end no matter how sheer the
+ *  noise makes the cliffs on either side. This is what makes "always at least one
+ *  walkable path to the top" a guarantee rather than an accident of the noise. */
+function rampClass(x: number, z: number, reg: Region): number | null {
+  if (reg.peak === undefined) return null
+  const dx = x - reg.x
+  const dz = z - reg.z
+  const dc = Math.hypot(dx, dz)
+  if (dc >= reg.r) return null
+  const rampAng = reg.rampAng ?? Math.atan2(CASTLE_CENTER.z - reg.z, CASTLE_CENTER.x - reg.x)
+  let da = (Math.atan2(dz, dx) - rampAng) % (Math.PI * 2)
+  if (da < -Math.PI) da += Math.PI * 2
+  if (da > Math.PI) da -= Math.PI * 2
+  // Arc half-width that keeps the corridor ~constant tile-width at any radius.
+  const halfAng = Math.min(Math.PI, RAMP_HALF_TILES / Math.max(1.5, dc))
+  if (Math.abs(da) >= halfAng) return null
+  const span = Math.max(1, reg.peak - 2)
+  const stepLen = reg.r / span // tiles of run per one-class rise (> ~1.5 → climbable)
+  const cls = 2 + Math.floor((reg.r - dc) / stepLen)
+  return Math.max(2, Math.min(reg.peak, cls))
+}
+
+/** True if (x,z) lies in any mountain's ramp corridor — obstacles.ts reserves
+ *  these tiles so scatter never blocks the one guaranteed path up. */
+export function isMountainRampTile(x: number, z: number): boolean {
+  for (const reg of REGIONS) {
+    if (rampClass(x, z, reg) !== null) return true
+  }
+  return false
+}
+
+/** Mountain height at (x,z). On the carved ramp corridor it follows the climbable
+ *  staircase (rampClass); elsewhere it's a QUADRATIC profile — gentle near the
+ *  foot, steep toward the core. `t` runs 0 at the foot → 1 at the centre; the
+ *  noise amplitude GROWS with `t` so the apron (and the ork camps / roads at the
+ *  foot) stays shallow + climbable while the upper core fractures into Δ≥2 cliff
+ *  faces you can't scale (but can drop off, with fall damage; see Character) —
+ *  taller peaks + bigger edges than the first pass. */
 function mountainHeight(x: number, z: number, reg: Region): number {
+  const rc = rampClass(x, z, reg)
+  if (rc !== null) return rc
   const dc = Math.hypot(x - reg.x, z - reg.z)
   const peak = reg.peak ?? 6
   const t = Math.max(0, 1 - dc / reg.r)
-  const h = Math.round(peak * t * t + noiseB(x, z) * 0.8)
+  const h = Math.round(peak * t * t + noiseB(x, z) * (0.35 + t * 0.95))
   return Math.max(1, Math.min(peak, h))
 }
 
@@ -268,9 +319,10 @@ function classifyBiome(x: number, z: number): Tile | null {
     return { biome: reg.biome, height: 1 }
   }
 
-  // Scattered grass-belt forest clumps so the green isn't uniform.
+  // Scattered grass-belt forest clumps so the open green isn't uniform (denser
+  // than before — the map read as too much flat grass).
   const forestN = noiseA(x, z) * noiseB(x + 7, z - 3)
-  if (forestN > 0.62) return { biome: 'forest', height: 1 }
+  if (forestN > 0.5) return { biome: 'forest', height: 1 }
 
   return { biome: 'grass', height: 1 }
 }

@@ -1,4 +1,4 @@
-import { tileAt, tileTopY, standable, COLS, ROWS, type Biome } from './tileMap'
+import { tileAt, tileTopY, standable, isMountainRampTile, COLS, ROWS, type Biome } from './tileMap'
 import { isInsideCastle, snapToCardinal } from './cityPlan'
 import { isRoadTile } from './roads'
 
@@ -53,6 +53,9 @@ function isReserved(x: number, z: number): boolean {
   if (isInsideCastle(x, z)) return true
   // Never scatter props on a road tile.
   if (isRoadTile(x, z)) return true
+  // Keep the climbable ramp up each mountain clear so a prop can never wall off
+  // the one guaranteed path to the summit (reads as a cleared switchback).
+  if (isMountainRampTile(x, z)) return true
   return RESERVED.has(`${x},${z}`)
 }
 
