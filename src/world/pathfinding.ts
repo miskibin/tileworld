@@ -1,5 +1,4 @@
-import { COLS, ROWS, tileAt } from './tileMap'
-import { bridgeAt } from './bridges'
+import { COLS, ROWS, standable, canStep } from './tileMap'
 import { houseBlocksAt } from './houseBlockers'
 import { isObstacleTile } from './obstacles'
 
@@ -8,6 +7,10 @@ export interface PathPoint {
   z: number
 }
 
+/** Can a walker occupy tile (cx,cz) at all — terrain standable + no prop/house.
+ *  The *climb* feasibility between two tiles is a separate canStep() check in
+ *  the neighbour loop, so a tile can be standable yet unreachable from a
+ *  too-tall neighbour (a cliff face). */
 function isWalkable(cx: number, cz: number): boolean {
   if (cx < 0 || cz < 0 || cx >= COLS || cz >= ROWS) return false
   // House footprints block pathing even if the tile beneath is land.
@@ -15,12 +18,8 @@ function isWalkable(cx: number, cz: number): boolean {
   // Tiles holding a collidable prop (tree/boulder/…) are impassable, so paths
   // route around them instead of wedging the walker against the trunk.
   if (isObstacleTile(cx, cz)) return false
-  const tile = tileAt(cx, cz)
-  // Elevated terrain (snow plateaus h3, rock highlands h2) is treated as a
-  // cliff — walkers route around it instead of scaling the vertical step.
-  if (tile) return tile.height < 2
-  // Sample cell center to catch bridge spans that cover this tile.
-  return bridgeAt(cx + 0.5, cz + 0.5) !== null
+  // Land (any climbable height) or a bridge deck — shared rule with movement.
+  return standable(cx, cz)
 }
 
 const NEIGHBORS: ReadonlyArray<readonly [number, number]> = [
@@ -109,9 +108,14 @@ export function findPath(
       const nk = key(nx, nz)
       if (closed.has(nk)) continue
       if (!isWalkable(nx, nz)) continue
-      // Prevent corner-cutting through a diagonal gap.
+      // Climb gate: the height step into the neighbour must be ≤ 1 class — a
+      // Δ ≥ 2 face is a cliff the walker routes around.
+      if (!canStep(cx, cz, nx, nz)) continue
+      // Prevent corner-cutting through a diagonal gap (and around a cliff
+      // corner): both orthogonal cells must be walkable AND a legal step.
       if (dx !== 0 && dz !== 0) {
         if (!isWalkable(cx + dx, cz) || !isWalkable(cx, cz + dz)) continue
+        if (!canStep(cx, cz, cx + dx, cz) || !canStep(cx, cz, cx, cz + dz)) continue
       }
       const step = dx && dz ? Math.SQRT2 : 1
       const ng = g + step

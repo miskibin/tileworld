@@ -1,4 +1,4 @@
-import { tileAt, COLS, ROWS, type Biome } from './tileMap'
+import { tileAt, tileTopY, standable, isMountainRampTile, COLS, ROWS, type Biome } from './tileMap'
 import { isInsideCastle, snapToCardinal } from './cityPlan'
 import { isRoadTile } from './roads'
 
@@ -36,19 +36,14 @@ const RESERVED = new Set<string>(
     const box = (x0: number, x1: number, z0: number, z1: number) => {
       for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) r.push(`${x},${z}`)
     }
-    // Ork camps (SW / NE / SE / north warcamp)
-    box(19, 25, 49, 55)
-    box(73, 79, 17, 23)
-    box(71, 77, 51, 57)
-    box(47, 53, 10, 16)
-    // Western hamlet
-    box(23, 31, 27, 33)
-    // Market stall just outside the south gate
-    box(59, 65, 43, 47)
-    // Bridge approaches — keep clear so the player can walk on
-    box(30, 44, 28, 33)
-    box(30, 44, 48, 53)
-    box(62, 67, 12, 22)
+    // Ork camps on the mountain aprons (W range / E range / N range)
+    box(29, 35, 51, 57)
+    box(106, 112, 53, 59)
+    box(69, 75, 22, 28)
+    // Northwest hamlet
+    box(46, 54, 34, 42)
+    // Market stall south of the castle (moved well clear of the south wall)
+    box(64, 71, 67, 73)
     return r
   })(),
 )
@@ -58,6 +53,9 @@ function isReserved(x: number, z: number): boolean {
   if (isInsideCastle(x, z)) return true
   // Never scatter props on a road tile.
   if (isRoadTile(x, z)) return true
+  // Keep the climbable ramp up each mountain clear so a prop can never wall off
+  // the one guaranteed path to the summit (reads as a cleared switchback).
+  if (isMountainRampTile(x, z)) return true
   return RESERVED.has(`${x},${z}`)
 }
 
@@ -97,7 +95,7 @@ export function getObstacles(): Obstacle[] {
 
 function push(out: Obstacle[], kind: ObstacleKind, x: number, z: number, scale: number, rot: number, variant: number) {
   const baseTile = tileAt(Math.floor(x), Math.floor(z))
-  const y = baseTile ? baseTile.height : 1
+  const y = baseTile ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   out.push({
     kind,
     x,
@@ -275,8 +273,9 @@ export function findSpawnNear(x: number, z: number, maxR = 8): { x: number; z: n
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue // current ring only
         const cx = ox + dx
         const cz = oz + dz
-        const tile = tileAt(cx, cz)
-        if (tile && tile.height < 2 && !isObstacleTile(cx, cz)) {
+        // Any standable tile (incl. climbable mountain shelves where ork camps
+        // sit) that isn't holding a prop. Shared rule with pathfinding/movement.
+        if (standable(cx, cz) && !isObstacleTile(cx, cz)) {
           return { x: cx + 0.5, z: cz + 0.5 }
         }
       }

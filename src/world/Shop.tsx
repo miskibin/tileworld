@@ -124,7 +124,7 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
   }, [position])
 
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[0.7, 0.62, 0.7]}>
       {/* Foundation */}
       <mesh position={[0, FOUND_H / 2, 0]} castShadow receiveShadow material={STONE_MAT}>
         <boxGeometry args={[WALL_W + 0.2, FOUND_H, WALL_D + 0.2]} />

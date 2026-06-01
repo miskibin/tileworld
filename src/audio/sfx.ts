@@ -1,4 +1,4 @@
-import { getListener, isEnabled, playSfx } from './audio'
+import { getListener, isEnabled, playSfx, audioMix } from './audio'
 
 // Procedurally-synthesized SFX via WebAudio — no asset files needed. All sounds
 // reuse the THREE.AudioListener's AudioContext so they share the same enabled/
@@ -11,6 +11,22 @@ function ctx(): AudioContext | null {
   const c = l.context as AudioContext
   if (c.state === 'suspended') void c.resume()
   return c
+}
+
+// Single master gain for ALL procedural SFX — one knob to keep combat from
+// drowning the mix. Cached per AudioContext, sits between every tone/noise and
+// the speakers. Level is re-read from the live mix on each fetch so the leva
+// panel can tune it in real time.
+const masterCache = new WeakMap<AudioContext, GainNode>()
+function master(c: AudioContext): GainNode {
+  let g = masterCache.get(c)
+  if (!g) {
+    g = c.createGain()
+    g.connect(c.destination)
+    masterCache.set(c, g)
+  }
+  g.gain.value = audioMix.sfx
+  return g
 }
 
 const noiseCache = new WeakMap<AudioContext, AudioBuffer>()
@@ -43,7 +59,7 @@ function tone(
   g.gain.setValueAtTime(0.0001, t0)
   g.gain.exponentialRampToValueAtTime(peak, t0 + 0.008)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
-  osc.connect(g).connect(c.destination)
+  osc.connect(g).connect(master(c))
   osc.start(t0)
   osc.stop(t0 + dur + 0.02)
 }
@@ -69,7 +85,7 @@ function noise(
   g.gain.setValueAtTime(0.0001, t0)
   g.gain.exponentialRampToValueAtTime(peak, t0 + 0.01)
   g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
-  src.connect(filter).connect(g).connect(c.destination)
+  src.connect(filter).connect(g).connect(master(c))
   src.start(t0)
   src.stop(t0 + dur + 0.02)
 }
@@ -161,7 +177,7 @@ export function playVillagerGrunt(): void {
   g.gain.setValueAtTime(0.0001, t)
   g.gain.exponentialRampToValueAtTime(0.15, t + 0.05)
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36)
-  osc.connect(formant).connect(g).connect(c.destination)
+  osc.connect(formant).connect(g).connect(master(c))
   osc.start(t)
   osc.stop(t + 0.4)
 }
@@ -194,6 +210,16 @@ export function playEquip(): void {
   noise(c, t, 0.06, 0.05, 'highpass', 4000, 2000)
 }
 
+/** Shield block — bright metallic clang (parry feedback). */
+export function playBlock(): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  tone(c, 'square', 880, t, 0.1, 0.12, 520)
+  tone(c, 'triangle', 1760, t, 0.07, 0.07)
+  noise(c, t, 0.07, 0.12, 'highpass', 5200, 2600)
+}
+
 /** Bear roar — low growl sweep (synth fallback for the sampled clip). */
 export function playRoar(): void {
   const c = ctx()
@@ -221,7 +247,7 @@ function orkGruntSynth(): void {
   g.gain.setValueAtTime(0.0001, t)
   g.gain.exponentialRampToValueAtTime(0.2, t + 0.04)
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3)
-  osc.connect(formant).connect(g).connect(c.destination)
+  osc.connect(formant).connect(g).connect(master(c))
   osc.start(t)
   osc.stop(t + 0.34)
   noise(c, t, 0.16, 0.06, 'lowpass', 900, 300)
@@ -231,16 +257,21 @@ function orkGruntSynth(): void {
 // rubberduck — "80 CC0 creature SFX" (OpenGameArt, CC0 / public domain).
 // Each play is volume-scaled by distance to the player and falls back to a
 // synth grunt/roar if the clip fails to load.
-const ORK_GRUNTS = ['/audio/ork-grunt-1.ogg', '/audio/ork-grunt-2.ogg', '/audio/ork-grunt-3.ogg']
-const ORK_ROAR = '/audio/ork-roar.ogg'
+const ORK_GRUNTS = [
+  '/audio/ork-grunt-1.ogg',
+  '/audio/ork-grunt-2.ogg',
+  '/audio/ork-grunt-3.ogg',
+  '/audio/monster-snarl.ogg',
+  '/audio/monster-growl.ogg',
+]
+const ORK_ROARS = ['/audio/ork-roar.ogg', '/audio/monster-roar-big.ogg']
 const BEAR_ROAR = '/audio/bear-roar.ogg'
 const BEAR_GROWL = '/audio/bear-growl.ogg'
 
-const AUDIBLE_RANGE = 28 // tiles; beyond this a creature voice is silent
-
 function volForDist(dist: number, base: number): number {
-  if (dist >= AUDIBLE_RANGE) return 0
-  return base * (1 - dist / AUDIBLE_RANGE)
+  const range = audioMix.range // tiles; beyond this a creature voice is silent
+  if (dist >= range) return 0
+  return base * (1 - dist / range)
 }
 
 /** Ork grunt on aggro/attack — random clip, distance-scaled. */
@@ -251,11 +282,12 @@ export function playOrkGrunt(dist = 0): void {
   playSfx(f, v, 0.14).catch(orkGruntSynth)
 }
 
-/** Heavier ork roar (e.g. on a charge). */
+/** Heavier ork roar (e.g. on a charge) — random clip, distance-scaled. */
 export function playOrkRoar(dist = 0): void {
   const v = volForDist(dist, 0.6)
   if (v <= 0) return
-  playSfx(ORK_ROAR, v, 0.1).catch(orkGruntSynth)
+  const f = ORK_ROARS[(Math.random() * ORK_ROARS.length) | 0]
+  playSfx(f, v, 0.1).catch(orkGruntSynth)
 }
 
 /** Bear roar on aggro — distance-scaled, synth fallback. */
@@ -274,8 +306,18 @@ export function playBearGrowl(dist = 0): void {
 
 // Sampled dog/cat voices (CC0 — rubberduck barks + IgnasD/AntumDeluge meows,
 // OpenGameArt). Random clip per call, distance-scaled, synth fallback.
-const DOG_BARKS = ['/audio/dog-bark-1.ogg', '/audio/dog-bark-2.ogg']
-const CAT_MEOWS = ['/audio/cat-meow-1.ogg', '/audio/cat-meow-2.ogg']
+const DOG_BARKS = [
+  '/audio/dog-bark-1.ogg',
+  '/audio/dog-bark-2.ogg',
+  '/audio/dog-bark-3.mp3',
+  '/audio/dog-bark-4.mp3',
+]
+const CAT_MEOWS = [
+  '/audio/cat-meow-1.ogg',
+  '/audio/cat-meow-2.ogg',
+  '/audio/cat-meow-3.mp3',
+  '/audio/cat-meow-4.mp3',
+]
 
 /** Dog bark — synth fallback (two short "ruff" bursts). */
 function dogBarkSynth(): void {
@@ -292,7 +334,7 @@ function dogBarkSynth(): void {
     g.gain.setValueAtTime(0.0001, t0)
     g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.01)
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14)
-    osc.connect(g).connect(c.destination)
+    osc.connect(g).connect(master(c))
     osc.start(t0)
     osc.stop(t0 + 0.16)
     noise(c, t0, 0.08, 0.2, 'bandpass', 1200, 600)
@@ -303,7 +345,7 @@ function dogBarkSynth(): void {
 
 /** Dog bark — sampled clip, distance-scaled. */
 export function playDogBark(dist = 0): void {
-  const v = volForDist(dist, 0.3)
+  const v = volForDist(dist, 0.16)
   if (v <= 0) return
   const f = DOG_BARKS[(Math.random() * DOG_BARKS.length) | 0]
   playSfx(f, v, 0.12).catch(dogBarkSynth)
@@ -311,9 +353,61 @@ export function playDogBark(dist = 0): void {
 
 /** Cat meow — sampled clip, distance-scaled. */
 export function playCatMeow(dist = 0): void {
-  const v = volForDist(dist, 0.22)
+  const v = volForDist(dist, 0.12)
   if (v <= 0) return
   const f = CAT_MEOWS[(Math.random() * CAT_MEOWS.length) | 0]
   playSfx(f, v, 0.1).catch(() => {})
+}
+
+// ─── Sampled hero voice + UI/event stings ────────────────────────────────────
+// CC0 unless noted: rubberduck creature/RPG packs (player grunts, coin) and
+// Listener (OpenGameArt). Level-up fanfare is CC-BY 3.0 (Bart Kelsey) — see
+// docs/audio-candidates.md. All non-spatial, kept quiet so they sit under combat.
+
+/** Hero exertion grunt on a melee swing — only ~1 in 3 swings, so it punctuates
+ *  rather than nags. Layered over the procedural whoosh (playSwing). */
+export function playPlayerAttack(): void {
+  if (Math.random() > 0.34) return
+  playSfx('/audio/player-attack-grunt.ogg', 0.3, 0.12).catch(() => {})
+}
+
+/** Hero pain cry when taking a (non-fatal) hit — quiet voice over playHurt's thud. */
+export function playPlayerHurtVoice(): void {
+  playSfx('/audio/player-hurt.ogg', 0.32, 0.1).catch(() => {})
+}
+
+/** Hero death scream — fires once on the killing blow. */
+export function playPlayerDeath(): void {
+  playSfx('/audio/player-death-scream.ogg', 0.5, 0.06).catch(() => {})
+}
+
+/** Coin pickup — sampled jingle, falls back to the procedural blips. */
+export function playGoldPickup(): void {
+  playSfx('/audio/gold-pickup.ogg', 0.22, 0.1).catch(playGold)
+}
+
+/** Level-up flourish — orchestral sting, falls back to the procedural arpeggio. */
+export function playLevelUpFanfare(): void {
+  playSfx('/audio/level-up-orchestra.wav', 0.38, 0.04).catch(playLevelUp)
+}
+
+/** Using a hotbar item — soft magical whoosh. */
+export function playAbilityCast(): void {
+  playSfx('/audio/ability-cast.ogg', 0.3, 0.08).catch(() => {})
+}
+
+/** Shop panel opens — latch click. */
+export function playShopOpen(): void {
+  playSfx('/audio/shop-open.ogg', 0.35, 0.05).catch(() => {})
+}
+
+/** Confirm a menu/upgrade purchase — short UI blip. */
+export function playMenuClick(): void {
+  playSfx('/audio/menu-select.ogg', 0.22, 0.06).catch(() => {})
+}
+
+/** A wave begins — distant horde call. */
+export function playWaveStart(): void {
+  playSfx('/audio/wave-start-roar.ogg', 0.5, 0.08).catch(playRoar)
 }
 

@@ -57,7 +57,7 @@ The map itself is procedural and deterministic (no seed input, no external noise
 
 Mobs and villagers navigate by A* over the tile grid:
 
-- [pathfinding.ts](src/world/pathfinding.ts) — 8-directional A*, returns waypoints at tile centers. `isWalkable()` is the chokepoint that consults all the blockers below.
+- [pathfinding.ts](src/world/pathfinding.ts) — 8-directional A*, returns waypoints at tile centers. `isWalkable()` is the chokepoint that consults all the blockers below; the climb feasibility of each step is the shared `canStep()` from tileMap (≤ 1 height-class change), so A* routes around Δ ≥ 2 cliff faces but follows climbable slopes up the mountains.
 - [obstacles.ts](src/world/obstacles.ts) — procedural trees/rocks/bushes with collision radii; precomputes a `blockedTiles` set. Reserves footprints (camps, villages, castle, bridge approaches) so scatter doesn't spawn there.
 - [roads.ts](src/world/roads.ts) / [bridges.ts](src/world/bridges.ts) — hand-authored road polylines from the 4 castle gates; water crossings emit bridges. Bridges make otherwise-water tiles walkable (`bridgeAt`).
 - [houseBlockers.ts](src/world/houseBlockers.ts) — AABB footprints registered by House/City components on mount, cleared on unmount (scoped per owner so unmounting one structure doesn't wipe others).
@@ -88,3 +88,5 @@ The user dislikes placeholder/decorative UI chrome — build only HUD that's ask
 ## Debug
 
 `leva` provides a live tuning panel ([DebugBindings.tsx](src/world/DebugBindings.tsx)): fog color/density, light intensities (pushed up to `World` state since light JSX props can't be mutated externally), and the vision shader uniforms. [debugStore.ts](src/world/debugStore.ts) holds two cheats: `showPaths` (renders A* paths via [DebugPaths.tsx](src/world/DebugPaths.tsx)) and `unlimitedMoney` (makes `spendGold` always succeed without deducting). `r3f-perf`'s `<Perf>` shows FPS/draw calls top-left. `main.tsx` overrides `document.hidden` in dev so the rAF loop keeps running in backgrounded/preview windows.
+
+**Headless screenshots.** The built-in preview/MCP `screenshot` tool **cannot** capture this scene — its headless Chrome has no GPU and can't composite a WebGL surface for `Page.captureScreenshot`, so it hangs to the 30s timeout (verified: still times out with post-processing off, the R3F loop stopped, and all `requestAnimationFrame` neutered — it is not a frame-cost problem). `eval`/`console`/`network` preview tools work fine; only `screenshot` is affected. To get a screenshot, run **`npm run shot`** ([scripts/screenshot.mjs](scripts/screenshot.mjs)) with the dev server up — it launches its own Playwright chromium with a working SwiftShader backend and writes a PNG. It loads **capture mode** (`?capture`, [renderMode.ts](src/world/renderMode.ts)) by default: that drops the EffectComposer stack + shadows and pins `dpr` to 1, so a software-rendered frame paints in a few seconds instead of ~16s.

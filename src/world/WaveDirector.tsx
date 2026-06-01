@@ -1,17 +1,28 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { createOrk, getAliveOrks, WAVE_FACTION } from './orkStore'
-import { CASTLE_CORE } from './castleStore'
+import { createOrk, countAliveWaveOrks, WAVE_FACTION } from './orkStore'
+import { CASTLE_CORE, getCastle, repairCastle } from './castleStore'
 import { findSpawnNear } from './obstacles'
 import { tileAt } from './tileMap'
-import { getPhase, setPhase } from './gameStore'
-import { getWave, beginWave, markSpawned, setEnemiesAlive } from './waveStore'
+import { getPhase, setPhase, subscribePhase } from './gameStore'
+import {
+  getWave,
+  beginWave,
+  markSpawned,
+  setEnemiesAlive,
+  setPrepSecondsLeft,
+  consumePrepSkip,
+} from './waveStore'
+import { reviveTowers } from './towerStore'
+import { reviveVillagers } from './villagerStore'
 import { isFrozen } from './pauseStore'
 import { stepWaveDirector, type WaveAction, type WaveTimers } from './waveLogic'
 
 // Orks enter from a ring around the keep — far enough to read as "incoming",
 // close enough to stay inside the player's cull radius while they defend.
 const SPAWN_RING = 30
+// Reinforced Keep self-repair rate during the prep breather (HP/sec).
+const KEEP_REPAIR_RATE = 6
 
 function spawnPointFor(i: number): { x: number; z: number } {
   // Golden-angle spread around the keep so successive spawns don't stack.
@@ -53,18 +64,33 @@ function applyWaveAction(a: WaveAction): void {
 }
 
 /**
- * Drives the assault: counts down the prep timer, spawns the current wave's
- * orks on an interval, and advances to the next wave (or victory) once the wave
- * is cleared. The decision logic lives in stepWaveDirector (pure, tested); this
- * component is the one useFrame that feeds it state and applies its actions.
+ * Drives the assault: counts down the prep timer (or a Skip), spawns the wave's
+ * orks on an interval, and advances to the next wave (or victory) once cleared.
+ * The decision logic lives in stepWaveDirector (pure, tested); this component
+ * feeds it state, applies its actions, and owns the prep-phase side effects
+ * (rebuild towers + revive militia, slow keep self-repair).
  */
 export function WaveDirector() {
   const timers = useRef<WaveTimers>({ prepEndsAt: 0, nextSpawnAt: 0, spawnIndex: 0 })
 
-  useFrame(({ clock }) => {
+  // Each time we enter prep, rebuild the downed defenders for the next wave.
+  useEffect(
+    () =>
+      subscribePhase((p) => {
+        if (p === 'prep') {
+          reviveTowers()
+          reviveVillagers()
+        }
+      }),
+    [],
+  )
+
+  useFrame(({ clock }, dt) => {
     if (isFrozen()) return
     const now = clock.getElapsedTime()
-    const alive = getAliveOrks().length
+    // Only night-assault orks count — camp warbands (home set) are optional
+    // targets and must not block a wave from completing.
+    const alive = countAliveWaveOrks()
     // Track alive count for the HUD.
     setEnemiesAlive(alive)
 
@@ -74,9 +100,18 @@ export function WaveDirector() {
       timers: timers.current,
       now,
       alive,
+      skip: consumePrepSkip(),
     })
     timers.current = next
     for (const a of actions) applyWaveAction(a)
+
+    // Publish the prep countdown + run the keep's slow self-repair.
+    if (getPhase() === 'prep') {
+      setPrepSecondsLeft(timers.current.prepEndsAt > 0 ? Math.max(0, Math.ceil(timers.current.prepEndsAt - now)) : 0)
+      if (getCastle().reinforced) repairCastle(KEEP_REPAIR_RATE * dt)
+    } else {
+      setPrepSecondsLeft(0)
+    }
   })
 
   return null

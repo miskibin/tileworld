@@ -1,9 +1,10 @@
 import { isShopOpen } from './shopStore'
 import { isTreeOpen } from './townHallStore'
 
-// Starts paused so the world is frozen behind the start screen until the
-// player clicks Play (see StartScreen + gameStore).
-let paused = true
+// World runs live by default — the StartScreen is just an overlay, time keeps
+// ticking behind it. Only end screens + an explicit Esc pause freeze the sim
+// (see gameStore + togglePaused).
+let paused = false
 const subs = new Set<(v: boolean) => void>()
 
 export function isPaused(): boolean {

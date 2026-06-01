@@ -3,6 +3,7 @@ import { getOrks, resetOrks, subscribeOrks, type OrkState } from './orkStore'
 import { resetObjectiveTotal } from './objectiveStore'
 import { resetCastle } from './castleStore'
 import { resetWaves } from './waveStore'
+import { resetTowers } from './towerStore'
 import { OrkView } from './Ork'
 
 export function Mobs() {
@@ -20,6 +21,7 @@ export function Mobs() {
       resetObjectiveTotal()
       resetCastle()
       resetWaves()
+      resetTowers()
     }
   }, [])
 

@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react'
 import { getPlayer } from '../world/playerStore'
-import { getWave, subscribeWave, type WaveProgress } from '../world/waveStore'
+import { getWave, subscribeWave, requestPrepSkip, type WaveProgress } from '../world/waveStore'
 import { getCastle, subscribeCastle, type CastleState } from '../world/castleStore'
 import { getPhase, subscribePhase, getDefeatReason, type GamePhase } from '../world/gameStore'
-import { getVillagers, subscribeVillagers } from '../world/villagerStore'
+import { getStandingVillagerCount, subscribeVillagers } from '../world/villagerStore'
 import { playVictory } from '../audio/sfx'
 
 export function Objective() {
   const [phase, setPhase] = useState<GamePhase>(() => getPhase())
   const [wave, setWave] = useState<WaveProgress>(() => getWave())
   const [castle, setCastle] = useState<CastleState>(() => getCastle())
-  const [townsfolk, setTownsfolk] = useState<number>(() => getVillagers().length)
+  const [townsfolk, setTownsfolk] = useState<number>(() => getStandingVillagerCount())
 
   useEffect(() => subscribePhase(setPhase), [])
   useEffect(() => subscribeWave((s) => setWave({ ...s })), [])
   useEffect(() => subscribeCastle((s) => setCastle({ ...s })), [])
-  useEffect(() => subscribeVillagers((l) => setTownsfolk(l.length)), [])
+  useEffect(() => subscribeVillagers(() => setTownsfolk(getStandingVillagerCount())), [])
 
   // Release pointer-lock + play fanfare on victory.
   useEffect(() => {
@@ -70,6 +70,8 @@ export function Objective() {
 
   // prep / wave: banner + castle HP bar.
   const hpPct = Math.max(0, (castle.hp / castle.maxHp) * 100)
+  const secs = Math.max(0, wave.prepSecondsLeft)
+  const mmss = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   return (
     <div className="objective-banner">
       <span className="objective-label">
@@ -77,6 +79,14 @@ export function Objective() {
           ? `Wave ${wave.index + 2} incoming…`
           : `Wave ${wave.index + 1} / ${wave.total}`}
       </span>
+      {phase === 'prep' && (
+        <div className="prep-timer">
+          <span className="prep-clock">☀ {mmss}</span>
+          <button className="prep-skip" onClick={() => requestPrepSkip()}>
+            Skip ▶
+          </button>
+        </div>
+      )}
       {phase === 'wave' && (
         <span className="objective-count">{wave.enemiesAlive} orks left</span>
       )}

@@ -145,7 +145,7 @@ export function House({
   })
 
   return (
-    <group position={position} rotation={[0, rotation, 0]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[0.86, 0.78, 0.86]}>
       {/* Foundation + chimney stack (merged stone) */}
       <mesh geometry={STONE_GEO} castShadow receiveShadow material={stoneMat} />
 
@@ -183,15 +183,16 @@ export function House({
         />
       </group>
 
-      {/* Chimney smoke — a single drifting plume. */}
+      {/* Chimney smoke — a single drifting plume. Kept small and dim so it
+          reads as haze, not glowing clutter, against the night-wave sky. */}
       <Sparkles
         position={[WALL_W / 2 - 0.4, wallTopY + 1.2, 0.25]}
         scale={[0.8, 1.4, 0.8]}
-        count={24}
-        size={16}
+        count={16}
+        size={9}
         speed={0.22}
-        opacity={0.35}
-        color={'#b8bcc2'}
+        opacity={0.18}
+        color={'#9aa0a8'}
         noise={1.6}
       />
     </group>

@@ -265,6 +265,41 @@ export function waterTexture(color: string, repeat = 6): Tex {
   })
 }
 
+// ─── Cobble / flagstone (castle courtyard floor) ─────────────────────────────
+export function cobbleTexture(color: string, repeat = 1): Tex {
+  return get(`cobble:${color}:${repeat}`, () => {
+    const p = pad(128)
+    if (!p) return null
+    const { c, ctx } = p
+    ctx.fillStyle = shade(color, -0.18) // mortar/gaps between stones
+    ctx.fillRect(0, 0, 128, 128)
+    const cells = 5
+    const cs = 128 / cells
+    for (let ry = 0; ry < cells; ry++) {
+      const off = (ry % 2) * (cs / 2) // running-bond offset on alternate rows
+      for (let rx = -1; rx <= cells; rx++) {
+        const jx = (Math.random() - 0.5) * 4
+        const jy = (Math.random() - 0.5) * 4
+        const x = rx * cs + off + 2 + jx
+        const y = ry * cs + 2 + jy
+        const w = cs - 4
+        const h = cs - 4
+        ctx.fillStyle = shade(color, (Math.random() - 0.5) * 0.18)
+        ctx.fillRect(x, y, w, h)
+        // top-left sheen bevel
+        ctx.fillStyle = shade(color, 0.08)
+        ctx.fillRect(x, y, w, 1.5)
+        ctx.fillRect(x, y, 1.5, h)
+        // bottom-right shadow bevel
+        ctx.fillStyle = shade(color, -0.12)
+        ctx.fillRect(x, y + h - 1.5, w, 1.5)
+      }
+    }
+    speckle(ctx, 128, 500, color)
+    return finish(c, repeat)
+  })
+}
+
 // ─── Tilled soil (farm bed) ──────────────────────────────────────────────────
 export function soilTexture(color: string, repeat = 1): Tex {
   return get(`soil:${color}:${repeat}`, () => {

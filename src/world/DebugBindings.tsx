@@ -8,6 +8,7 @@ import {
   viewFalloffUniform,
 } from './vision'
 import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
+import { audioMix, applyLoopVolumes } from '../audio/audio'
 
 interface Props {
   onLights: (l: {
@@ -74,6 +75,14 @@ export function DebugBindings({ onLights }: Props) {
     maxDarken: { value: viewMaxDarkenUniform.value, min: 0, max: 1, step: 0.01 },
   })
 
+  const audio = useControls('Audio', {
+    sfx: { value: audioMix.sfx, min: 0, max: 1, step: 0.01, label: 'combat sfx' },
+    voice: { value: audioMix.voice, min: 0, max: 1, step: 0.01, label: 'creature voices' },
+    range: { value: audioMix.range, min: 4, max: 46, step: 1, label: 'voice range' },
+    music: { value: audioMix.music, min: 0, max: 1, step: 0.01, label: 'music' },
+    ambient: { value: audioMix.ambient, min: 0, max: 1, step: 0.01, label: 'ambient' },
+  })
+
   // Push fog density to the scene when it changes (colour is cycle-driven).
   useEffect(() => {
     if (scene.fog && 'density' in scene.fog) {
@@ -90,6 +99,17 @@ export function DebugBindings({ onLights }: Props) {
     viewFalloffUniform.value = vis.falloff
     viewMaxDarkenUniform.value = vis.maxDarken
   }, [vis.radius, vis.falloff, vis.maxDarken])
+
+  // Audio mix → live holder. sfx/voice/range are read live by the players;
+  // music/ambient are pushed onto the running loop nodes.
+  useEffect(() => {
+    audioMix.sfx = audio.sfx
+    audioMix.voice = audio.voice
+    audioMix.range = audio.range
+    audioMix.music = audio.music
+    audioMix.ambient = audio.ambient
+    applyLoopVolumes()
+  }, [audio.sfx, audio.voice, audio.range, audio.music, audio.ambient])
 
   return null
 }

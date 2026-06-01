@@ -5,6 +5,7 @@ import { setListener, getListener, loadBuffer, audioMix, registerLoops } from '.
 import { useAudioEnabled } from './useAudioEnabled'
 import { subscribePaused, isFrozen } from '../world/pauseStore'
 import { getPhase } from '../world/gameStore'
+import { isBossWave } from '../world/waveStore'
 
 // Ease speed for the day↔night music crossfade (≈ a couple-second blend).
 const CROSSFADE_RATE = 0.9
@@ -16,6 +17,8 @@ export function SoundScape() {
   const forestRef = useRef<THREE.Audio | null>(null)
   const dayMusicRef = useRef<THREE.Audio | null>(null)
   const nightMusicRef = useRef<THREE.Audio | null>(null)
+  // Boss-fight theme — replaces the dread track for the final (boss) wave only.
+  const bossMusicRef = useRef<THREE.Audio | null>(null)
   // 0 = peaceful day theme, 1 = night/wave dread theme. Eased toward the phase.
   const nightMix = useRef(0)
 
@@ -54,7 +57,8 @@ export function SoundScape() {
       loadBuffer('/audio/forest-ambient.mp3'),
       loadBuffer('/audio/hurdy-gurdy-hymn.mp3'),
       loadBuffer('/audio/soot-banner-dread.mp3'),
-    ]).then(([forestBuf, dayBuf, nightBuf]) => {
+      loadBuffer('/audio/orc-march-tallow.mp3'),
+    ]).then(([forestBuf, dayBuf, nightBuf, bossBuf]) => {
       if (cancelled) return
 
       const forest = new THREE.Audio(l)
@@ -76,9 +80,18 @@ export function SoundScape() {
       nightMusic.setVolume(0)
       nightMusic.play()
 
+      // Boss theme — also silent until the boss wave, where it stands in for the
+      // dread track (the two night themes are mutually exclusive, see useFrame).
+      const bossMusic = new THREE.Audio(l)
+      bossMusic.setBuffer(bossBuf)
+      bossMusic.setLoop(true)
+      bossMusic.setVolume(0)
+      bossMusic.play()
+
       forestRef.current = forest
       dayMusicRef.current = dayMusic
       nightMusicRef.current = nightMusic
+      bossMusicRef.current = bossMusic
 
       // Debug panel retunes the day-music + ambient loops; the night track is
       // crossfaded against the same audioMix.music value in useFrame below.
@@ -91,9 +104,11 @@ export function SoundScape() {
       if (forestRef.current?.isPlaying) forestRef.current.stop()
       if (dayMusicRef.current?.isPlaying) dayMusicRef.current.stop()
       if (nightMusicRef.current?.isPlaying) nightMusicRef.current.stop()
+      if (bossMusicRef.current?.isPlaying) bossMusicRef.current.stop()
       forestRef.current = null
       dayMusicRef.current = null
       nightMusicRef.current = null
+      bossMusicRef.current = null
     }
   }, [enabled])
 
@@ -104,12 +119,17 @@ export function SoundScape() {
     if (isFrozen()) return // match the world's freeze-gate; phase can't change while frozen
     const day = dayMusicRef.current
     const night = nightMusicRef.current
-    if (!day || !night) return
+    const boss = bossMusicRef.current
+    if (!day || !night || !boss) return
     const target = getPhase() === 'wave' ? 1 : 0
     nightMix.current += (target - nightMix.current) * Math.min(1, dt * CROSSFADE_RATE)
     const m = nightMix.current
     day.setVolume(audioMix.music * (1 - m))
-    night.setVolume(audioMix.music * m)
+    // The boss fight swaps the dread theme for the orc march — only one night
+    // track is ever audible, so the other stays muted while `m` swells.
+    const bossFight = isBossWave()
+    night.setVolume(audioMix.music * m * (bossFight ? 0 : 1))
+    boss.setVolume(audioMix.music * m * (bossFight ? 1 : 0))
   })
 
   return null

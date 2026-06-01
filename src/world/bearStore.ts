@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 
 // Bears: neutral wildlife that turn hostile when the player gets close, then
 // chase and maul. Heavier and tougher than orks; give good XP/gold.
@@ -36,7 +36,7 @@ let nextId = 0
 
 export function createBear(x: number, z: number, seed: number): BearState {
   const t = tileAt(Math.floor(x), Math.floor(z))
-  const y = t ? t.height : 1
+  const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   const b: BearState = {
     id: nextId++,
     x,

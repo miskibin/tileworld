@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "shot": "node scripts/screenshot.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "inspect": "tsx --tsconfig tsconfig.app.json scripts/inspect-model.tsx"

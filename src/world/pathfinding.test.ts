@@ -14,6 +14,14 @@ const h = vi.hoisted(() => ({
   obstacles: new Set<string>(),
 }))
 
+// height class at a cell: explicit height, else a bridge counts as class 1,
+// else null (open water / off-map). Mirrors tileMap.heightClassAt.
+const hClass = (x: number, z: number): number | null => {
+  const v = h.heights.get(`${x},${z}`)
+  if (v !== undefined) return v
+  if (h.bridges.has(`${x},${z}`)) return 1
+  return null
+}
 vi.mock('./tileMap', () => ({
   COLS: h.COLS,
   ROWS: h.ROWS,
@@ -22,6 +30,16 @@ vi.mock('./tileMap', () => ({
     return v === undefined ? null : { height: v }
   },
   tileTopY: () => 0,
+  standable: (cx: number, cz: number) => {
+    if (cx < 0 || cz < 0 || cx >= h.COLS || cz >= h.ROWS) return false
+    return hClass(cx, cz) !== null
+  },
+  canStep: (fx: number, fz: number, tx: number, tz: number) => {
+    const tc = hClass(tx, tz)
+    const fc = hClass(fx, fz)
+    if (tc === null || fc === null) return false
+    return Math.abs(tc - fc) <= 1
+  },
 }))
 vi.mock('./bridges', () => ({
   bridgeAt: (x: number, z: number) => (h.bridges.has(`${Math.floor(x)},${Math.floor(z)}`) ? { y: 0 } : null),

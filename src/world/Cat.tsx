@@ -3,8 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isFrozen } from './pauseStore'
 import { getBirds } from './Birds'
-import { CENTER_X, CENTER_Z, tileAt } from './tileMap'
+import { CENTER_X, CENTER_Z, tileAt, tileTopY } from './tileMap'
 import { getPlayer } from './playerStore'
+import { isNight } from './timeStore'
 import { playCatMeow } from '../audio/sfx'
 
 type CatMode = 'idle' | 'walk' | 'sit' | 'stalk'
@@ -72,9 +73,9 @@ export function Cat({ home, seed = 0 }: CatProps) {
     if (t >= st.nextMeow) {
       const p = getPlayer()
       const dd = Math.hypot(p.x - st.x, p.z - st.z)
-      if (dd < 12) {
+      if (dd < 12 && !isNight()) {
         playCatMeow(dd)
-        st.nextMeow = t + 7 + Math.random() * 8
+        st.nextMeow = t + 14 + Math.random() * 12
       } else {
         st.nextMeow = t + 2
       }
@@ -176,7 +177,7 @@ export function Cat({ home, seed = 0 }: CatProps) {
           st.stateUntil = t + 0.8
         }
         const tl = tileAt(Math.floor(st.x), Math.floor(st.z))
-        if (tl) st.y = tl.height
+        if (tl) st.y = tileTopY(Math.floor(st.x), Math.floor(st.z))
         const targetFacing = Math.atan2(dx, dz)
         let dF = targetFacing - st.facing
         while (dF > Math.PI) dF -= 2 * Math.PI

@@ -1,3 +1,5 @@
+import { playShopOpen } from '../audio/sfx'
+
 export interface ShopItem {
   id: string
   name: string
@@ -18,6 +20,7 @@ const subs = new Set<(s: ActiveShop | null) => void>()
 
 export function openShop(s: ActiveShop): void {
   active = s
+  playShopOpen()
   subs.forEach((fn) => fn(active))
 }
 

@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { ANIMAL_CONFIG, type AnimalSpecies } from './animalConfig'
 import type { AnimalFaction } from './factions'
 
@@ -46,7 +46,7 @@ export function createAnimal(
 ): AnimalState {
   const cfg = ANIMAL_CONFIG[species]
   const t = tileAt(Math.floor(x), Math.floor(z))
-  const y = t ? t.height : 1
+  const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   const a: AnimalState = {
     id: nextId++,
     species,
@@ -87,6 +87,14 @@ export function getAnimals(): AnimalState[] {
 
 export function getAliveAnimals(): AnimalState[] {
   return animals.filter((a) => a.hp > 0)
+}
+
+/** Drop a dead animal from the roster (called once its death-fade finishes, so
+ * WildAnimals can spawn a fresh one in its place). Mirrors reapOrk. */
+export function reapAnimal(id: number): void {
+  const i = animals.findIndex((a) => a.id === id)
+  if (i === -1) return
+  animals.splice(i, 1)
 }
 
 /** Returns true if the animal dies on this hit. Boars enrage when struck. */

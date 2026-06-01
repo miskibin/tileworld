@@ -206,6 +206,16 @@ export function VillagerView({ state }: Props) {
       return
     }
 
+    // Downed by orks → lie still on the spot until revived at the next prep.
+    if (state.downed) {
+      if (ref.current) {
+        ref.current.visible = true
+        ref.current.position.set(state.x, state.y, state.z)
+        ref.current.rotation.set(0, state.facing, Math.PI / 2)
+      }
+      return
+    }
+
     // ── Guard combat: defend the castle from orks/bears (deal-damage-only) ──
     let attackArm: number | null = null
     let fighting = false
@@ -364,6 +374,7 @@ export function VillagerView({ state }: Props) {
     if (ref.current) {
       ref.current.position.set(state.x, state.y, state.z)
       ref.current.rotation.y = state.facing
+      ref.current.rotation.z = 0 // clear any lie-down tilt after a revive
     }
     if (bodyRef.current) bodyRef.current.rotation.x = bodyTilt
     if (legRRef.current) legRRef.current.rotation.x = legSwing

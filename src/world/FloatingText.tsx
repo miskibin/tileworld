@@ -14,14 +14,20 @@ function Float({ f }: { f: FloatText }) {
   const matRef = useRef<THREE.MeshBasicMaterial>(null!)
   useFrame(() => {
     if (isPaused()) return
-    const k = Math.min(1, (performance.now() * 0.001 - f.born) / FLOAT_LIFETIME)
-    if (ref.current) ref.current.position.y = f.y + k * 1.3
+    const t = performance.now() * 0.001 - f.born
+    const k = Math.min(1, t / FLOAT_LIFETIME)
+    if (ref.current) {
+      ref.current.position.y = f.y + k * 1.3
+      // Pop in fast with a slight overshoot, then settle at 1 — gives hits punch.
+      const pop = t < 0.16 ? 0.6 + (t / 0.16) * 0.55 : Math.max(1, 1.15 - (t - 0.16) * 1.6)
+      ref.current.scale.setScalar(pop)
+    }
     if (matRef.current) matRef.current.opacity = 1 - k * k
   })
   return (
     <group ref={ref} position={[f.x, f.y, f.z]}>
       <Billboard>
-        <Text fontSize={0.55} anchorX="center" anchorY="middle" outlineWidth={0.045} outlineColor="#000000">
+        <Text fontSize={0.34} anchorX="center" anchorY="middle" outlineWidth={0.028} outlineColor="#000000">
           {f.text}
           <meshBasicMaterial ref={matRef} attach="material" transparent toneMapped={false} color={f.color} />
         </Text>

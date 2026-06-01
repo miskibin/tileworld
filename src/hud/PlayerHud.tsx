@@ -5,6 +5,7 @@ import {
   subscribeHp,
   subscribeStats,
 } from '../world/playerStore'
+import { getBlockState } from '../world/blockStore'
 
 export function PlayerHud() {
   const [hp, setHp] = useState(PLAYER_MAX_HP)
@@ -13,6 +14,7 @@ export function PlayerHud() {
   const [stats, setStats] = useState({ level: 1, xp: 0, xpToNext: 50 })
   const overlayRef = useRef<HTMLDivElement>(null)
   const levelUpRef = useRef<HTMLDivElement>(null)
+  const staminaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     return subscribeHp((curr, max, isDead) => {
@@ -37,6 +39,16 @@ export function PlayerHud() {
       if (levelUpRef.current) {
         const remain = Math.max(0, p.levelUpFlashUntil - tNow)
         levelUpRef.current.style.opacity = String(Math.min(1, remain))
+      }
+      if (staminaRef.current) {
+        const blk = getBlockState()
+        staminaRef.current.style.width = `${blk.stamina * 100}%`
+        // Locked → red warning, actively blocking → bright, recovering → muted.
+        staminaRef.current.style.background = blk.locked
+          ? 'linear-gradient(180deg, #e0623a 0%, #a02a1f 100%)'
+          : blk.blocking
+            ? 'linear-gradient(180deg, #bcd4ff 0%, #6a9be0 100%)'
+            : 'linear-gradient(180deg, #8fa8c8 0%, #4a6690 100%)'
       }
       raf = requestAnimationFrame(tick)
     }
@@ -63,6 +75,9 @@ export function PlayerHud() {
             <div className="xp-bar-text">
               XP {stats.xp} / {stats.xpToNext}
             </div>
+          </div>
+          <div className="stamina-bar" title="Shield (hold right-click)">
+            <div ref={staminaRef} className="stamina-bar-fill" />
           </div>
         </div>
       </div>

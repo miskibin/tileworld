@@ -1,9 +1,26 @@
-import { playGold, playHurt, playLevelUp } from '../audio/sfx'
-import { addShake } from './fxStore'
+import {
+  playHurt,
+  playBlock,
+  playGoldPickup,
+  playLevelUpFanfare,
+  playPlayerHurtVoice,
+  playPlayerDeath,
+} from '../audio/sfx'
+import { addShake, spawnFloat } from './fxStore'
+import { getDamageTakenMult, resetBuffs } from './buffStore'
+import { resetPickups } from './pickupStore'
 import { isUnlimitedMoney } from './debugStore'
+import {
+  absorbBlockedHit,
+  getBlockState,
+  resetBlock,
+  BLOCK_CONE_DOT,
+  BLOCK_REDUCTION,
+} from './blockStore'
 
 export const PLAYER_MAX_HP = 100
-export const PLAYER_SPAWN = { x: 48, y: 1, z: 36 } as const
+// Player boots at the centred castle (just south of the keep, inside the walls).
+export const PLAYER_SPAWN = { x: 72, y: 1, z: 58 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
 export const PLAYER_STARTING_GOLD = 30
 
@@ -18,6 +35,8 @@ export interface PlayerLive {
   x: number
   z: number
   y: number
+  /** facing angle (radians); fx=sin(facing), fz=cos(facing). Drives block cone. */
+  facing: number
   moving: boolean
   hp: number
   maxHp: number
@@ -35,6 +54,7 @@ const state: PlayerLive = {
   x: PLAYER_SPAWN.x,
   z: PLAYER_SPAWN.z,
   y: PLAYER_SPAWN.y,
+  facing: Math.PI,
   moving: false,
   hp: PLAYER_MAX_HP,
   maxHp: PLAYER_MAX_HP,
@@ -64,23 +84,64 @@ export function getPlayer(): PlayerLive {
   return state
 }
 
-export function setPlayerPos(x: number, y: number, z: number, moving: boolean): void {
+export function setPlayerPos(
+  x: number,
+  y: number,
+  z: number,
+  moving: boolean,
+  facing?: number,
+): void {
   state.x = x
   state.y = y
   state.z = z
   state.moving = moving
+  if (facing !== undefined) state.facing = facing
 }
 
 export function isPlayerAlive(): boolean {
   return state.hp > 0
 }
 
-export function damagePlayer(amount: number, now: number): void {
+/**
+ * Deal damage to the player. If `fromX/fromZ` are given and the player is
+ * blocking with the attacker inside the shield's front cone, most of the hit is
+ * negated and a chunk of block stamina is spent.
+ */
+export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?: number): void {
   if (state.hp <= 0) return
-  state.hp = Math.max(0, state.hp - amount)
+
+  let dmg = amount * getDamageTakenMult()
+  const blk = getBlockState()
+  if (blk.blocking && fromX !== undefined && fromZ !== undefined) {
+    const dx = fromX - state.x
+    const dz = fromZ - state.z
+    const len = Math.hypot(dx, dz) || 1
+    const dot = (dx / len) * Math.sin(state.facing) + (dz / len) * Math.cos(state.facing)
+    if (dot > BLOCK_CONE_DOT) {
+      dmg = dmg * (1 - BLOCK_REDUCTION)
+      absorbBlockedHit()
+      playBlock()
+      addShake(0.1, 0.14)
+      spawnFloat('BLOCK', '#bcd4ff', state.x, state.y + 2.4, state.z)
+    }
+  }
+  if (dmg <= 0) {
+    // Fully absorbed — flash the shield feedback but don't touch HP.
+    return
+  }
+
+  state.hp = Math.max(0, state.hp - dmg)
+  // Red floating damage on the player — distinct from the yellow/white numbers
+  // shown over enemies the player hits.
+  spawnFloat(`-${Math.round(dmg)}`, '#ff5a4a', state.x, state.y + 2.2, state.z)
   state.hurtFlashUntil = now + 0.35
-  if (state.hp <= 0) state.deadSince = now
   playHurt()
+  if (state.hp <= 0) {
+    state.deadSince = now
+    playPlayerDeath()
+  } else {
+    playPlayerHurtVoice()
+  }
   addShake(state.hp <= 0 ? 0.5 : 0.22, state.hp <= 0 ? 0.5 : 0.25)
   notifyHp()
 }
@@ -102,12 +163,17 @@ export function resetPlayer(): void {
   state.xpToNext = XP_FIRST_LEVEL
   state.attackDamage = PLAYER_BASE_DAMAGE
   state.levelUpFlashUntil = 0
+  state.facing = Math.PI
+  resetBlock()
+  resetBuffs()
+  resetPickups() // clear any ground loot so it doesn't carry into a fresh run
   notifyHp()
   notifyGold()
   notifyStats()
 }
 
-/** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset. */
+/** Respawn keeps progression (level/xp/gold/maxHp) — only hp + position reset.
+ *  Temporary combat boons (buffs) are cleared: death ends the encounter. */
 export function respawnPlayer(): void {
   respawnPlayerAt(PLAYER_SPAWN.x, PLAYER_SPAWN.y, PLAYER_SPAWN.z)
 }
@@ -122,6 +188,7 @@ export function respawnPlayerAt(x: number, y: number, z: number): void {
   state.x = x
   state.y = y
   state.z = z
+  resetBuffs() // temporary combat boons end with the hero
   notifyHp()
 }
 
@@ -143,7 +210,7 @@ export function getGold(): number {
 
 export function addGold(n: number): void {
   state.gold += n
-  if (n > 0) playGold()
+  if (n > 0) playGoldPickup()
   notifyGold()
 }
 
@@ -196,7 +263,7 @@ export function addXp(n: number): void {
   }
   if (leveled) {
     state.levelUpFlashUntil = performance.now() * 0.001 + 1.2
-    playLevelUp()
+    playLevelUpFanfare()
     addShake(0.2, 0.3)
     notifyHp()
   }

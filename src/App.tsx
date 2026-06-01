@@ -2,15 +2,19 @@ import { Canvas } from '@react-three/fiber'
 import * as THREE from 'three'
 import { World } from './world/World'
 import { Hud } from './hud/Hud'
+import { CAPTURE_MODE } from './world/renderMode'
 
 export default function App() {
   return (
     <div className="app-root">
       <Canvas
-        shadows="soft"
-        dpr={[1, 1.5]}
+        // Capture mode (?capture) drops the soft-shadow pass and pins dpr to 1
+        // so a software-WebGL frame is cheap enough for the headless screenshot
+        // tool to grab within its timeout. See renderMode.ts.
+        shadows={CAPTURE_MODE ? false : 'soft'}
+        dpr={CAPTURE_MODE ? 1 : [1, 1.5]}
         gl={{
-          antialias: true,
+          antialias: !CAPTURE_MODE,
           powerPreference: 'high-performance',
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,

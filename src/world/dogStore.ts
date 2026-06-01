@@ -1,4 +1,4 @@
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 
 export interface DogState {
   id: number
@@ -30,7 +30,7 @@ export function createDog(
   seed: number,
 ): DogState {
   const t = tileAt(Math.floor(initX), Math.floor(initZ))
-  const y = t ? t.height : 1
+  const y = t ? tileTopY(Math.floor(initX), Math.floor(initZ)) : 1
   const dog: DogState = {
     id: nextId++,
     x: initX,

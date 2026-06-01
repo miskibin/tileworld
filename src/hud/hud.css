@@ -425,6 +425,27 @@
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.7);
 }
 
+/* ---- Stamina (shield) bar ---- */
+.stamina-bar {
+  position: relative;
+  width: 240px;
+  height: 7px;
+  background: rgba(20, 26, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.stamina-bar-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: linear-gradient(180deg, #8fa8c8 0%, #4a6690 100%);
+  transition: width 90ms linear;
+}
+
 /* ---- Level-up flash ---- */
 .levelup-flash {
   position: absolute;
@@ -909,6 +930,38 @@
   color: #71e07a;
 }
 
+/* Prep countdown + skip button in the objective banner */
+.prep-timer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.prep-clock {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffe6a8;
+  font-variant-numeric: tabular-nums;
+}
+.prep-skip {
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0d1320;
+  background: linear-gradient(180deg, #ffd58c, #e0a84a);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 5px;
+  padding: 3px 10px;
+  transition: filter 120ms ease;
+}
+.prep-skip:hover {
+  filter: brightness(1.1);
+}
+
 /* Castle keep HP bar in the objective banner */
 .castle-hp {
   display: flex;
@@ -937,4 +990,39 @@
 }
 .defeat-screen .victory-title {
   color: #ff6a5a;
+}
+
+/* Buff pips — only present while a buff is active (BuffBar returns null otherwise). */
+.buff-bar {
+  position: absolute;
+  left: 16px;
+  bottom: 84px;
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.buff-pip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  background: rgba(20, 18, 24, 0.55);
+  border-radius: 6px;
+}
+.buff-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.buff-dur {
+  width: 26px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.buff-dur-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(180deg, #ffe27a 0%, #e0a83a 100%);
 }

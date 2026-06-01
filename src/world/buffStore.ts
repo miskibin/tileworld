@@ -1,0 +1,94 @@
+// Three short timed buffs, granted by consumables. This module is the SINGLE
+// source of truth for the gameplay multipliers — the damage/attack/move hot
+// paths read the getters below rather than tracking buffs themselves. Expiry is
+// lazy (compared against the clock on read) — the store does NOT notify on
+// expiry; the HUD polls getActiveBuffs() each frame to drive the countdown.
+
+export type BuffKind = 'resist' | 'power' | 'haste'
+
+interface BuffState {
+  /** wall-clock (sec) the buff expires; 0 = inactive */
+  until: number
+  /** multiplier magnitude for this buff (e.g. resist 0.6, power 1.4); read only while active */
+  mag: number
+  /** full granted duration (sec); the HUD uses it for the countdown bar ratio so
+   *  the duration lives in ONE place (here) instead of being duplicated in the HUD */
+  fullSec: number
+}
+
+const buffs: Record<BuffKind, BuffState> = {
+  resist: { until: 0, mag: 1, fullSec: 0 },
+  power: { until: 0, mag: 1, fullSec: 0 },
+  haste: { until: 0, mag: 1, fullSec: 0 },
+}
+
+const subs = new Set<() => void>()
+function notify(): void {
+  subs.forEach((fn) => fn())
+}
+
+function now(): number {
+  return performance.now() * 0.001
+}
+
+function isActive(k: BuffKind): boolean {
+  return buffs[k].until > now()
+}
+
+/** Grant (or refresh) a buff for `durationMs` with multiplier `mag`. */
+export function applyBuff(kind: BuffKind, durationMs: number, mag: number): void {
+  buffs[kind].until = now() + durationMs / 1000
+  buffs[kind].mag = mag
+  buffs[kind].fullSec = durationMs / 1000
+  notify()
+}
+
+/** Incoming-damage multiplier (resist → <1, else 1). */
+export function getDamageTakenMult(): number {
+  return isActive('resist') ? buffs.resist.mag : 1
+}
+
+/** Outgoing-damage multiplier (power → >1, else 1). */
+export function getDamageDealtMult(): number {
+  return isActive('power') ? buffs.power.mag : 1
+}
+
+/** Move-speed multiplier (haste → >1, else 1). */
+export function getSpeedMult(): number {
+  return isActive('haste') ? buffs.haste.mag : 1
+}
+
+export interface ActiveBuff {
+  kind: BuffKind
+  /** seconds remaining */
+  remain: number
+  /** full granted duration (sec) — for the HUD countdown ratio */
+  fullSec: number
+}
+
+/** Active buffs with remaining seconds, for the HUD. Pass the current time. */
+export function getActiveBuffs(nowSec: number): ActiveBuff[] {
+  const out: ActiveBuff[] = []
+  for (const k of Object.keys(buffs) as BuffKind[]) {
+    const remain = buffs[k].until - nowSec
+    if (remain > 0) out.push({ kind: k, remain, fullSec: buffs[k].fullSec })
+  }
+  return out
+}
+
+export function subscribeBuffs(fn: () => void): () => void {
+  subs.add(fn)
+  fn() // fire once immediately with current state, per store convention
+  return () => {
+    subs.delete(fn)
+  }
+}
+
+export function resetBuffs(): void {
+  for (const k of Object.keys(buffs) as BuffKind[]) {
+    buffs[k].until = 0
+    buffs[k].mag = 1
+    buffs[k].fullSec = 0
+  }
+  notify()
+}

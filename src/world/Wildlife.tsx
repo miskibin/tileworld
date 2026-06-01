@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
 import { isCulled } from './cull'
 import { getPlayer } from './playerStore'
+import { isNight } from './timeStore'
 import { playDogBark } from '../audio/sfx'
 
 const DOG_PALETTES: { body: string; dark: string }[] = [
@@ -126,9 +127,9 @@ function DogView({ state }: DogViewProps) {
     if (t >= nextBarkRef.current) {
       const p = getPlayer()
       const dd = Math.hypot(p.x - s.x, p.z - s.z)
-      if (dd < 16) {
+      if (dd < 16 && !isNight()) {
         playDogBark(dd)
-        nextBarkRef.current = t + 4 + rand() * 6
+        nextBarkRef.current = t + 9 + rand() * 10
       } else {
         nextBarkRef.current = t + 1.5
       }
@@ -180,7 +181,7 @@ function DogView({ state }: DogViewProps) {
     s.moving = moving
 
     const tile = tileAt(Math.floor(s.x), Math.floor(s.z))
-    s.y = tile ? tile.height : 1
+    s.y = tile ? tileTopY(Math.floor(s.x), Math.floor(s.z)) : 1
 
     if (groupRef.current) {
       groupRef.current.position.set(s.x, s.y, s.z)
@@ -291,17 +292,18 @@ function DogView({ state }: DogViewProps) {
 }
 
 const DOG_SPAWNS: Array<{ pos: [number, number]; palette: number; seed: number }> = [
-  { pos: [34, 28], palette: 0, seed: 1.1 },
-  { pos: [30, 30], palette: 1, seed: 2.3 },
-  { pos: [38, 26], palette: 2, seed: 3.5 },
-  { pos: [26, 24], palette: 3, seed: 4.7 },
-  { pos: [40, 30], palette: 0, seed: 5.9 },
-  { pos: [22, 28], palette: 1, seed: 7.2 },
-  // A few more roaming the grassland around the castle.
-  { pos: [52, 46], palette: 2, seed: 8.4 },
-  { pos: [62, 44], palette: 3, seed: 9.6 },
-  { pos: [48, 30], palette: 1, seed: 10.8 },
-  { pos: [66, 38], palette: 0, seed: 12.1 },
+  // Pack around the NW hamlet (village at ~50,38).
+  { pos: [48, 40], palette: 0, seed: 1.1 },
+  { pos: [52, 36], palette: 1, seed: 2.3 },
+  { pos: [46, 36], palette: 2, seed: 3.5 },
+  { pos: [54, 44], palette: 3, seed: 4.7 },
+  { pos: [44, 42], palette: 0, seed: 5.9 },
+  // A few roaming the grass belt just outside the castle walls.
+  { pos: [56, 50], palette: 1, seed: 7.2 },
+  { pos: [66, 68], palette: 2, seed: 8.4 },
+  { pos: [78, 68], palette: 3, seed: 9.6 },
+  { pos: [88, 56], palette: 1, seed: 10.8 },
+  { pos: [88, 50], palette: 0, seed: 12.1 },
 ]
 
 export function Wildlife() {

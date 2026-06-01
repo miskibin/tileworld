@@ -35,9 +35,15 @@ import { Boat } from '../src/world/Boat'
 import { Grave } from '../src/world/Grave'
 import { DistantMountains } from '../src/world/DistantMountains'
 import { WolfView } from '../src/world/Wolf'
+import { ElkView } from '../src/world/Elk'
+import { ScorpionView } from '../src/world/Scorpion'
 import { DeerView } from '../src/world/Deer'
 import { BoarView } from '../src/world/Boar'
 import { RabbitView } from '../src/world/Rabbit'
+import { PolarBearView } from '../src/world/PolarBear'
+import { BogCrocView } from '../src/world/BogCroc'
+import { GoatView } from '../src/world/Goat'
+import { GolemView } from '../src/world/Golem'
 import { createAnimal } from '../src/world/animalStore'
 
 // ---------------------------------------------------------------------------
@@ -58,9 +64,15 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Ork: () => <OrkView state={createOrk(0, 0, 0, 'grunt', 'red', 1)} />,
   OrkShaman: () => <OrkView state={createOrk(0, 0, 0, 'shaman', 'blue', 1)} />,
   Wolf: () => <WolfView state={createAnimal('wolf', 0, 0, 1)} />,
+  Elk: () => <ElkView state={createAnimal('elk', 0, 0, 1)} />,
+  Scorpion: () => <ScorpionView state={createAnimal('scorpion', 0, 0, 1)} />,
+  PolarBear: () => <PolarBearView state={createAnimal('polar_bear', 0, 0, 1)} />,
   Deer: () => <DeerView state={createAnimal('deer', 0, 0, 1)} />,
   Boar: () => <BoarView state={createAnimal('boar', 0, 0, 1)} />,
   Rabbit: () => <RabbitView state={createAnimal('rabbit', 0, 0, 1)} />,
+  BogCroc: () => <BogCrocView state={createAnimal('bog_croc', 0, 0, 1)} />,
+  Goat: () => <GoatView state={createAnimal('goat', 0, 0, 1)} />,
+  Golem: () => <GolemView state={createAnimal('golem', 0, 0, 1)} />,
   Wall: () => <Wall position={[0, 0, 0]} len={11} />,
   Tower: () => <Tower position={[0, 0, 0]} />,
   Gate: () => <Gate position={[0, 0, 0]} width={4} />,

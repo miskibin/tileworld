@@ -29,9 +29,9 @@ export function getPhase(): GamePhase {
 export function setPhase(p: GamePhase): void {
   if (phase === p) return
   phase = p
-  // The world freezes behind the menu and the end screens; it runs during
-  // prep + wave. This keeps every `if (isFrozen()) return` gate untouched.
-  setPaused(p === 'menu' || p === 'victory' || p === 'defeat')
+  // The world runs live during menu/prep/wave; only the end screens freeze it.
+  // The WaveDirector still gates spawning on phase, so 'menu' stays peaceful.
+  setPaused(p === 'victory' || p === 'defeat')
   subs.forEach((fn) => fn(phase))
 }
 

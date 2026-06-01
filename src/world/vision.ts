@@ -41,6 +41,10 @@ export interface TerrainShaderOpts {
   detailMean?: number
   /** large-scale hue/value variation strength (0..1+) */
   variation?: number
+  /** feather the mesh border by discarding low-`aCoverage` fragments with a
+   *  noisy cut — softens the hard road/grass seam (needs an `aCoverage` vertex
+   *  attribute, 1 = solid interior, →0 at the open edge) */
+  edgeAlpha?: boolean
 }
 
 /**
@@ -56,6 +60,7 @@ export function applyVisionShader(
   m.__visionPatched = true
 
   const hasDetail = !!opts.detail
+  const edgeAlpha = !!opts.edgeAlpha
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPlayerPos = playerPosUniform
@@ -73,7 +78,10 @@ export function applyVisionShader(
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying vec3 vTerrainWorldPos;\nvarying float vTerrainUp;',
+        `#include <common>
+         varying vec3 vTerrainWorldPos;
+         varying float vTerrainUp;
+         ${edgeAlpha ? 'attribute float aCoverage;\nvarying float vCoverage;' : ''}`,
       )
       .replace(
         '#include <project_vertex>',
@@ -85,6 +93,7 @@ export function applyVisionShader(
            vTerrainUp = (modelMatrix * vec4(normal, 0.0)).y;
          #endif
          vTerrainWorldPos = vtWorld.xyz;
+         ${edgeAlpha ? 'vCoverage = aCoverage;' : ''}
          #include <project_vertex>`,
       )
 
@@ -98,6 +107,7 @@ export function applyVisionShader(
          uniform float uViewMaxDarken;
          uniform float uVariation;
          ${hasDetail ? 'uniform sampler2D uDetailMap;\nuniform float uDetailScale;\nuniform float uDetailStrength;\nuniform float uDetailMean;' : ''}
+         ${edgeAlpha ? 'varying float vCoverage;' : ''}
          varying vec3 vTerrainWorldPos;
          varying float vTerrainUp;
          float terHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -114,6 +124,14 @@ export function applyVisionShader(
         `#include <dithering_fragment>
          vec2 terWp = vTerrainWorldPos.xz;
 
+         ${edgeAlpha ? `
+         // (0) noisy border feather: ragged-discard the open edge so dirt frays
+         //     into grass instead of stopping on a clean tile line. The solid
+         //     interior (vCoverage ≈ 1) is never touched.
+         float terCovN = terNoise(terWp * 3.0) * 0.6 + terNoise(terWp * 9.0) * 0.4;
+         if (vCoverage + (terCovN - 0.5) * 0.5 < 0.62) discard;
+         ` : ''}
+
          // (1) fine value mottle — three octaves break the flat per-tile colour.
          float terM = terNoise(terWp * 0.5) * 0.55 + terNoise(terWp * 1.7) * 0.30 + terNoise(terWp * 5.5) * 0.15;
          gl_FragColor.rgb *= 0.80 + terM * 0.40;
@@ -125,8 +143,8 @@ export function applyVisionShader(
          //     lighten/darken like real ground cover.
          float terBig = terNoise(terWp * 0.05) * 0.6 + terNoise(terWp * 0.14) * 0.4;
          float terHue = terNoise(terWp * 0.028 + 11.0);
-         gl_FragColor.rgb += (terBig - 0.5) * uVariation * vec3(0.16, 0.10, -0.10);
-         gl_FragColor.rgb *= 1.0 + (terHue - 0.5) * uVariation * 0.30;
+         gl_FragColor.rgb += (terBig - 0.5) * uVariation * vec3(0.22, 0.14, -0.14);
+         gl_FragColor.rgb *= 1.0 + (terHue - 0.5) * uVariation * 0.40;
 
          ${hasDetail ? `
          // (3) tiling detail texture imprint (up-facing faces only). Normalised by

@@ -1,5 +1,6 @@
 import { healPlayer } from './playerStore'
-import { playConsume, playEquip } from '../audio/sfx'
+import { playConsume, playEquip, playAbilityCast } from '../audio/sfx'
+import { applyBuff, type BuffKind } from './buffStore'
 
 // 5-slot Minecraft-style hotbar. Items are either consumables (right-click to
 // use → heal) or weapons (right-click to equip → sets player attack bonus).
@@ -17,6 +18,8 @@ export interface ItemDef {
   damageBonus?: number
   /** consumables stack; weapons don't */
   stackable: boolean
+  /** consumable: timed buff granted on use (in addition to any heal) */
+  buff?: { kind: BuffKind; durationMs: number; mag: number }
 }
 
 export const ITEM_DEFS: Record<string, ItemDef> = {
@@ -26,6 +29,22 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   sword_iron: { id: 'sword_iron', name: 'Iron Sword', icon: '⚔️', kind: 'weapon', damageBonus: 15, stackable: false },
   sword_gold: { id: 'sword_gold', name: 'Golden Blade', icon: '🗡️', kind: 'weapon', damageBonus: 30, stackable: false },
   axe: { id: 'axe', name: 'Battle Axe', icon: '🪓', kind: 'weapon', damageBonus: 22, stackable: false },
+  // ─── Biome creature drops (Phase 2) ───────────────────────────
+  fur: {
+    id: 'fur', name: 'Thick Fur', icon: '🧥', kind: 'consumable', stackable: true,
+    buff: { kind: 'resist', durationMs: 12000, mag: 0.6 },
+  },
+  venom: {
+    id: 'venom', name: 'Venom Vial', icon: '🧫', kind: 'consumable', stackable: true,
+    buff: { kind: 'power', durationMs: 12000, mag: 1.4 },
+  },
+  goat_charm: {
+    id: 'goat_charm', name: 'Goat Charm', icon: '🔔', kind: 'consumable', stackable: true,
+    buff: { kind: 'haste', durationMs: 12000, mag: 1.3 },
+  },
+  croc_steak: { id: 'croc_steak', name: 'Croc Steak', icon: '🥩', kind: 'consumable', heal: 70, stackable: true },
+  elk_jerky: { id: 'elk_jerky', name: 'Elk Jerky', icon: '🍖', kind: 'consumable', heal: 35, stackable: true },
+  stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 26, stackable: false },
 }
 
 export const HOTBAR_SIZE = 5
@@ -72,8 +91,18 @@ function notify(): void {
 }
 
 export function selectSlot(i: number): void {
-  if (i < 0 || i >= HOTBAR_SIZE || i === state.selected) return
+  if (i < 0 || i >= HOTBAR_SIZE) return
   state.selected = i
+  // Auto-wield: selecting a weapon slot equips it, so the held model + damage
+  // follow the hotbar (picking the axe = holding the axe). Consumables stay on
+  // Q / right-click so simply browsing the bar doesn't eat them.
+  const slot = state.slots[i]
+  const def = slot?.itemId ? ITEM_DEFS[slot.itemId] : null
+  if (def?.kind === 'weapon' && state.equippedId !== def.id) {
+    state.weaponBonus = def.damageBonus ?? 0
+    state.equippedId = def.id
+    playEquip()
+  }
   notify()
 }
 
@@ -106,7 +135,9 @@ export function activateSlot(i: number): void {
 
   if (def.kind === 'consumable') {
     healPlayer(def.heal ?? 0)
+    if (def.buff) applyBuff(def.buff.kind, def.buff.durationMs, def.buff.mag)
     playConsume()
+    playAbilityCast()
     slot.count -= 1
     if (slot.count <= 0) {
       slot.itemId = null

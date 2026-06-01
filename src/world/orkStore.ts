@@ -16,6 +16,9 @@ export interface OrkState {
   variant: OrkVariant
   /** warband; orks fight rival-faction orks */
   faction: OrkFaction
+  /** camp anchor: when set, the ork guards here instead of marching on the keep
+   * (wave invaders leave this null so they still assault the castle) */
+  home: { x: number; z: number } | null
   seed: number
   /** radius used for blocking the player */
   collisionRadius: number
@@ -65,6 +68,7 @@ export function createOrk(
   variant: OrkVariant,
   faction: OrkFaction,
   seed: number,
+  home: { x: number; z: number } | null = null,
 ): OrkState {
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
@@ -80,6 +84,7 @@ export function createOrk(
     hurtFlashUntil: 0,
     variant,
     faction,
+    home,
     seed,
     collisionRadius: cfg.collisionRadius,
     attackingSince: 0,
@@ -107,6 +112,18 @@ export function getOrks(): OrkState[] {
 
 export function getAliveOrks(): OrkState[] {
   return orks.filter((o) => o.hp > 0)
+}
+
+/** Living orks belonging to the night assault (no camp home). The wave director
+ * counts these for completion so static camp warbands don't block a wave from
+ * ending — the player clears camps on their own time, not every night. */
+export function countAliveWaveOrks(): number {
+  let n = 0
+  for (let i = 0; i < orks.length; i++) {
+    const o = orks[i]
+    if (o.hp > 0 && o.home === null) n++
+  }
+  return n
 }
 
 /** Remove a dead ork from the roster (called once its death-fade finishes). */

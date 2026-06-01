@@ -1,13 +1,15 @@
-import { useRef, useMemo, type MutableRefObject } from 'react'
+import { useRef, useMemo, useState, useEffect, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { tileAt, CENTER_X, CENTER_Z } from './tileMap'
+import { tileAt, tileTopY, canStepOrDrop, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
-import { playSwing, playHit, playKill } from '../audio/sfx'
+import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
-import { getWeaponBonus } from './inventoryStore'
+import { spawnImpact } from './impactStore'
+import { spawnPickup } from './pickupStore'
+import { getWeaponBonus, getInventory, subscribeInventory } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
@@ -18,6 +20,7 @@ import { houseBlocksAt } from './houseBlockers'
 import {
   addGold,
   addXp,
+  damagePlayer,
   getAttackDamage,
   getPlayer,
   respawnPlayerAt,
@@ -25,10 +28,19 @@ import {
   XP_PER_ORK,
 } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { getDamageDealtMult, getSpeedMult } from './buffStore'
 import { setVisionPlayerPos } from './vision'
 import { nearestVillager, removeVillager } from './villagerStore'
 import { addGrave, startSoul, clearSoul, SUCCESSION_DURATION } from './successionStore'
 import { setPhase, setDefeatReason } from './gameStore'
+import {
+  getBlockState,
+  BLOCK_STAMINA_MAX,
+  BLOCK_DRAIN_HOLD,
+  BLOCK_REGEN,
+  BLOCK_REGEN_DELAY,
+  BLOCK_RECOVER_THRESHOLD,
+} from './blockStore'
 
 const ARMOR = '#d6d8df'
 const ARMOR_LIGHT = '#e6e8ed'
@@ -41,6 +53,8 @@ const GRIP = '#5a3a22'
 const SHIELD_FACE = '#a8b8d0'
 const SHIELD_RIM = '#6a3a22'
 const SHIELD_EMBLEM = '#d3b14c'
+const GOLD = '#e8b84b' // Golden Blade gilding
+const AXE_STEEL = '#aab0bc' // Battle Axe head
 
 const SPEED = 3.5 // grid units per second
 const SPRINT_MULT = 1.75 // shift-held speed multiplier
@@ -48,6 +62,12 @@ const TURN_RATE = 12 // higher = snappier rotation
 const STEP_FREQ = 7 // walk-cycle radians per second
 const GRAVITY = 20 // y units / sec^2
 const JUMP_SPEED = 6.5 // initial vertical velocity on jump
+// Fall damage: a drop taller than FALL_SAFE world-units (≈ a 2-class cliff; a
+// normal jump rises only ~1.06 so it never triggers) hurts, scaled by how far
+// past the threshold you fell, capped so a tall peak isn't an instant kill.
+const FALL_SAFE = 1.1
+const FALL_DMG_PER_UNIT = 16
+const FALL_DMG_MAX = 45
 const PLAYER_RADIUS = 0.22 // collision radius for obstacle blocking
 const ATTACK_DURATION = 0.45 // seconds for full swing
 const ATTACK_RANGE = 1.8 // grid units reach
@@ -101,6 +121,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const movingAmt = useRef(0) // 0..1 smoothly tracks isMoving
   const velY = useRef(0)
   const onGround = useRef(true)
+  // World-Y the player last left the ground at — drives fall-damage on landing.
+  const airTakeoffY = useRef(initial[1])
   const lastStepHalfCycle = useRef(0)
 
   // Attack state — left-click triggers a single swing.
@@ -131,6 +153,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const shieldFaceMat = useMemo(() => new THREE.MeshStandardMaterial({ color: SHIELD_FACE, roughness: 0.5, metalness: 0.3 }), [])
   const shieldRimMat = useMemo(() => new THREE.MeshStandardMaterial({ color: SHIELD_RIM, roughness: 0.9 }), [])
   const shieldEmblemMat = useMemo(() => new THREE.MeshStandardMaterial({ color: SHIELD_EMBLEM, roughness: 0.5, metalness: 0.6 }), [])
+  const goldBladeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.8 }), [])
+  const axeHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: AXE_STEEL, roughness: 0.45, metalness: 0.6 }), [])
+
+  // The held weapon mesh follows the equipped item (hotbar right-click → equip).
+  const [equippedId, setEquippedId] = useState<string | null>(getInventory().equippedId)
+  useEffect(() => subscribeInventory(() => setEquippedId(getInventory().equippedId)), [])
 
   // Cached working vectors (avoid per-frame allocation).
   const camFwd = useMemo(() => new THREE.Vector3(), [])
@@ -187,8 +215,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           groupRef.current.position.set(pos.current.x, pos.current.y, pos.current.z)
           groupRef.current.rotation.set(0, facing.current, tilt)
         }
-        setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false)
+        setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false, facing.current)
         attackProcessed.current = attackClickCount
+        getBlockState().blocking = false
         return
       }
 
@@ -202,6 +231,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         pos.current.z = h.z
         velY.current = 0
         onGround.current = true
+        airTakeoffY.current = h.y
         facing.current = Math.PI
         attacking.current = false
         clearSoul()
@@ -214,8 +244,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           groupRef.current.position.set(pos.current.x, pos.current.y, pos.current.z)
           groupRef.current.rotation.set(0, facing.current, tilt)
         }
-        setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false)
+        setPlayerPos(pos.current.x, pos.current.y, pos.current.z, false, facing.current)
         attackProcessed.current = attackClickCount
+        getBlockState().blocking = false
         return
       }
     }
@@ -248,20 +279,23 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // ─── Apply motion with axis-separated collision (tile + props) ──
     const sprinting = moving && k.sprint
     if (moving) {
-      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * dt
+      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * dt
       const nx = pos.current.x + moveDir.x * step
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
       const czFloor = Math.floor(pos.current.z)
+      // Terrain step uses the player climb rule (canStepOrDrop): climbing is
+      // capped at one height-class (Δ ≥ 2 faces block), but you may walk OFF any
+      // height — gravity carries you down and fall damage is applied on landing.
       const canMoveX =
-        (tileAt(Math.floor(nx), czFloor) !== null || bridgeAt(nx, pos.current.z) !== null) &&
+        canStepOrDrop(cxFloor, czFloor, Math.floor(nx), czFloor) &&
         !obstacleCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !animalCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
-        (tileAt(cxFloor, Math.floor(nz)) !== null || bridgeAt(pos.current.x, nz) !== null) &&
+        canStepOrDrop(cxFloor, czFloor, cxFloor, Math.floor(nz)) &&
         !obstacleCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
@@ -278,7 +312,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // ─── Vertical: gravity + jump + tile-height ground ──────────
     const onBridge = bridgeAt(pos.current.x, pos.current.z)
     const tileBelow = tileAt(Math.floor(pos.current.x), Math.floor(pos.current.z))
-    const groundY = onBridge ? onBridge.y : tileBelow ? tileBelow.height : 0
+    const groundY = onBridge ? onBridge.y : tileBelow ? tileTopY(Math.floor(pos.current.x), Math.floor(pos.current.z)) : 0
+    const wasOnGround = onGround.current
     if (k.jump && onGround.current) {
       velY.current = JUMP_SPEED
       onGround.current = false
@@ -286,11 +321,46 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     velY.current -= GRAVITY * dt
     pos.current.y += velY.current * dt
     if (pos.current.y <= groundY) {
+      // Landed. If we fell from far enough above (walked off a cliff or jumped
+      // off a peak), take fall damage scaled by the drop past the safe height.
+      if (!wasOnGround) {
+        const fall = airTakeoffY.current - groundY
+        if (fall > FALL_SAFE) {
+          const dmg = Math.min(FALL_DMG_MAX, Math.round((fall - FALL_SAFE) * FALL_DMG_PER_UNIT))
+          if (dmg > 0) damagePlayer(dmg, tNow)
+        }
+      }
       pos.current.y = groundY
       velY.current = 0
       onGround.current = true
     } else {
+      // Just left the ground (walked off an edge or jumped) — remember from how
+      // high, so the landing can measure the drop.
+      if (wasOnGround) airTakeoffY.current = pos.current.y
       onGround.current = false
+    }
+
+    // ─── Shield block: resolve from RMB + stamina (single timing owner) ──
+    // Character.useFrame is the ONLY place stamina is advanced by dt, so the
+    // store never mixes time bases (damagePlayer only subtracts a flat chunk).
+    const blk = getBlockState()
+    const canBlock = !attacking.current && player.deadSince === null
+    if (blk.wantBlock && canBlock && !blk.locked && blk.stamina > 0) {
+      blk.blocking = true
+      blk.stamina = Math.max(0, blk.stamina - BLOCK_DRAIN_HOLD * dt)
+      blk.regenPause = BLOCK_REGEN_DELAY
+      if (blk.stamina <= 0) {
+        blk.locked = true
+        blk.blocking = false
+      }
+    } else {
+      blk.blocking = false
+      if (blk.regenPause > 0) {
+        blk.regenPause = Math.max(0, blk.regenPause - dt)
+      } else if (blk.stamina < BLOCK_STAMINA_MAX) {
+        blk.stamina = Math.min(BLOCK_STAMINA_MAX, blk.stamina + BLOCK_REGEN * dt)
+        if (blk.locked && blk.stamina >= BLOCK_RECOVER_THRESHOLD) blk.locked = false
+      }
     }
 
     // ─── Animation drivers ──────────────────────────────────────
@@ -325,12 +395,17 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     const armSwing = Math.sin(wp + Math.PI) * 0.55 * m
 
     // ─── Attack: kick off queued swing ──────────────────────────
-    if (!attacking.current && attackClickCount > attackProcessed.current) {
+    // Guarding takes priority — discard any swings queued while the shield is up
+    // so the player doesn't auto-attack the instant they lower it.
+    if (blk.blocking) {
+      attackProcessed.current = attackClickCount
+    } else if (!attacking.current && attackClickCount > attackProcessed.current) {
       attackProcessed.current = attackClickCount
       attacking.current = true
       attackStart.current = t
       attackHitDealt.current = false
       playSwing()
+      playPlayerAttack()
     }
 
     // Attack drive — horizontal slash that's clearly visible.
@@ -375,7 +450,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
-          const dmg = getAttackDamage() + getWeaponBonus()
+          const dmg = Math.round((getAttackDamage() + getWeaponBonus()) * getDamageDealtMult())
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
           let hitAny = false
@@ -400,6 +475,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dot < ATTACK_CONE_DOT) continue
             const died = damageOrk(ork, dmg, t)
             hitAny = true
+            spawnImpact(ork.x, ork.y + 1.0, ork.z, {
+              color: died ? '#fff0b0' : '#ffcf6a',
+              count: died ? 16 : 8,
+              spread: died ? 4 : 3,
+              up: died ? 2 : 1.4,
+            })
             if (died) {
               killedAny = true
               addGold(8) // bounty for an ork
@@ -419,6 +500,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dot < ATTACK_CONE_DOT) continue
             const died = damageBear(bear, dmg, t)
             hitAny = true
+            spawnImpact(bear.x, bear.y + 1.1, bear.z, {
+              color: died ? '#fff0b0' : '#ffcf6a',
+              count: died ? 20 : 10,
+              spread: died ? 4.4 : 3.2,
+              up: died ? 2.2 : 1.5,
+            })
             if (died) {
               killedAny = true
               addGold(20) // bears are tougher — bigger bounty
@@ -438,10 +525,19 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dot < ATTACK_CONE_DOT) continue
             const died = damageAnimal(animal, dmg, t)
             hitAny = true
+            spawnImpact(animal.x, animal.y + 0.8, animal.z, {
+              color: died ? '#fff0b0' : '#ffcf6a',
+              count: died ? 12 : 6,
+              spread: died ? 3.4 : 2.6,
+              up: died ? 1.8 : 1.3,
+            })
             if (died) {
               killedAny = true
               const c = ANIMAL_CONFIG[animal.species]
               addGold(c.bountyGold)
+              if (c.dropItemId && Math.random() < (c.dropChance ?? 1)) {
+                spawnPickup(c.dropItemId, animal.x, animal.y, animal.z)
+              }
               addXp(c.bountyXp)
               spawnFloat(`+${c.bountyGold} ★`, '#ffd58c', animal.x, animal.y + 2.2, animal.z)
               spawnFloat(`+${c.bountyXp} XP`, '#62c6e8', animal.x - 0.3, animal.y + 1.8, animal.z)
@@ -466,7 +562,16 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       rightArmRef.current.rotation.y = attackArmY !== null ? attackArmY : 0
       rightArmRef.current.rotation.z = attackArmZ !== null ? attackArmZ : 0
     }
-    if (leftArmRef.current) leftArmRef.current.rotation.x = -armSwing - idleSway
+    if (leftArmRef.current) {
+      if (blk.blocking) {
+        // Raise the shield arm across the front.
+        leftArmRef.current.rotation.x = -1.25
+        leftArmRef.current.rotation.z = 0.4
+      } else {
+        leftArmRef.current.rotation.x = -armSwing - idleSway
+        leftArmRef.current.rotation.z = 0
+      }
+    }
 
     // Head — looks around when idle, stays forward when running
     if (headRef.current) {
@@ -516,8 +621,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       posRef.current.y = pos.current.y
       posRef.current.moving = moving
     }
-    // Publish to module store so ork AI can read it.
-    setPlayerPos(pos.current.x, pos.current.y, pos.current.z, moving)
+    // Publish to module store so ork AI can read it (facing drives the block cone).
+    setPlayerPos(pos.current.x, pos.current.y, pos.current.z, moving, facing.current)
     // World-space player position drives the terrain fog-of-war shader.
     // We render inside an offset group (-CENTER_X, 0, -CENTER_Z), so subtract
     // those center offsets to get the actual world coords the shader expects.
@@ -568,28 +673,65 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         <mesh position={[0, -0.45, 0]} castShadow material={armorDarkMat}>
           <boxGeometry args={[0.13, 0.08, 0.23]} />
         </mesh>
-        {/* Sword — held forward in hand, blade extending out front */}
+        {/* Held weapon — swaps mesh to match the equipped item; group transform +
+            swing animation are shared across all variants. */}
         <group ref={swordRef} position={[0, -0.5, 0.06]} rotation={[-Math.PI / 2, 0, 0]}>
-          {/* Pommel (rear, behind hand) */}
-          <mesh position={[0, 0.14, 0]} castShadow material={hiltMat}>
-            <sphereGeometry args={[0.05, 10, 8]} />
-          </mesh>
-          {/* Grip — wrapped around hand */}
-          <mesh position={[0, 0.06, 0]} castShadow material={gripMat}>
-            <cylinderGeometry args={[0.03, 0.03, 0.14, 8]} />
-          </mesh>
-          {/* Crossguard */}
-          <mesh position={[0, -0.04, 0]} castShadow material={hiltMat}>
-            <boxGeometry args={[0.28, 0.06, 0.08]} />
-          </mesh>
-          {/* Blade extending forward (down in sword-local = +z after rotation) */}
-          <mesh position={[0, -0.42, 0]} castShadow material={bladeMat}>
-            <boxGeometry args={[0.08, 0.7, 0.025]} />
-          </mesh>
-          {/* Blade tip */}
-          <mesh position={[0, -0.82, 0]} rotation={[Math.PI, 0, 0]} castShadow material={bladeMat}>
-            <coneGeometry args={[0.04, 0.1, 4]} />
-          </mesh>
+          {equippedId === 'axe' ? (
+            <>
+              {/* Battle Axe — wooden haft + broad steel head */}
+              <mesh position={[0, -0.12, 0]} castShadow material={gripMat}>
+                <cylinderGeometry args={[0.028, 0.028, 0.8, 8]} />
+              </mesh>
+              <mesh position={[0, 0.3, 0]} castShadow material={hiltMat}>
+                <sphereGeometry args={[0.04, 8, 6]} />
+              </mesh>
+              <mesh position={[0.13, -0.42, 0]} castShadow material={axeHeadMat}>
+                <boxGeometry args={[0.26, 0.22, 0.05]} />
+              </mesh>
+              {/* Cutting edge — cone tipped outward (+x) */}
+              <mesh position={[0.28, -0.42, 0]} rotation={[0, 0, -Math.PI / 2]} castShadow material={axeHeadMat}>
+                <coneGeometry args={[0.11, 0.14, 4]} />
+              </mesh>
+            </>
+          ) : equippedId === 'sword_gold' ? (
+            <>
+              {/* Golden Blade — longer, gilded sword */}
+              <mesh position={[0, 0.14, 0]} castShadow material={goldBladeMat}>
+                <sphereGeometry args={[0.05, 10, 8]} />
+              </mesh>
+              <mesh position={[0, 0.06, 0]} castShadow material={gripMat}>
+                <cylinderGeometry args={[0.03, 0.03, 0.14, 8]} />
+              </mesh>
+              <mesh position={[0, -0.04, 0]} castShadow material={goldBladeMat}>
+                <boxGeometry args={[0.32, 0.06, 0.08]} />
+              </mesh>
+              <mesh position={[0, -0.48, 0]} castShadow material={goldBladeMat}>
+                <boxGeometry args={[0.09, 0.82, 0.028]} />
+              </mesh>
+              <mesh position={[0, -0.92, 0]} rotation={[Math.PI, 0, 0]} castShadow material={goldBladeMat}>
+                <coneGeometry args={[0.045, 0.12, 4]} />
+              </mesh>
+            </>
+          ) : (
+            <>
+              {/* Iron Sword — default (also shown bare-handed) */}
+              <mesh position={[0, 0.14, 0]} castShadow material={hiltMat}>
+                <sphereGeometry args={[0.05, 10, 8]} />
+              </mesh>
+              <mesh position={[0, 0.06, 0]} castShadow material={gripMat}>
+                <cylinderGeometry args={[0.03, 0.03, 0.14, 8]} />
+              </mesh>
+              <mesh position={[0, -0.04, 0]} castShadow material={hiltMat}>
+                <boxGeometry args={[0.28, 0.06, 0.08]} />
+              </mesh>
+              <mesh position={[0, -0.42, 0]} castShadow material={bladeMat}>
+                <boxGeometry args={[0.08, 0.7, 0.025]} />
+              </mesh>
+              <mesh position={[0, -0.82, 0]} rotation={[Math.PI, 0, 0]} castShadow material={bladeMat}>
+                <coneGeometry args={[0.04, 0.1, 4]} />
+              </mesh>
+            </>
+          )}
         </group>
       </group>
 

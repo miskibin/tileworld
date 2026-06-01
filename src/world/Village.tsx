@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { tileAt } from './tileMap'
+import { tileAt, tileTopY } from './tileMap'
 import { House } from './House'
 import { Garden } from './Garden'
 import { VillagerView } from './Villager'
@@ -30,7 +30,7 @@ export function Village({ position, rotation = 0, seed = 0, wallColor, roofColor
   const [doorX, doorZ] = rotLocal(-0.8, 1.4)
 
   const tile = tileAt(Math.floor(houseX), Math.floor(houseZ))
-  const groundY = tile ? tile.height : 1
+  const groundY = tile ? tileTopY(Math.floor(houseX), Math.floor(houseZ)) : 1
 
   useEffect(() => {
     // Register the house footprint (axis-aligned bounding box, ignoring

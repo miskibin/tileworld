@@ -36,7 +36,6 @@ const ORK_SPAWNS: {
   seedOff: number
 }[] = [
   { lx: -0.6, lz: 1.0, localFacing: -1.3, variant: 'grunt', seedOff: 0.5 },
-  { lx: 1.7, lz: -0.9, localFacing: 2.4, variant: 'grunt', seedOff: 2.1 },
   { lx: 2.6, lz: 1.4, localFacing: 1.0, variant: 'scout', seedOff: 3.4 },
   { lx: -2.0, lz: -0.6, localFacing: -0.5, variant: 'berserker', seedOff: 4.6 },
   { lx: 0.3, lz: 2.4, localFacing: 0.1, variant: 'shaman', seedOff: 5.8 },
@@ -57,7 +56,12 @@ export function OrkCamp({ position, rotation = 0, seed = 0, faction = 'red' }: P
       // Snap to the nearest standable, prop-free tile so orks never spawn on
       // water or wedged inside a tree.
       const spawn = findSpawnNear(wx, wz)
-      createOrk(spawn.x, spawn.z, wFacing, s.variant, faction, seed + s.seedOff)
+      // Anchor each ork to the camp centre so it guards here instead of marching
+      // on the keep — the player has to come out to the camp to fight it.
+      createOrk(spawn.x, spawn.z, wFacing, s.variant, faction, seed + s.seedOff, {
+        x: position[0],
+        z: position[2],
+      })
     }
     // No cleanup here — Mobs handles a global reset on remount.
     // NB: depend on primitive values, not the `position` array — a fresh array
