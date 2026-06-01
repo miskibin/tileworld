@@ -1,15 +1,15 @@
 // Three short timed buffs, granted by consumables. This module is the SINGLE
 // source of truth for the gameplay multipliers — the damage/attack/move hot
 // paths read the getters below rather than tracking buffs themselves. Expiry is
-// lazy (compared against the clock on read); the HUD ticks once a second to
-// drive the visible countdown and fire notify on expiry.
+// lazy (compared against the clock on read) — the store does NOT notify on
+// expiry; the HUD polls getActiveBuffs() each frame to drive the countdown.
 
 export type BuffKind = 'resist' | 'power' | 'haste'
 
 interface BuffState {
   /** wall-clock (sec) the buff expires; 0 = inactive */
   until: number
-  /** multiplier magnitude for this buff (e.g. resist 0.6, power 1.4) */
+  /** multiplier magnitude for this buff (e.g. resist 0.6, power 1.4); read only while active */
   mag: number
 }
 
@@ -72,6 +72,7 @@ export function getActiveBuffs(nowSec: number): ActiveBuff[] {
 
 export function subscribeBuffs(fn: () => void): () => void {
   subs.add(fn)
+  fn() // fire once immediately with current state, per store convention
   return () => {
     subs.delete(fn)
   }
