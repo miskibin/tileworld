@@ -144,13 +144,6 @@ export function selectSlot(i: number): void {
   notify()
 }
 
-/** Move the selection by `dir` (±1), wrapping around the bar. Drives the
- *  scroll-wheel hotbar cycle; reuses selectSlot's auto-equip. */
-export function cycleSelection(dir: number): void {
-  const next = (state.selected + dir + HOTBAR_SIZE) % HOTBAR_SIZE
-  selectSlot(next)
-}
-
 /** Add an item to the hotbar. Returns false if there's no room. */
 export function addItem(itemId: string, count = 1): boolean {
   const def = ITEM_DEFS[itemId]
