@@ -8,11 +8,13 @@ export default function App() {
   return (
     <div className="app-root">
       <Canvas
-        // Capture mode (?capture) drops the soft-shadow pass and pins dpr to 1
-        // so a software-WebGL frame is cheap enough for the headless screenshot
-        // tool to grab within its timeout. See renderMode.ts.
+        // Capture mode (?capture) drops the soft-shadow pass. dpr is pinned to 1
+        // in BOTH modes: the post stack is fragment-bound, so its cost scales with
+        // dpr² — on a high-DPI display [1,1.5] rendered up to 2.25× the pixels,
+        // the dominant cost in the perf profile. Pinning dpr=1 is the single
+        // biggest GPU win; the composer's SMAA pass keeps edges clean at 1×.
         shadows={CAPTURE_MODE ? false : 'soft'}
-        dpr={CAPTURE_MODE ? 1 : [1, 1.5]}
+        dpr={1}
         gl={{
           // No MSAA on the canvas: in normal play the EffectComposer renders the
           // final image through its own SMAA pass, so context-level MSAA is pure

@@ -264,8 +264,11 @@ export function World() {
       {sunMesh && !CAPTURE_MODE && (
         <EffectComposer multisampling={0} enableNormalPass={false}>
           {/* Ambient occlusion grounds props/buildings into the terrain so
-              they stop looking pasted-on. Half-res keeps it cheap. */}
-          <N8AO halfRes aoRadius={2.0} distanceFalloff={1.5} intensity={2.2} />
+              they stop looking pasted-on. Half-res + the "performance" preset
+              (8 AO samples / 4 denoise vs the default ~16/8) keeps this AO march
+              — the other expensive post pass — cheap; the denoise + half-res blur
+              hide the lower sample count. */}
+          <N8AO halfRes quality="performance" aoRadius={2.0} distanceFalloff={1.5} intensity={2.2} />
           {/* Volumetric sun shafts from the emissive sun sphere. The shafts are
               low-frequency and `blur`-smoothed, so they tolerate a lower march
               resolution + fewer samples with no visible change — and that's the
@@ -289,7 +292,7 @@ export function World() {
             luminanceThreshold={1.0}
             luminanceSmoothing={0.2}
             intensity={0.7}
-            kernelSize={KernelSize.LARGE}
+            kernelSize={KernelSize.MEDIUM}
           />
           {/* Warm cinematic grade: a touch more saturation + contrast. */}
           <HueSaturation saturation={0.12} />
