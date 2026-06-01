@@ -39,8 +39,11 @@ const detail = getDetailTextures()
 // and the seam-overlay material.
 type TopClass = 'grass' | 'grass_dark' | 'forest' | 'sand' | 'rock' | 'snow' | 'desert' | 'plains' | 'swamp'
 
-function classOf(biome: Biome, h: number): TopClass {
-  if (biome === 'grass') return h >= 2 ? 'grass_dark' : 'grass'
+function classOf(biome: Biome, _h: number): TopClass {
+  // Grassy biomes share ONE look: flat grass, forest floor, and grass plateaus
+  // are all near-identical greens, so unifying them avoids "off grass" seams.
+  // Forest still reads as forest from its dense trees, not the ground colour.
+  if (biome === 'grass' || biome === 'forest' || biome === 'plains') return 'grass'
   return biome as TopClass
 }
 
