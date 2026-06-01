@@ -28,6 +28,7 @@ import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
 import { getPhase } from './gameStore'
 import { isCulled } from './cull'
+import { mergeParts, type MergedPart } from './mergeParts'
 import { playOrkGrunt } from '../audio/sfx'
 
 const TURN_RATE_FALLBACK = 6
@@ -80,8 +81,83 @@ const HP_BAR_GEO = new THREE.PlaneGeometry(1, 1)
 const HP_BAR_WIDTH = 0.8
 const HP_BAR_HEIGHT = 0.07
 
+// ─── Pre-merged static geometry (draw-call batching) ─────────────────────────
+// The ork is one root group with four animated sub-groups (body, head, arms).
+// Within each frame of reference the static parts are welded by (slot/material,
+// castShadow) so a crowd of orks costs a fraction of the draw calls — pixels and
+// shadows are byte-for-byte identical. Skin/skinDark/faction are tinted PER ORK
+// (hurt flash + variant + warband colour), so those parts carry a `slot` and the
+// real material is bound at render; everything else uses the shared mats above.
+// Geometry is built once here and shared by every ork.
+const box = (x: number, y: number, z: number) => new THREE.BoxGeometry(x, y, z)
+const cone = (r: number, h: number, s: number) => new THREE.ConeGeometry(r, h, s)
+const cyl = (rt: number, rb: number, h: number, s: number) => new THREE.CylinderGeometry(rt, rb, h, s)
+const ico = (r: number) => new THREE.IcosahedronGeometry(r, 0)
+// Placeholder material for slotted parts — never rendered (the real per-ork
+// material is bound by slot below); it only exists so mergeParts can bucket.
+const SLOT_PH = new THREE.MeshBasicMaterial()
+
+// Root frame: legs (skin), loincloth (faction), belt.
+const ROOT_PARTS = mergeParts([
+  { geo: box(0.2, 0.36, 0.22), pos: [-0.13, 0.18, 0], slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.2, 0.36, 0.22), pos: [0.13, 0.18, 0], slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.55, 0.2, 0.3), pos: [0, 0.4, 0], slot: 'faction', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.56, 0.06, 0.31), pos: [0, 0.49, 0], mat: BELT_MAT, castShadow: true },
+])
+// Body frame (bodyRef): torso + the two war-paint stripes.
+const BODY_PARTS = mergeParts([
+  { geo: box(0.55, 0.42, 0.34), slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.12, 0.32, 0.006), pos: [0, 0, 0.175], slot: 'faction', mat: SLOT_PH },
+  { geo: box(0.4, 0.06, 0.004), pos: [0, 0, 0.176], slot: 'skinDark', mat: SLOT_PH },
+])
+// Head frame (headRef): skull + brow + eyes + tusks + ears.
+const HEAD_PARTS = mergeParts([
+  { geo: box(0.36, 0.34, 0.34), slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.32, 0.06, 0.01), pos: [0, 0.06, 0.175], slot: 'skinDark', mat: SLOT_PH },
+  { geo: box(0.05, 0.04, 0.008), pos: [-0.08, 0.02, 0.175], mat: EYE_MAT },
+  { geo: box(0.05, 0.04, 0.008), pos: [0.08, 0.02, 0.175], mat: EYE_MAT },
+  { geo: cone(0.026, 0.13, 5), pos: [-0.08, -0.1, 0.17], rot: [0, 0, -0.15], mat: TUSK_MAT },
+  { geo: cone(0.026, 0.13, 5), pos: [0.08, -0.1, 0.17], rot: [0, 0, 0.15], mat: TUSK_MAT },
+  { geo: box(0.06, 0.12, 0.14), pos: [-0.2, 0, 0], slot: 'skin', mat: SLOT_PH },
+  { geo: box(0.06, 0.12, 0.14), pos: [0.2, 0, 0], slot: 'skin', mat: SLOT_PH },
+])
+// Right arm frame (rightArmRef): shoulder + upper + forearm.
+const ARM_R_PARTS = mergeParts([
+  { geo: box(0.2, 0.1, 0.3), pos: [0, -0.02, 0], slot: 'skinDark', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.17, 0.5, 0.24), pos: [0.02, -0.25, 0.04], rot: [0.2, 0, 0.05], slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.16, 0.1, 0.22), pos: [0.04, -0.52, 0.08], rot: [0.2, 0, 0.05], slot: 'skinDark', mat: SLOT_PH, castShadow: true },
+])
+// Left arm frame (leftArmRef).
+const ARM_L_PARTS = mergeParts([
+  { geo: box(0.2, 0.1, 0.3), pos: [0, -0.02, 0], slot: 'skinDark', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.17, 0.5, 0.24), pos: [-0.02, -0.25, 0.04], rot: [0.2, 0, -0.05], slot: 'skin', mat: SLOT_PH, castShadow: true },
+  { geo: box(0.18, 0.13, 0.26), pos: [-0.04, -0.52, 0.08], rot: [0.2, 0, -0.05], slot: 'skinDark', mat: SLOT_PH, castShadow: true },
+])
+// Club frame (war-club group): two wood segments + four spikes.
+const CLUB_PARTS = mergeParts([
+  { geo: cyl(0.04, 0.04, 0.26, 6), pos: [0, -0.1, 0], mat: WOOD_MAT, castShadow: true },
+  { geo: cyl(0.1, 0.08, 0.34, 7), pos: [0, -0.36, 0], mat: WOOD_MAT, castShadow: true },
+  ...[0, 1, 2, 3].map((i) => ({
+    geo: cone(0.03, 0.09, 4),
+    pos: [Math.cos((i * Math.PI) / 2) * 0.1, -0.36, Math.sin((i * Math.PI) / 2) * 0.1] as [number, number, number],
+    rot: [0, (i * Math.PI) / 2, Math.PI / 2] as [number, number, number],
+    mat: BAND_MAT,
+  })),
+])
+// Staff frame (shaman staff group): shaft + glowing orb.
+const STAFF_PARTS = mergeParts([
+  { geo: cyl(0.03, 0.035, 1.1, 6), pos: [0, -0.1, 0], mat: STAFF_MAT, castShadow: true },
+  { geo: ico(0.1), pos: [0, 0.5, 0], mat: ORB_MAT },
+])
+
 interface OrkViewProps {
   state: OrkState
+}
+
+/** Render one merged bucket, binding the per-ork material for slotted parts. */
+function MergedMesh({ mp, skin, skinDark, faction }: { mp: MergedPart; skin: THREE.Material; skinDark: THREE.Material; faction: THREE.Material }) {
+  const mat = mp.slot === 'skin' ? skin : mp.slot === 'skinDark' ? skinDark : mp.slot === 'faction' ? faction : mp.mat
+  return <mesh geometry={mp.geo} material={mat} castShadow={mp.castShadow} />
 }
 
 export function OrkView({ state }: OrkViewProps) {
@@ -489,114 +565,46 @@ export function OrkView({ state }: OrkViewProps) {
     >
       {/* Ember glow — locatable in the dark; blooms via post-processing. */}
       <mesh position={[0, 1.5, 0.16]} geometry={ORK_GLOW_GEO} material={ORK_GLOW_MAT} />
-      {/* Legs */}
-      <mesh position={[-0.13, 0.18, 0]} castShadow material={skinMat}>
-        <boxGeometry args={[0.2, 0.36, 0.22]} />
-      </mesh>
-      <mesh position={[0.13, 0.18, 0]} castShadow material={skinMat}>
-        <boxGeometry args={[0.2, 0.36, 0.22]} />
-      </mesh>
-      {/* Loincloth carries the warband colour */}
-      <mesh position={[0, 0.4, 0]} castShadow material={factionMat}>
-        <boxGeometry args={[0.55, 0.2, 0.3]} />
-      </mesh>
-      <mesh position={[0, 0.49, 0]} castShadow material={BELT_MAT}>
-        <boxGeometry args={[0.56, 0.06, 0.31]} />
-      </mesh>
+      {/* Root-frame static parts (merged): legs, warband loincloth, belt. */}
+      {ROOT_PARTS.map((mp, i) => (
+        <MergedMesh key={`r${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+      ))}
       <group ref={bodyRef} position={[0, 0.74, 0.05]} rotation={[0.2, 0, 0]}>
-        <mesh castShadow material={skinMat}>
-          <boxGeometry args={[0.55, 0.42, 0.34]} />
-        </mesh>
-        {/* War-paint chest stripe in the warband colour */}
-        <mesh position={[0, 0, 0.175]} material={factionMat}>
-          <boxGeometry args={[0.12, 0.32, 0.006]} />
-        </mesh>
-        <mesh position={[0, 0, 0.176]} material={skinDarkMat}>
-          <boxGeometry args={[0.4, 0.06, 0.004]} />
-        </mesh>
+        {/* Torso + war-paint stripes (merged). */}
+        {BODY_PARTS.map((mp, i) => (
+          <MergedMesh key={`b${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+        ))}
       </group>
       <group ref={headRef} position={[0, 1.1, 0.06]}>
-        <mesh castShadow material={skinMat}>
-          <boxGeometry args={[0.36, 0.34, 0.34]} />
-        </mesh>
-        <mesh position={[0, 0.06, 0.175]} material={skinDarkMat}>
-          <boxGeometry args={[0.32, 0.06, 0.01]} />
-        </mesh>
-        <mesh position={[-0.08, 0.02, 0.175]} material={EYE_MAT}>
-          <boxGeometry args={[0.05, 0.04, 0.008]} />
-        </mesh>
-        <mesh position={[0.08, 0.02, 0.175]} material={EYE_MAT}>
-          <boxGeometry args={[0.05, 0.04, 0.008]} />
-        </mesh>
-        <mesh position={[-0.08, -0.1, 0.17]} rotation={[0, 0, -0.15]} material={TUSK_MAT}>
-          <coneGeometry args={[0.026, 0.13, 5]} />
-        </mesh>
-        <mesh position={[0.08, -0.1, 0.17]} rotation={[0, 0, 0.15]} material={TUSK_MAT}>
-          <coneGeometry args={[0.026, 0.13, 5]} />
-        </mesh>
-        <mesh position={[-0.2, 0, 0]} material={skinMat}>
-          <boxGeometry args={[0.06, 0.12, 0.14]} />
-        </mesh>
-        <mesh position={[0.2, 0, 0]} material={skinMat}>
-          <boxGeometry args={[0.06, 0.12, 0.14]} />
-        </mesh>
+        {/* Skull, brow, eyes, tusks, ears (merged by material). */}
+        {HEAD_PARTS.map((mp, i) => (
+          <MergedMesh key={`h${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+        ))}
       </group>
       <group ref={rightArmRef} position={[0.36, 0.95, 0.05]}>
-        <mesh position={[0, -0.02, 0]} castShadow material={skinDarkMat}>
-          <boxGeometry args={[0.2, 0.1, 0.3]} />
-        </mesh>
-        <mesh position={[0.02, -0.25, 0.04]} rotation={[0.2, 0, 0.05]} castShadow material={skinMat}>
-          <boxGeometry args={[0.17, 0.5, 0.24]} />
-        </mesh>
-        <mesh position={[0.04, -0.52, 0.08]} rotation={[0.2, 0, 0.05]} castShadow material={skinDarkMat}>
-          <boxGeometry args={[0.16, 0.1, 0.22]} />
-        </mesh>
+        {ARM_R_PARTS.map((mp, i) => (
+          <MergedMesh key={`ar${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+        ))}
         {isShaman ? (
           /* Gnarled staff topped with a glowing orb */
           <group position={[0.05, -0.5, 0.1]} rotation={[0.1, 0, 0.08]}>
-            <mesh position={[0, -0.1, 0]} castShadow material={STAFF_MAT}>
-              <cylinderGeometry args={[0.03, 0.035, 1.1, 6]} />
-            </mesh>
-            <mesh position={[0, 0.5, 0]} material={ORB_MAT}>
-              <icosahedronGeometry args={[0.1, 0]} />
-            </mesh>
+            {STAFF_PARTS.map((mp, i) => (
+              <MergedMesh key={`s${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+            ))}
           </group>
         ) : (
           /* Spiked war-club */
           <group position={[0.05, -0.65, 0.1]} rotation={[0.4, 0, 0.1]}>
-            <mesh position={[0, -0.1, 0]} castShadow material={WOOD_MAT}>
-              <cylinderGeometry args={[0.04, 0.04, 0.26, 6]} />
-            </mesh>
-            <mesh position={[0, -0.36, 0]} castShadow material={WOOD_MAT}>
-              <cylinderGeometry args={[0.1, 0.08, 0.34, 7]} />
-            </mesh>
-            {[0, 1, 2, 3].map((i) => (
-              <mesh
-                key={i}
-                position={[
-                  Math.cos((i * Math.PI) / 2) * 0.1,
-                  -0.36,
-                  Math.sin((i * Math.PI) / 2) * 0.1,
-                ]}
-                rotation={[0, (i * Math.PI) / 2, Math.PI / 2]}
-                material={BAND_MAT}
-              >
-                <coneGeometry args={[0.03, 0.09, 4]} />
-              </mesh>
+            {CLUB_PARTS.map((mp, i) => (
+              <MergedMesh key={`c${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
             ))}
           </group>
         )}
       </group>
       <group ref={leftArmRef} position={[-0.36, 0.95, 0.05]}>
-        <mesh position={[0, -0.02, 0]} castShadow material={skinDarkMat}>
-          <boxGeometry args={[0.2, 0.1, 0.3]} />
-        </mesh>
-        <mesh position={[-0.02, -0.25, 0.04]} rotation={[0.2, 0, -0.05]} castShadow material={skinMat}>
-          <boxGeometry args={[0.17, 0.5, 0.24]} />
-        </mesh>
-        <mesh position={[-0.04, -0.52, 0.08]} rotation={[0.2, 0, -0.05]} castShadow material={skinDarkMat}>
-          <boxGeometry args={[0.18, 0.13, 0.26]} />
-        </mesh>
+        {ARM_L_PARTS.map((mp, i) => (
+          <MergedMesh key={`al${i}`} mp={mp} skin={skinMat} skinDark={skinDarkMat} faction={factionMat} />
+        ))}
       </group>
 
       {/* HP bar */}
