@@ -31,6 +31,7 @@ export function StartScreen() {
           <span><b>Q</b> use item</span>
           <span><b>E</b> interact</span>
           <span><b>Esc</b> pause</span>
+          <span><b>G</b> graphics</span>
         </div>
       </div>
     </div>

@@ -36,13 +36,14 @@ export function PerfTrace() {
   const scene = useThree((s) => s.scene)
   const internal = useThree((s) => s.internal)
   const frames = useRef(0)
-  const last = useRef(performance.now())
+  const last = useRef(0)
 
   useFrame(() => {
     frames.current++
   })
 
   useEffect(() => {
+    last.current = performance.now()
     const log: PerfRow[] = []
     ;(window as unknown as { __perf: PerfRow[] }).__perf = log
     const iv = setInterval(() => {
@@ -78,7 +79,6 @@ export function PerfTrace() {
         wave: getWave().index + 1,
       }
       log.push(row)
-      // eslint-disable-next-line no-console
       console.log('[perf]', JSON.stringify(row))
     }, 3000)
     return () => clearInterval(iv)

@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import { PositionalAudio, Sparkles, Environment } from '@react-three/drei'
@@ -50,6 +50,9 @@ import { DebugBindings } from './DebugBindings'
 import { DayNight } from './DayNight'
 import { SunShadow } from './SunShadow'
 import { PerfTrace } from './PerfTrace'
+import { QualityToggle } from './QualityToggle'
+import { ShaderWarmup } from './ShaderWarmup'
+import { getQuality, subscribeQuality } from './qualityStore'
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { CAPTURE_MODE } from './renderMode'
 
@@ -71,6 +74,10 @@ export function World() {
   const [lights, setLights] = useState({ ambient: 0.22, hemi: 0.4, dir: 2.1 })
   // GodRays needs the rendered sun mesh; capture it via callback ref.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
+  // Render-quality tier (G key). 'low' drops the post stack below + the sun
+  // shadows (SunShadow reads it per-frame) for weak GPUs.
+  const [quality, setQuality] = useState(getQuality)
+  useEffect(() => subscribeQuality(setQuality), [])
 
   return (
     <>
@@ -152,6 +159,10 @@ export function World() {
 
         {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
+
+        {/* Pre-compile ork/grave shaders behind the StartScreen so the first
+            real spawn doesn't hitch the frame mid-combat. Self-removes on start. */}
+        <ShaderWarmup />
 
         {/* Ork war-camps out in the wilds — daytime targets the player can ride
             out and clear. Orks here guard their camp (home anchor) instead of
@@ -262,7 +273,7 @@ export function World() {
           GodRays always has a valid origin — react-postprocessing's child
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
-      {sunMesh && !CAPTURE_MODE && (
+      {sunMesh && !CAPTURE_MODE && quality === 'high' && (
         <EffectComposer multisampling={0} enableNormalPass={false}>
           {/* Ambient occlusion grounds props/buildings into the terrain so
               they stop looking pasted-on. Half-res + the "performance" preset
@@ -307,6 +318,7 @@ export function World() {
       <SoundScape />
       <DebugExpose />
       <Perf position="top-left" />
+      <QualityToggle />
       {import.meta.env.DEV && <PerfTrace />}
     </>
   )

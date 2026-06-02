@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getPlayer } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { getQuality, subscribeQuality } from './qualityStore'
 import { DAY_START_T, getDay, makeDaySample, sampleDay, sunDirAt } from './timeStore'
 
 /**
@@ -43,6 +44,13 @@ const START_OFFSET = sunDirAt(DAY_START_T, new THREE.Vector3()).multiplyScalar(
 // unit at the same 2048 size). Trades a little shadow pop-in at the far fog edge.
 const SHADOW_HALF = 38
 
+// Shadow depth-map resolution. Dropped 2048→1024: the shadow pass over ~760
+// casters was a top GPU cost on integrated graphics (draw calls spiked 250→806
+// whenever it fired), and 1024 is 4× less raster fill. The frustum is already
+// tightened to the fog view distance (SHADOW_HALF), so 1024 texels still give a
+// crisp enough map at this range; soft (PCF) filtering hides the rest.
+const SHADOW_MAP_SIZE = 1024
+
 // Re-aim/re-render the shadow map only after the player drifts this far from
 // where it was last centred (world units). Keeps the frustum locked — and the
 // shadow pass skipped — while standing still or making small moves.
@@ -67,6 +75,7 @@ interface Props {
 
 export function SunShadow({ intensity }: Props) {
   const gl = useThree((s) => s.gl)
+  const scene = useThree((s) => s.scene)
   const lightRef = useRef<THREE.DirectionalLight>(null!)
   // Stable shadow target — memoised (not a ref) so it can be referenced in JSX
   // below without tripping the "no ref access during render" rule.
@@ -85,9 +94,28 @@ export function SunShadow({ intensity }: Props) {
     }
   }, [gl])
 
+  // Quality tier (G key): 'low' drops the sun shadow entirely — one of the two
+  // biggest GPU costs (the shadow pass over ~760 casters). shadowMap.enabled is
+  // part of every material's compiled program, so a switch needs a one-time
+  // recompile across the live scene; that's fine for a manual, rare keypress.
+  useEffect(() => {
+    return subscribeQuality((q) => {
+      const high = q === 'high'
+      gl.shadowMap.enabled = high
+      if (lightRef.current) lightRef.current.castShadow = high
+      scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material
+        if (!m) return
+        if (Array.isArray(m)) m.forEach((mm) => (mm.needsUpdate = true))
+        else m.needsUpdate = true
+      })
+      if (high) gl.shadowMap.needsUpdate = true
+    })
+  }, [gl, scene])
+
   // World units covered by one shadow-map texel — the snap grid for the frustum
-  // centre. 2048 = shadow map size; SHADOW_HALF*2 = frustum width.
-  const texelSize = useMemo(() => (SHADOW_HALF * 2) / 2048, [])
+  // centre. SHADOW_MAP_SIZE = shadow map size; SHADOW_HALF*2 = frustum width.
+  const texelSize = useMemo(() => (SHADOW_HALF * 2) / SHADOW_MAP_SIZE, [])
 
   // Scratch reused each frame (no per-frame allocation).
   const sunDir = useMemo(() => new THREE.Vector3(), [])
@@ -105,8 +133,9 @@ export function SunShadow({ intensity }: Props) {
     light.color.copy(sample.sunColor)
 
     // Shadow map only re-renders when the world is live (held still behind any
-    // pause/modal). The light transform below still updates so shading is right.
-    if (!isFrozen()) {
+    // pause/modal) AND shadows are on (Low quality disables them). The light
+    // transform below still updates so shading is right.
+    if (!isFrozen() && getQuality() === 'high') {
       frame.current++
       // Sun below the horizon (night, e.g. during a wave) → the directional
       // light is dark and its shadow is invisible, so don't spend a whole
@@ -161,8 +190,8 @@ export function SunShadow({ intensity }: Props) {
         intensity={intensity}
         color="#ffe6b3"
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={SHADOW_MAP_SIZE}
+        shadow-mapSize-height={SHADOW_MAP_SIZE}
         shadow-camera-left={-SHADOW_HALF}
         shadow-camera-right={SHADOW_HALF}
         shadow-camera-top={SHADOW_HALF}
