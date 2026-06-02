@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
@@ -12,24 +12,20 @@ const W = COLS + 280
 const H = ROWS + 280
 
 export function Water() {
-  const meshRef = useRef<THREE.Mesh>(null!)
-  const frame = useRef(0)
-
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(W, H, 56, 48)
     g.rotateX(-Math.PI / 2)
     return g
   }, [])
 
-  const basePositions = useMemo(() => {
-    const arr = geo.attributes.position.array as Float32Array
-    return new Float32Array(arr)
-  }, [geo])
-
-  // Scrolling ripple texture so rivers/sea read as flowing, not glassy.
+  // The ripple used to be a per-frame CPU pass: loop all 2,793 vertices, rewrite
+  // the position buffer, re-upload it to the GPU, and recompute normals. That was
+  // the top game-logic cost in the profile. It's now a vertex-shader displacement
+  // (same sin/cos formula + an analytic normal so the shading matches) driven by a
+  // single uTime uniform — the CPU does nothing per frame but bump one float.
   const mat = useMemo(() => {
     const map = waterTexture('#2780c9', 7)
-    return new THREE.MeshStandardMaterial({
+    const m = new THREE.MeshStandardMaterial({
       color: map ? '#5aa6e0' : '#2780c9',
       map: map ?? undefined,
       roughness: 0.3,
@@ -37,23 +33,35 @@ export function Water() {
       transparent: true,
       opacity: 0.9,
     })
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = { value: 0 }
+      m.userData.shader = shader
+      shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`
+        // Displace height (matches the old CPU formula exactly).
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+           transformed.y += sin(position.x * 0.55 + uTime * 0.9) * 0.05
+                          + cos(position.z * 0.7 + uTime * 1.1) * 0.05;`,
+        )
+        // Analytic surface normal of that height field (partial derivatives), so
+        // the ripple catches light like the old per-frame computeVertexNormals.
+        .replace(
+          '#include <beginnormal_vertex>',
+          `#include <beginnormal_vertex>
+           objectNormal = normalize(vec3(
+             -cos(position.x * 0.55 + uTime * 0.9) * 0.55 * 0.05,
+             1.0,
+              sin(position.z * 0.7 + uTime * 1.1) * 0.7 * 0.05));`,
+        )
+    }
+    return m
   }, [])
 
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
-    const t = clock.getElapsedTime()
-    const pos = geo.attributes.position.array as Float32Array
-    for (let i = 0; i < pos.length; i += 3) {
-      const bx = basePositions[i]
-      const bz = basePositions[i + 2]
-      pos[i + 1] =
-        Math.sin(bx * 0.55 + t * 0.9) * 0.05 +
-        Math.cos(bz * 0.7 + t * 1.1) * 0.05
-    }
-    geo.attributes.position.needsUpdate = true
-    // Recompute normals only every 4th frame — the gentle ripple doesn't need
-    // per-frame normals and computeVertexNormals is the expensive part.
-    if (frame.current++ % 4 === 0) geo.computeVertexNormals()
+    const shader = mat.userData.shader as { uniforms: { uTime: { value: number } } } | undefined
+    if (shader) shader.uniforms.uTime.value = clock.getElapsedTime()
     // Drift the ripple texture so the surface looks like it's flowing.
     if (mat.map) {
       mat.map.offset.x = (mat.map.offset.x + dt * 0.015) % 1
@@ -61,7 +69,7 @@ export function Water() {
     }
   })
 
-  return <mesh ref={meshRef} geometry={geo} material={mat} position={[0, 0.05, 0]} receiveShadow />
+  return <mesh geometry={geo} material={mat} position={[0, 0.05, 0]} receiveShadow />
 }
 
 // Solid darker floor under water so transparent areas don't reveal sky.
