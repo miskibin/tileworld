@@ -3,7 +3,13 @@
     "allow": [
       "mcp__Claude_Preview__preview_start",
       "Bash(Get-ChildItem -Path D:\\\\tileworld -Recurse -Filter \"*.tsx\" -o Name)",
-      "Bash(Select-String -Pattern \"\\(Ork|ork|enemy\\)\")"
+      "Bash(Select-String -Pattern \"\\(Ork|ork|enemy\\)\")",
+      "Bash(git status *)",
+      "Bash(git add *)",
+      "Bash(git commit -m '@ *)",
+      "Bash(git commit *)",
+      "Bash(rm .git/COMMIT_MSG_TMP.txt)",
+      "Bash(git push *)"
     ]
   }
 }

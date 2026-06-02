@@ -4,12 +4,7 @@ import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { ANIMAL_CONFIG, type AnimalConfig } from './animalConfig'
-import {
-  damageAnimal,
-  nearestPredatorAnimal,
-  nearestPrey,
-  type AnimalState,
-} from './animalStore'
+import { nearestPredatorAnimal, type AnimalState } from './animalStore'
 import { getAliveBears } from './bearStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 
@@ -125,18 +120,14 @@ function flee(a: AnimalState, cfg: AnimalConfig, fromX: number, fromZ: number, d
   return moved
 }
 
-/** Predator: nearest prey or the player, whichever is closer, within aggro. */
+/** Predator: hunt the player only. Wildlife no longer attacks other wildlife —
+ * predators ignore prey so different animals don't fight each other. */
 function predatorTarget(
   a: AnimalState,
   cfg: AnimalConfig,
 ): { x: number; z: number; dist: number } | null {
-  const prey = nearestPrey(a.x, a.z, cfg.aggro)
-  const preyDist = prey ? Math.hypot(prey.x - a.x, prey.z - a.z) : Infinity
   const p = getPlayer()
   const pDist = isPlayerAlive() ? Math.hypot(p.x - a.x, p.z - a.z) : Infinity
-  if (prey && preyDist <= pDist && preyDist < cfg.aggro) {
-    return { x: prey.x, z: prey.z, dist: preyDist }
-  }
   if (isPlayerAlive() && pDist < cfg.aggro) return { x: p.x, z: p.z, dist: pDist }
   return null
 }
@@ -179,14 +170,8 @@ function preyThreat(a: AnimalState, cfg: AnimalConfig): { x: number; z: number }
 }
 
 function applyMeleeHit(a: AnimalState, cfg: AnimalConfig, tNow: number): void {
+  // Animals only ever land hits on the player now — never on each other.
   const reach = cfg.melee + 0.3
-  if (cfg.behavior === 'predator') {
-    const prey = nearestPrey(a.x, a.z, reach)
-    if (prey) {
-      damageAnimal(prey, cfg.attackDamage, tNow)
-      return
-    }
-  }
   const p = getPlayer()
   if (isPlayerAlive() && Math.hypot(p.x - a.x, p.z - a.z) <= reach) {
     damagePlayer(cfg.attackDamage, tNow, a.x, a.z)

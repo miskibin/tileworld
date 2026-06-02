@@ -145,7 +145,7 @@ export function House({
   })
 
   return (
-    <group position={position} rotation={[0, rotation, 0]} scale={[0.86, 0.78, 0.86]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[0.86, 0.7, 0.86]}>
       {/* Foundation + chimney stack (merged stone) */}
       <mesh geometry={STONE_GEO} castShadow receiveShadow material={stoneMat} />
 

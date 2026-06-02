@@ -33,8 +33,8 @@ describe('createOrk / roster', () => {
     const a = spawn(0, 0)
     const b = spawn(1, 1)
     expect(getOrks()).toHaveLength(2)
-    expect(a.hp).toBe(120) // grunt base hp
-    expect(a.maxHp).toBe(120)
+    expect(a.hp).toBe(220) // grunt base hp
+    expect(a.maxHp).toBe(220)
     expect(a.id).not.toBe(b.id)
   })
 
@@ -50,7 +50,7 @@ describe('damageOrk', () => {
   it('reduces hp and reports survival', () => {
     const o = spawn(0, 0)
     expect(damageOrk(o, 20, 1)).toBe(false)
-    expect(o.hp).toBe(100)
+    expect(o.hp).toBe(200)
     expect(o.hurtFlashUntil).toBe(1.25)
   })
 

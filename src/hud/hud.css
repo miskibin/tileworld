@@ -94,7 +94,22 @@
 }
 
 .hotbar-slot.is-equipped {
-  background: rgba(110, 144, 224, 0.28);
+  background: rgba(72, 150, 100, 0.32);
+  border-color: #6fe09a;
+  box-shadow: inset 0 0 0 2px rgba(111, 224, 154, 0.65);
+}
+
+/* Corner badge so an equipped item reads at a glance even when also selected. */
+.hotbar-slot.is-equipped::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6fe09a;
+  box-shadow: 0 0 4px rgba(111, 224, 154, 0.9);
 }
 
 .hotbar-key {

@@ -193,10 +193,13 @@ function generate(): Obstacle[] {
       }
       if (!picked) continue
 
-      // Thin the forest: drop ~50% of would-be trees so the canopy reads full
-      // without being overgrown (user request). Bushes/rocks/decor untouched.
+      // Thin collidable props so the map reads full but stays easy to move
+      // through (user: ~30% too dense). Trees drop ~65%, other body-blocking
+      // props (boulders, cactus) drop ~30%. Walk-through decor is untouched.
       if (picked.kind === 'tree' || picked.kind === 'birch' || picked.kind === 'snowPine') {
-        if (rand() < 0.5) continue
+        if (rand() < 0.65) continue
+      } else if (RADIUS_BY_KIND[picked.kind] > 0) {
+        if (rand() < 0.3) continue
       }
 
       const cx = x + 0.5 + (rand() - 0.5) * 0.4
@@ -227,15 +230,43 @@ function generate(): Obstacle[] {
   return out
 }
 
-export function obstacleCollidesAt(x: number, z: number, r: number): boolean {
-  const obs = getObstacles()
-  for (let i = 0; i < obs.length; i++) {
-    const o = obs[i]
+// Spatial index for collision: collidable obstacles (radius > 0) bucketed by
+// their tile. A query only needs to test the 3×3 tile block around the point —
+// the largest possible collision reach (max query radius ~0.5 + max obstacle
+// radius 0.34 < 1 tile) can't pull in a prop more than one tile away. This turns
+// obstacleCollidesAt from an O(all-props) scan (it was the #1 CPU cost in the
+// profile — every moving entity queried every prop on the map, twice a frame)
+// into O(props in 9 tiles) ≈ a handful. Results are identical to the old scan.
+let collisionGrid: Map<number, Obstacle[]> | null = null
+
+function buildCollisionGrid(): Map<number, Obstacle[]> {
+  const g = new Map<number, Obstacle[]>()
+  for (const o of getObstacles()) {
     if (o.radius <= 0) continue
-    const dx = x - o.x
-    const dz = z - o.z
-    const rsum = r + o.radius
-    if (dx * dx + dz * dz < rsum * rsum) return true
+    const key = Math.floor(o.z) * COLS + Math.floor(o.x)
+    let cell = g.get(key)
+    if (!cell) g.set(key, (cell = []))
+    cell.push(o)
+  }
+  return g
+}
+
+export function obstacleCollidesAt(x: number, z: number, r: number): boolean {
+  if (!collisionGrid) collisionGrid = buildCollisionGrid()
+  const cx = Math.floor(x)
+  const cz = Math.floor(z)
+  for (let dz = -1; dz <= 1; dz++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const cell = collisionGrid.get((cz + dz) * COLS + (cx + dx))
+      if (!cell) continue
+      for (let i = 0; i < cell.length; i++) {
+        const o = cell[i]
+        const ox = x - o.x
+        const oz = z - o.z
+        const rsum = r + o.radius
+        if (ox * ox + oz * oz < rsum * rsum) return true
+      }
+    }
   }
   return false
 }

@@ -10,6 +10,7 @@ import { isCulled } from './cull'
 import { isInsideCastle } from './cityPlan'
 import { getAliveOrks, damageOrk } from './orkStore'
 import { getAliveBears, damageBear } from './bearStore'
+import { wallBetween } from './houseBlockers'
 import { getPhase } from './gameStore'
 import { spawnFloat } from './fxStore'
 import { playVillagerGrunt, playSwing, playHit } from '../audio/sfx'
@@ -89,14 +90,14 @@ function nearestHostile(v: VillagerState, defendR: number, aggro: number): Foe |
   let bestD = aggro
   for (const o of getAliveOrks()) {
     const d = Math.hypot(o.x - v.x, o.z - v.z)
-    if (d < bestD && Math.hypot(o.x - v.homeX, o.z - v.homeZ) < defendR) {
+    if (d < bestD && Math.hypot(o.x - v.homeX, o.z - v.homeZ) < defendR && !wallBetween(v.x, v.z, o.x, o.z)) {
       bestD = d
       best = { x: o.x, y: o.y, z: o.z, hit: (dmg, now) => damageOrk(o, dmg, now) }
     }
   }
   for (const b of getAliveBears()) {
     const d = Math.hypot(b.x - v.x, b.z - v.z)
-    if (d < bestD && Math.hypot(b.x - v.homeX, b.z - v.homeZ) < defendR) {
+    if (d < bestD && Math.hypot(b.x - v.homeX, b.z - v.homeZ) < defendR && !wallBetween(v.x, v.z, b.x, b.z)) {
       bestD = d
       best = { x: b.x, y: b.y, z: b.z, hit: (dmg, now) => damageBear(b, dmg, now) }
     }

@@ -15,7 +15,7 @@ export interface WaveDef {
 // defenses (keep archers, reinforced keep, tower mastery, militia).
 export const WAVES: WaveDef[] = [
   { count: 9, hpScale: 1.1, variants: ['grunt', 'grunt', 'scout', 'berserker'], spawnInterval: 1.1 },
-  { count: 9, hpScale: 1.05, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.25 },
+  { count: 9, hpScale: 1.1, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.1 },
   { count: 12, hpScale: 1.15, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
   { count: 15, hpScale: 1.25, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
   { count: 18, hpScale: 1.4, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },

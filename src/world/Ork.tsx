@@ -21,7 +21,7 @@ import { spawnImpact } from './impactStore'
 import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
-import { houseBlocksAt } from './houseBlockers'
+import { houseBlocksAt, wallBetween } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
@@ -349,7 +349,13 @@ export function OrkView({ state }: OrkViewProps) {
       : targetTowerIdx >= 0
         ? cfg.melee + 1.2
         : cfg.melee
-    const inRange = hasTarget && dist < triggerRange
+    // Soft targets (player / militia / rival ork) can't be struck through a city
+    // wall — only the keep and towers (structures the ork is meant to bash) are
+    // exempt. When blocked, the ork keeps pathing and routes around to a gate.
+    const losBlocked =
+      (targetIsPlayer || targetVillager !== null || targetOrk !== null) &&
+      wallBetween(state.x, state.z, tx, tz)
+    const inRange = hasTarget && dist < triggerRange && !losBlocked
     const attacking = state.attackingSince > 0
 
     // Grunt when first acquiring a target.
@@ -439,7 +445,36 @@ export function OrkView({ state }: OrkViewProps) {
             !houseBlocksAt(state.x, nz)
           if (canMoveX) state.x = nx
           if (canMoveZ) state.z = nz
-          if (!canMoveX && !canMoveZ) state.pathRecomputeAt = 0
+          let slid = false
+          if (!canMoveX && !canMoveZ) {
+            // Wedged against a prop/wall. A tile can be A*-walkable yet still sit
+            // within the ork's collision radius of a tree near the tile edge, so
+            // the straight push grinds into the trunk forever. Re-path next cycle
+            // and, this frame, slide tangentially around the blocker so the ork
+            // slips out of the pocket instead of freezing on the bark.
+            state.pathRecomputeAt = 0
+            const ux = dxw / lenW
+            const uz = dzw / lenW
+            const slip = speed * dt
+            const tangents: ReadonlyArray<readonly [number, number]> = [
+              [-uz, ux],
+              [uz, -ux],
+            ]
+            for (const [px, pz] of tangents) {
+              const sx = state.x + px * slip
+              const sz = state.z + pz * slip
+              if (
+                standingOk(Math.floor(sx), Math.floor(sz)) &&
+                !obstacleCollidesAt(sx, sz, state.collisionRadius) &&
+                !houseBlocksAt(sx, sz)
+              ) {
+                state.x = sx
+                state.z = sz
+                slid = true
+                break
+              }
+            }
+          }
           const bridge = bridgeAt(state.x, state.z)
           if (bridge) {
             state.y = bridge.y
@@ -447,7 +482,7 @@ export function OrkView({ state }: OrkViewProps) {
             const tileNow = tileAt(Math.floor(state.x), Math.floor(state.z))
             if (tileNow) state.y = tileTopY(Math.floor(state.x), Math.floor(state.z))
           }
-          walking = canMoveX || canMoveZ
+          walking = canMoveX || canMoveZ || slid
         }
       }
     }

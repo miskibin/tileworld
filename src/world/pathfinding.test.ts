@@ -12,6 +12,9 @@ const h = vi.hoisted(() => ({
   heights: new Map<string, number>(),
   bridges: new Set<string>(),
   obstacles: new Set<string>(),
+  // Continuous-space house/wall predicate (null = nothing blocks). Lets a test
+  // model a thin boundary wall that only the edge midpoint hits.
+  wall: null as null | ((x: number, z: number) => boolean),
 }))
 
 // height class at a cell: explicit height, else a bridge counts as class 1,
@@ -44,7 +47,9 @@ vi.mock('./tileMap', () => ({
 vi.mock('./bridges', () => ({
   bridgeAt: (x: number, z: number) => (h.bridges.has(`${Math.floor(x)},${Math.floor(z)}`) ? { y: 0 } : null),
 }))
-vi.mock('./houseBlockers', () => ({ houseBlocksAt: () => false }))
+vi.mock('./houseBlockers', () => ({
+  houseBlocksAt: (x: number, z: number) => (h.wall ? h.wall(x, z) : false),
+}))
 vi.mock('./obstacles', () => ({
   isObstacleTile: (x: number, z: number) => h.obstacles.has(`${x},${z}`),
 }))
@@ -72,7 +77,10 @@ function setMap(rows: string[]): void {
 const has = (path: PathPoint[], x: number, z: number) =>
   path.some((p) => p.x === x + 0.5 && p.z === z + 0.5)
 
-beforeEach(() => setMap([])) // clear between tests
+beforeEach(() => {
+  setMap([]) // clear between tests
+  h.wall = null
+})
 
 describe('findPath', () => {
   it('walks a straight line across open ground', () => {
@@ -129,6 +137,29 @@ describe('findPath', () => {
   it('returns empty when start and goal share a cell', () => {
     setMap(['...', '...', '...'])
     expect(findPath({ x: 1, z: 1 }, { x: 1, z: 1 })).toEqual([])
+  })
+
+  it('routes around a thin boundary wall (only the edge midpoint blocks) to a gate gap', () => {
+    // All tiles walkable; the wall is a thin AABB on world-z=1.0 spanning x<5,
+    // with an open gate gap at x>=5. Tile centres (z .5 / 1.5) never hit it —
+    // only the midpoint between rows 0 and 1 (z=1.0) does.
+    setMap(['.......', '.......', '.......'])
+    h.wall = (x, z) => Math.abs(z - 1.0) <= 0.3 && x >= 0 && x < 5
+    const path = findPath({ x: 2, z: 0 }, { x: 2, z: 2 })
+    expect(path.length).toBeGreaterThan(0)
+    expect(path[path.length - 1]).toEqual({ x: 2.5, z: 2.5 }) // reaches the goal
+    // It must detour through the gate columns (x 5 or 6), not punch through.
+    expect(has(path, 5, 1) || has(path, 6, 1)).toBe(true)
+    // And it must NOT step straight across the wall at x=2 (the bug).
+    expect(has(path, 2, 0) && has(path, 2, 2) && path.length === 2).toBe(false)
+  })
+
+  it('crosses a thin wall freely through its gate gap', () => {
+    setMap(['.......', '.......', '.......'])
+    h.wall = (x, z) => Math.abs(z - 1.0) <= 0.3 && x >= 0 && x < 5
+    // Start/goal aligned on the gate column (x=5) → straight through, no detour.
+    const path = findPath({ x: 5, z: 0 }, { x: 5, z: 2 })
+    expect(path.length).toBe(2)
   })
 
   it('treats a bridge tile as walkable water', () => {

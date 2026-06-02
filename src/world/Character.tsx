@@ -158,6 +158,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const shieldEmblemMat = useMemo(() => new THREE.MeshStandardMaterial({ color: SHIELD_EMBLEM, roughness: 0.5, metalness: 0.6 }), [])
   const goldBladeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.8 }), [])
   const axeHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: AXE_STEEL, roughness: 0.45, metalness: 0.6 }), [])
+  const stoneHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#8a8d92', roughness: 0.95, metalness: 0.05, flatShading: true }), [])
 
   // The held weapon mesh follows the equipped item (hotbar select/E → equip).
   const [equippedId, setEquippedId] = useState<string | null>(getInventory().equippedId)
@@ -196,7 +197,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const camRight = useMemo(() => new THREE.Vector3(), [])
   const moveDir = useMemo(() => new THREE.Vector3(), [])
 
-  useFrame((_, dt) => {
+  useFrame((rfState, dt) => {
     if (isFrozen()) {
       // Discard any clicks queued while paused so user doesn't auto-swing on resume.
       attackProcessed.current = attackClickCount
@@ -481,6 +482,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         // Hit at strike start — apply damage once
         if (!attackHitDealt.current && phase >= 0.3) {
           attackHitDealt.current = true
+          // Creature stores stamp hurtFlashUntil in R3F-clock time (their views
+          // read clock.getElapsedTime()). Character's own timers run on
+          // performance.now(), a different origin — pass the clock time here so
+          // the hit-flash decays in 0.25s instead of staying stuck (which flipped
+          // bears upside down via the recoil rotation).
+          const hitT = rfState.clock.getElapsedTime()
           const dmg = Math.round((getAttackDamage() + getWeaponBonus()) * getDamageDealtMult())
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
@@ -493,7 +500,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageDog(dog, dmg, t)
+            const died = damageDog(dog, dmg, hitT)
             hitAny = true
             if (died) killedAny = true
           }
@@ -504,7 +511,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageOrk(ork, dmg, t)
+            const died = damageOrk(ork, dmg, hitT)
             hitAny = true
             spawnImpact(ork.x, ork.y + 1.0, ork.z, {
               color: died ? '#fff0b0' : '#ffcf6a',
@@ -529,7 +536,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageBear(bear, dmg, t)
+            const died = damageBear(bear, dmg, hitT)
             hitAny = true
             spawnImpact(bear.x, bear.y + 1.1, bear.z, {
               color: died ? '#fff0b0' : '#ffcf6a',
@@ -554,7 +561,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dist > ATTACK_RANGE || dist < 0.001) continue
             const dot = (vx / dist) * fx + (vz / dist) * fz
             if (dot < ATTACK_CONE_DOT) continue
-            const died = damageAnimal(animal, dmg, t)
+            const died = damageAnimal(animal, dmg, hitT)
             hitAny = true
             spawnImpact(animal.x, animal.y + 0.8, animal.z, {
               color: died ? '#fff0b0' : '#ffcf6a',
@@ -746,6 +753,24 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               </mesh>
               <mesh position={[0, -0.92, 0]} rotation={[Math.PI, 0, 0]} castShadow material={goldBladeMat}>
                 <coneGeometry args={[0.045, 0.12, 4]} />
+              </mesh>
+            </>
+          ) : equippedId === 'stone_maul' ? (
+            <>
+              {/* Stone Maul — long wooden haft topped with a heavy stone head */}
+              <mesh position={[0, -0.1, 0]} castShadow material={gripMat}>
+                <cylinderGeometry args={[0.035, 0.035, 0.95, 8]} />
+              </mesh>
+              {/* Blocky stone head */}
+              <mesh position={[0, -0.6, 0]} castShadow material={stoneHeadMat}>
+                <boxGeometry args={[0.34, 0.26, 0.26]} />
+              </mesh>
+              {/* Striking faces — slightly proud caps on each side */}
+              <mesh position={[0.19, -0.6, 0]} castShadow material={stoneHeadMat}>
+                <boxGeometry args={[0.06, 0.2, 0.2]} />
+              </mesh>
+              <mesh position={[-0.19, -0.6, 0]} castShadow material={stoneHeadMat}>
+                <boxGeometry args={[0.06, 0.2, 0.2]} />
               </mesh>
             </>
           ) : (

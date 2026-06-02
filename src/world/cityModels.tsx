@@ -126,7 +126,7 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
   }, [roofY])
 
   return (
-    <group position={position} rotation={[0, rotation, 0]} scale={[0.88, 0.78, 0.88]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[0.88, 0.7, 0.88]}>
       {/* Foundation */}
       <mesh position={[0, KEEP_FOUND / 2, 0]} castShadow receiveShadow material={DARK_STONE}>
         <boxGeometry args={[KEEP_W + 0.5, KEEP_FOUND, KEEP_D + 0.5]} />
@@ -200,7 +200,7 @@ export function Wall({ position, rotation = 0, len }: WallProps) {
   }, [len])
 
   return (
-    <mesh position={position} rotation={[0, rotation, 0]} scale={[1, 0.82, 1]} geometry={geo} material={STONE} castShadow receiveShadow />
+    <mesh position={position} rotation={[0, rotation, 0]} scale={[1, 0.74, 1]} geometry={geo} material={STONE} castShadow receiveShadow />
   )
 }
 
@@ -224,7 +224,7 @@ const TOWER_GEO = (() => {
 
 export function Tower({ position, rotation = 0 }: TowerProps) {
   return (
-    <group position={position} rotation={[0, rotation, 0]} scale={[0.92, 0.8, 0.92]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[0.92, 0.72, 0.92]}>
       <mesh geometry={TOWER_GEO} material={STONE} castShadow receiveShadow />
       {/* Pitched roof — 45° so the 4-sided cone's faces align with the square */}
       <mesh position={[0, TOWER_H + 0.95, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
@@ -255,7 +255,7 @@ interface GateProps {
 export function Gate({ position, rotation = 0, width }: GateProps) {
   const half = width / 2
   return (
-    <group position={position} rotation={[0, rotation, 0]} scale={[1, 0.85, 1]}>
+    <group position={position} rotation={[0, rotation, 0]} scale={[1, 0.77, 1]}>
       {/* Posts */}
       <mesh position={[-half, GATE_H / 2, 0]} castShadow receiveShadow material={STONE}>
         <boxGeometry args={[0.9, GATE_H, 0.9]} />

@@ -317,7 +317,9 @@ export function World() {
       <MouseLookCamera posRef={posRef} />
       <SoundScape />
       <DebugExpose />
-      <Perf position="top-left" />
+      {/* r3f-perf queries gl.info + writes its overlay DOM every frame — real
+          CPU cost. Dev-only; it must not ship to players. */}
+      {import.meta.env.DEV && <Perf position="top-left" />}
       <QualityToggle />
       {import.meta.env.DEV && <PerfTrace />}
     </>

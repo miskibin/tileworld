@@ -47,6 +47,25 @@ export function houseBlocksAt(x: number, z: number): boolean {
   return false
 }
 
+/**
+ * True if a registered blocker (wall / house / tower / keep) sits between the
+ * two points. Samples the segment interior (endpoints skipped, so an attacker or
+ * target standing flush against a structure doesn't self-block). Used to stop
+ * melee landing through a city wall — combatants must come around to a gate.
+ */
+export function wallBetween(ax: number, az: number, bx: number, bz: number): boolean {
+  const dx = bx - ax
+  const dz = bz - az
+  const len = Math.hypot(dx, dz)
+  if (len < 0.001) return false
+  const steps = Math.max(2, Math.ceil(len / 0.25))
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps
+    if (houseBlocksAt(ax + dx * t, az + dz * t)) return true
+  }
+  return false
+}
+
 export function getHouseBlockers(): HouseBlocker[] {
   return blockers
 }

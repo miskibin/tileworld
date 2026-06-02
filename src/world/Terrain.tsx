@@ -94,6 +94,14 @@ const OVERLAY_TOP = {} as Record<TopClass, THREE.MeshStandardMaterial>
 CLASSES.forEach((c) => {
   BASE_TOP[c] = makeTopMat(TOP_SPECS[c], false)
   OVERLAY_TOP[c] = makeTopMat(TOP_SPECS[c], true)
+  // Decal-style depth bias: the seam overlay sits COPLANAR with the base tile
+  // top (OVERLAY_EPS = 0) and wins the depth test via polygonOffset instead of a
+  // physical Y gap. A positive Y gap (the old 0.03) z-fought at distance/grazing
+  // angles, drawing a thin bright line along the seam band — the "lines at biome
+  // edges". A constant depth bias avoids that and any hovering lip at steps.
+  OVERLAY_TOP[c].polygonOffset = true
+  OVERLAY_TOP[c].polygonOffsetFactor = -2
+  OVERLAY_TOP[c].polygonOffsetUnits = -4
 })
 
 // Box face order: +x, -x, +y (top), -y (bottom), +z, -z
@@ -142,9 +150,10 @@ interface OverlayPos {
   cov: [number, number, number, number]
 }
 
-// Sits just above the base top so the frayed neighbour biome covers it where the
-// shader keeps the fragment, and reveals the base biome where it discards.
-const OVERLAY_EPS = 0.03
+// Coplanar with the base top (depth handled by polygonOffset on OVERLAY_TOP, see
+// above): the frayed neighbour biome covers the base where the shader keeps the
+// fragment and reveals it where it discards, with no z-fighting seam line.
+const OVERLAY_EPS = 0
 
 function OverlayLayer({ tiles, material }: { tiles: OverlayPos[]; material: THREE.Material }) {
   const geo = useMemo(() => {

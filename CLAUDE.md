@@ -5,14 +5,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server with HMR
-npm run build    # tsc -b (typecheck all 3 tsconfigs) then vite build
-npm run lint     # eslint . (flat config, type-checked rules off)
-npm run preview  # serve the production build
+npm run dev        # Vite dev server with HMR
+npm run build      # tsc -b (typecheck all 3 tsconfigs) then vite build
+npm run lint       # eslint . (flat config, type-checked rules off)
+npm run preview    # serve the production build
+npm test           # vitest run — unit tests for pure logic
+npm run test:watch # vitest in watch mode
 npm run inspect <ModelName>  # headlessly dump one model's structure + run breakage checks
 ```
 
-There is no test runner — the project has no tests. "Verify" means running `npm run dev` and observing the game in the browser.
+Tests cover **pure, deterministic logic only** — pathfinding, wave spawning/scaling, and the
+module-level stores (see `src/world/*.test.ts`): pathfinding, factions, player/ork/wave/projectile/buff
+stores, wave logic, map reachability. They mock the three.js / tileMap layer, so there's no runtime
+test for anything visual, R3F, or DOM. For those, "verify" still means running `npm run dev` and
+watching the game in the browser. Run `npm test` after touching pathfinding, combat numbers, wave
+balance, or store logic; it's fast and catches regressions the build can't.
 
 `npm run build` is the real correctness gate: it runs the TypeScript project build (`tsc -b`) across `tsconfig.app.json` (src) and `tsconfig.node.json` (vite config) before bundling. Run it after non-trivial changes.
 

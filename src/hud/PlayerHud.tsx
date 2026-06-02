@@ -67,7 +67,7 @@ export function PlayerHud() {
           <div className="hp-bar">
             <div className="hp-bar-fill" style={{ width: `${ratio * 100}%` }} />
             <div className="hp-bar-text">
-              {hp} / {maxHp}
+              {Math.round(hp)} / {Math.round(maxHp)}
             </div>
           </div>
           <div className="xp-bar">

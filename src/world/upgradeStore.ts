@@ -258,12 +258,12 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_hp_1',
     branch: 'hero',
     name: 'Vigor',
-    desc: '+40 max HP.',
+    desc: '+25 max HP.',
     icon: '❤️',
     cost: 30,
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpMaxHp(40)
+      bumpMaxHp(25)
       return true
     },
   },
@@ -271,13 +271,13 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_hp_2',
     branch: 'hero',
     name: 'Greater Vigor',
-    desc: '+80 max HP.',
+    desc: '+50 max HP.',
     icon: '💗',
     cost: 70,
     prereqId: 'hero_hp_1',
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpMaxHp(80)
+      bumpMaxHp(50)
       return true
     },
   },
@@ -285,12 +285,12 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_dmg_1',
     branch: 'hero',
     name: 'Sharpened Blade',
-    desc: '+10 attack damage.',
+    desc: '+5 attack damage.',
     icon: '⚔️',
     cost: 30,
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpAttackDamage(10)
+      bumpAttackDamage(5)
       return true
     },
   },
@@ -298,13 +298,13 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_dmg_2',
     branch: 'hero',
     name: 'Honed Edge',
-    desc: '+20 attack damage.',
+    desc: '+10 attack damage.',
     icon: '🗡️',
     cost: 70,
     prereqId: 'hero_dmg_1',
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpAttackDamage(20)
+      bumpAttackDamage(10)
       return true
     },
   },

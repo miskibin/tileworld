@@ -43,8 +43,11 @@ const orks: OrkState[] = []
 let nextId = 0
 
 // All wave invaders share one warband so they never brawl each other and all
-// march on the keep together.
-export const WAVE_FACTION: OrkFaction = 'red'
+// march on the keep together. Matches the camp warband ('blue') on purpose so
+// the night assault and the resident camps don't fight each other — the horde
+// marches straight on the keep instead of getting diverted into ork-vs-ork
+// brawls along the way.
+export const WAVE_FACTION: OrkFaction = 'blue'
 
 const rosterSubs = new Set<(list: OrkState[]) => void>()
 

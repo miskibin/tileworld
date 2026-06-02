@@ -25,6 +25,7 @@ import { Bridge } from '../src/world/Bridge'
 import { Cat } from '../src/world/Cat'
 import { Campfire } from '../src/world/Campfire'
 import { OrkCamp } from '../src/world/OrkCamp'
+import { Archer } from '../src/world/KeepArchers'
 import { OrkView } from '../src/world/Ork'
 import { createOrk } from '../src/world/orkStore'
 import { Character } from '../src/world/Character'
@@ -75,6 +76,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Golem: () => <GolemView state={createAnimal('golem', 0, 0, 1)} />,
   Wall: () => <Wall position={[0, 0, 0]} len={11} />,
   Tower: () => <Tower position={[0, 0, 0]} />,
+  Archer: () => <Archer x={0} z={0} />,
   Gate: () => <Gate position={[0, 0, 0]} width={4} />,
   Keep: () => <Keep position={[0, 0, 0]} />,
   Boat: () => <Boat />,
