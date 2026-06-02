@@ -52,7 +52,33 @@ import { SunShadow } from './SunShadow'
 import { PerfTrace } from './PerfTrace'
 import { QualityToggle } from './QualityToggle'
 import { ShaderWarmup } from './ShaderWarmup'
+import { Cullable } from './Cullable'
 import { getQuality, subscribeQuality } from './qualityStore'
+
+// Treasure chests scattered across the map. Data-driven so each can be wrapped in
+// <Cullable> (most sit far out in the biomes — fog-hidden and worth freezing when
+// the player isn't near). position auto-snaps to valid land in Chest.
+const CHESTS: { pos: [number, number, number]; rot: number; gold: number; loot: string[] }[] = [
+  { pos: [59, 1, 59], rot: 0.3, gold: 6, loot: ['sword_iron'] },
+  { pos: [60, 1, 40], rot: -0.5, gold: 8, loot: ['potion'] },
+  { pos: [90, 1, 46], rot: 1.0, gold: 12, loot: ['potion'] },
+  { pos: [78, 1, 38], rot: 2.2, gold: 5, loot: ['bread'] },
+  { pos: [44, 1, 46], rot: 0.8, gold: 7, loot: ['potion'] },
+  { pos: [104, 1, 80], rot: -1.2, gold: 14, loot: ['feast'] },
+  { pos: [40, 1, 80], rot: 1.6, gold: 9, loot: ['bread'] },
+  { pos: [96, 1, 30], rot: 2.6, gold: 10, loot: ['potion'] },
+  { pos: [120, 1, 66], rot: 0.4, gold: 12, loot: ['potion'] },
+  { pos: [60, 1, 88], rot: -0.9, gold: 12, loot: ['feast'] },
+  { pos: [50, 1, 66], rot: 1.9, gold: 9, loot: ['bread'] },
+  { pos: [100, 1, 44], rot: 2.3, gold: 13, loot: ['potion'] },
+  { pos: [34, 1, 30], rot: 0.5, gold: 8, loot: ['fur', 'leather_armor'] },
+  { pos: [106, 1, 28], rot: -0.6, gold: 8, loot: ['venom'] },
+  { pos: [72, 1, 88], rot: 1.3, gold: 8, loot: ['croc_steak'] },
+  { pos: [40, 1, 74], rot: 2.0, gold: 8, loot: ['elk_jerky'] },
+  { pos: [120, 1, 58], rot: -1.4, gold: 8, loot: ['goat_charm'] },
+  { pos: [24, 1, 56], rot: 0.9, gold: 10, loot: ['stone_maul', 'iron_armor'] },
+  { pos: [18, 1, 54], rot: 0.6, gold: 30, loot: ['gold_armor'] },
+]
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
 
@@ -114,7 +140,9 @@ export function World() {
         <Character initial={[72, 1, 58]} facing0={Math.PI} posRef={posRef} />
 
         {/* Remote hamlet northwest of the castle, out in the grass belt */}
-        <Village position={[50, 38]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        <Cullable x={50} z={38}>
+          <Village position={[50, 38]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        </Cullable>
 
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
@@ -168,9 +196,15 @@ export function World() {
             out and clear. Orks here guard their camp (home anchor) instead of
             marching on the keep; blue warband so they read apart from the red
             night-horde (and brawl any wave ork that strays near). */}
-        <OrkCamp position={[32, 1.5, 54]} rotation={1.4} seed={1.2} faction="blue" />
-        <OrkCamp position={[109, 1.5, 56]} rotation={-1.6} seed={2.7} faction="blue" />
-        <OrkCamp position={[72, 1.5, 25]} rotation={0.1} seed={4.1} faction="blue" />
+        <Cullable x={32} z={54}>
+          <OrkCamp position={[32, 1.5, 54]} rotation={1.4} seed={1.2} faction="blue" />
+        </Cullable>
+        <Cullable x={109} z={56}>
+          <OrkCamp position={[109, 1.5, 56]} rotation={-1.6} seed={2.7} faction="blue" />
+        </Cullable>
+        <Cullable x={72} z={25}>
+          <OrkCamp position={[72, 1.5, 25]} rotation={0.1} seed={4.1} faction="blue" />
+        </Cullable>
 
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
@@ -187,38 +221,15 @@ export function World() {
         {/* Ground loot dropped by slain creatures (grid-space, pooled like Impacts) */}
         <Pickups />
 
-        {/* Treasure chests — interactive (press F) with loot + gold. Positions
-            auto-snap to valid land, so they're safe to scatter widely. */}
-        {/* Lean loot: small gold + a few potions, and ONE starter Iron Sword.
-            Strong weapons (Battle Axe / Golden Blade) are shop/arsenal-only now,
-            so exploring no longer pays for the whole defense. */}
-        <Chest position={[59, 1, 59]} rotation={0.3} gold={6} loot={['sword_iron']} />
-        <Chest position={[60, 1, 40]} rotation={-0.5} gold={8} loot={['potion']} />
-        <Chest position={[90, 1, 46]} rotation={1.0} gold={12} loot={['potion']} />
-        <Chest position={[78, 1, 38]} rotation={2.2} gold={5} loot={['bread']} />
-        {/* Reward chests out in the biome ring */}
-        <Chest position={[44, 1, 46]} rotation={0.8} gold={7} loot={['potion']} />
-        <Chest position={[104, 1, 80]} rotation={-1.2} gold={14} loot={['feast']} />
-        <Chest position={[40, 1, 80]} rotation={1.6} gold={9} loot={['bread']} />
-        <Chest position={[96, 1, 30]} rotation={2.6} gold={10} loot={['potion']} />
-        {/* Frontier chests out toward the mountains + far coast */}
-        <Chest position={[120, 1, 66]} rotation={0.4} gold={12} loot={['potion']} />
-        <Chest position={[60, 1, 88]} rotation={-0.9} gold={12} loot={['feast']} />
-        <Chest position={[50, 1, 66]} rotation={1.9} gold={9} loot={['bread']} />
-        <Chest position={[100, 1, 44]} rotation={2.3} gold={13} loot={['potion']} />
-
-        {/* Biome loot chests — one per creature drop, so each item is also
-            findable by exploring (Phase 2). The snow + rock chests also carry
-            wearable armor, so armor is findable even without a boss kill. */}
-        <Chest position={[34, 1, 30]} rotation={0.5} gold={8} loot={['fur', 'leather_armor']} />
-        <Chest position={[106, 1, 28]} rotation={-0.6} gold={8} loot={['venom']} />
-        <Chest position={[72, 1, 88]} rotation={1.3} gold={8} loot={['croc_steak']} />
-        <Chest position={[40, 1, 74]} rotation={2.0} gold={8} loot={['elk_jerky']} />
-        <Chest position={[120, 1, 58]} rotation={-1.4} gold={8} loot={['goat_charm']} />
-        <Chest position={[24, 1, 56]} rotation={0.9} gold={10} loot={['stone_maul', 'iron_armor']} />
-        {/* Prize chest at the W-range summit — climbing the carved ramp pays out
-            the best armor (Gilded Plate, −40% damage). */}
-        <Chest position={[18, 1, 54]} rotation={0.6} gold={30} loot={['gold_armor']} />
+        {/* Treasure chests — interactive (press F) with loot + gold. Most sit far
+            out in the biome ring, so each is distance-culled: fog hides them and
+            <Cullable> stops three from processing their meshes until you're near
+            (see CHESTS above + Cullable.tsx). */}
+        {CHESTS.map((c, i) => (
+          <Cullable key={i} x={c.pos[0]} z={c.pos[2]}>
+            <Chest position={c.pos} rotation={c.rot} gold={c.gold} loot={c.loot} />
+          </Cullable>
+        ))}
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />
