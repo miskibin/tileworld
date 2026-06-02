@@ -49,6 +49,7 @@ import { FloatingText } from './FloatingText'
 import { DebugBindings } from './DebugBindings'
 import { DayNight } from './DayNight'
 import { SunShadow } from './SunShadow'
+import { PerfTrace } from './PerfTrace'
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { CAPTURE_MODE } from './renderMode'
 
@@ -306,6 +307,7 @@ export function World() {
       <SoundScape />
       <DebugExpose />
       <Perf position="top-left" />
+      {import.meta.env.DEV && <PerfTrace />}
     </>
   )
 }
