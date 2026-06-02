@@ -6,7 +6,7 @@ import type { AnimalState } from './animalStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 
 // Hulking snow predator. Quadruped built from boxes — bulkier proportions than
 // Wolf: wide torso, thick legs, round head with stubby snout, small ears,
@@ -67,9 +67,9 @@ export function PolarBearView({ state }: { state: AnimalState }) {
     if (!grp) return
 
     if (state.hp > 0 && isCulled(state.x, state.z)) {
-      if (grp.visible) grp.visible = false
+      cullVisible(grp, true)
       return
-    } else if (!grp.visible) grp.visible = true
+    } else cullVisible(grp, false)
 
     if (state.hp <= 0) {
       if (deadFrom.current === null) deadFrom.current = tNow

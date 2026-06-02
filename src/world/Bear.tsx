@@ -11,7 +11,7 @@ import { isFrozen } from './pauseStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
 import { playBearRoar, playBearGrowl } from '../audio/sfx'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 
 const BEAR_AGGRO = 6.5 // turns hostile within this range
 const BEAR_LEASH = 14 // gives up chase past this
@@ -79,11 +79,9 @@ function BearView({ state }: { state: BearState }) {
 
     // Distance cull: far bears are fog-hidden — hide + skip AI/animation work.
     if (state.hp > 0 && isCulled(state.x, state.z)) {
-      if (g.visible) g.visible = false
+      cullVisible(g, true)
       return
-    } else if (!g.visible) {
-      g.visible = true
-    }
+    } else cullVisible(g, false)
 
     // Death fade
     if (state.hp <= 0) {

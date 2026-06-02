@@ -6,7 +6,7 @@ import type { AnimalState } from './animalStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 
 // Lean grey pack-hunter. Quadruped built from boxes (Bear/Dog conventions):
 // hip-pivot leg groups, a head group, a bushy tail. AI lives in animalAI.
@@ -54,9 +54,9 @@ export function WolfView({ state }: { state: AnimalState }) {
     if (!grp) return
 
     if (state.hp > 0 && isCulled(state.x, state.z)) {
-      if (grp.visible) grp.visible = false
+      cullVisible(grp, true)
       return
-    } else if (!grp.visible) grp.visible = true
+    } else cullVisible(grp, false)
 
     if (state.hp <= 0) {
       if (deadFrom.current === null) deadFrom.current = tNow

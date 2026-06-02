@@ -26,7 +26,7 @@ import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
 import { getPhase } from './gameStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { mergeParts, type MergedPart } from './mergeParts'
 import { faceCamera } from './faceCamera'
 import { playOrkGrunt } from '../audio/sfx'
@@ -204,7 +204,7 @@ export function OrkView({ state }: OrkViewProps) {
     // keep marching on the keep instead of standing frozen while towers farm
     // them. Only the mesh is toggled — ork counts are small, so full AI is cheap.
     const culled = state.hp > 0 && isCulled(state.x, state.z)
-    if (g.visible === culled) g.visible = !culled
+    cullVisible(g, culled)
 
     // Death fade
     if (state.hp <= 0) {

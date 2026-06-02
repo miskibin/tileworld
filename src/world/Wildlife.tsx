@@ -6,7 +6,7 @@ import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { getPlayer } from './playerStore'
 import { isNight } from './timeStore'
 import { playDogBark } from '../audio/sfx'
@@ -102,11 +102,9 @@ function DogView({ state }: DogViewProps) {
     // Distance cull: far dogs are fog-hidden — hide + skip AI/animation work.
     const grp = groupRef.current
     if (s.hp > 0 && grp && isCulled(s.x, s.z)) {
-      if (grp.visible) grp.visible = false
+      cullVisible(grp, true)
       return
-    } else if (grp && !grp.visible) {
-      grp.visible = true
-    }
+    } else if (grp) cullVisible(grp, false)
 
     // Dead-fade
     if (s.hp <= 0) {

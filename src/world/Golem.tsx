@@ -6,7 +6,7 @@ import type { AnimalState } from './animalStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 
 // Heavy boulder brute. Repurposes lf/rf as arm-pivot groups and lb/rb as
 // leg-pivot groups. The Wolf "front-leg" lunge animation reads as a golem
@@ -79,9 +79,9 @@ export function GolemView({ state }: { state: AnimalState }) {
     if (!grp) return
 
     if (state.hp > 0 && isCulled(state.x, state.z)) {
-      if (grp.visible) grp.visible = false
+      cullVisible(grp, true)
       return
-    } else if (!grp.visible) grp.visible = true
+    } else cullVisible(grp, false)
 
     if (state.hp <= 0) {
       if (deadFrom.current === null) deadFrom.current = tNow
