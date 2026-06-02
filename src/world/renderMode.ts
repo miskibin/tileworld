@@ -16,3 +16,10 @@
 export const CAPTURE_MODE =
   typeof window !== 'undefined' &&
   /[?&](capture|lite)(?:&|=|$)/.test(window.location.search)
+
+// Opt-in perf overlay: `?perf` shows the r3f-perf HUD + the PerfTrace console
+// logger in ANY build (dev always shows them; this also turns them on in a
+// production `npm run preview` so dev-vs-prod can be measured). Players never see
+// them — they only appear in dev or when the URL explicitly asks.
+export const PERF_MODE =
+  typeof window !== 'undefined' && /[?&]perf(?:&|=|$)/.test(window.location.search)

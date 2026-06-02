@@ -54,7 +54,7 @@ import { QualityToggle } from './QualityToggle'
 import { ShaderWarmup } from './ShaderWarmup'
 import { getQuality, subscribeQuality } from './qualityStore'
 import { CENTER_X, CENTER_Z } from './tileMap'
-import { CAPTURE_MODE } from './renderMode'
+import { CAPTURE_MODE, PERF_MODE } from './renderMode'
 
 function DebugExpose() {
   const state = useThree()
@@ -318,10 +318,10 @@ export function World() {
       <SoundScape />
       <DebugExpose />
       {/* r3f-perf queries gl.info + writes its overlay DOM every frame — real
-          CPU cost. Dev-only; it must not ship to players. */}
-      {import.meta.env.DEV && <Perf position="top-left" />}
+          CPU cost. Dev or explicit ?perf only; never ships to players. */}
+      {(import.meta.env.DEV || PERF_MODE) && <Perf position="top-left" />}
       <QualityToggle />
-      {import.meta.env.DEV && <PerfTrace />}
+      {(import.meta.env.DEV || PERF_MODE) && <PerfTrace />}
     </>
   )
 }
