@@ -393,11 +393,11 @@ export function OrkView({ state }: OrkViewProps) {
     // Chase: walk toward target via A* path (until in range).
     let walking = false
     if (hasTarget && !inRange && !attacking) {
-      if (
-        tNow >= state.pathRecomputeAt ||
-        state.path.length === 0 ||
-        state.pathIndex >= state.path.length
-      ) {
+      // Recompute on the timer only (pathRecomputeAt starts at 0 → first frame
+      // computes). Empty/exhausted paths no longer force a per-frame A* call —
+      // the straight-line fallback below steers the ork until the next recompute,
+      // so an unreachable target costs one A* per cycle, not one per frame.
+      if (tNow >= state.pathRecomputeAt) {
         state.path = findPath({ x: state.x, z: state.z }, { x: tx, z: tz })
         state.pathIndex = 0
         state.pathRecomputeAt = tNow + cfg.pathRecompute
@@ -407,10 +407,21 @@ export function OrkView({ state }: OrkViewProps) {
         if (Math.hypot(wp.x - state.x, wp.z - state.z) < cfg.waypointRadius) state.pathIndex++
         else break
       }
+      // Steer toward the next waypoint, or — when A* found no route (start tile
+      // momentarily blocked by a prop/house, or an unreachable target) — straight
+      // at the goal. Without this fallback a pathless ork stands frozen forever;
+      // the per-axis collision below still lets it slide off a blocked tile.
+      let dxw: number
+      let dzw: number
       if (state.pathIndex < state.path.length) {
         const wp = state.path[state.pathIndex]
-        const dxw = wp.x - state.x
-        const dzw = wp.z - state.z
+        dxw = wp.x - state.x
+        dzw = wp.z - state.z
+      } else {
+        dxw = tx - state.x
+        dzw = tz - state.z
+      }
+      {
         const lenW = Math.hypot(dxw, dzw)
         if (lenW > 0.001) {
           const step = speed * dt

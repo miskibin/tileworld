@@ -30,7 +30,7 @@ export function MouseLookCamera({ posRef }: Props) {
 
   const azimuth = useRef(Math.PI * 0.85)
   const polar = useRef(Math.PI * 0.18)
-  const dist = useRef(10.8)
+  const dist = useRef(8)
   const locked = useRef(false)
 
   useEffect(() => {

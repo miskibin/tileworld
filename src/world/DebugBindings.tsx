@@ -55,7 +55,7 @@ export function DebugBindings({ onLights }: Props) {
       },
     },
     frozen: {
-      value: true,
+      value: false, // matches timeStore default (clock runs); panel no longer boots checked
       onChange: (v: boolean, _p, ctx: { fromPanel?: boolean }) => {
         if (ctx.fromPanel) setDayFrozen(v)
       },

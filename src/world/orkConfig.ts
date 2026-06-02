@@ -37,7 +37,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   // Baseline — identical to the pre-variant ork.
   grunt: {
     hp: 120,
-    damage: 12,
+    damage: 20,
     speed: 2.0,
     aggro: 9,
     melee: 1.5,
@@ -55,7 +55,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   // Fast, fragile harasser with a wide aggro range.
   scout: {
     hp: 65,
-    damage: 7,
+    damage: 12,
     speed: 3.3,
     aggro: 13,
     melee: 1.4,
@@ -73,7 +73,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   // Glass cannon: rapid swings, frenzies (faster) when wounded.
   berserker: {
     hp: 150,
-    damage: 14,
+    damage: 24,
     speed: 2.6,
     aggro: 10,
     melee: 1.5,
@@ -92,7 +92,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   // Ranged caster: lobs magic bolts and heals wounded allies.
   shaman: {
     hp: 95,
-    damage: 14, // bolt damage
+    damage: 22, // bolt damage
     speed: 1.8,
     aggro: 15,
     melee: 11, // "melee" = preferred cast distance (keeps its range)
