@@ -8,6 +8,7 @@ import { playSfx } from '../audio/audio'
 import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
 import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
+import { spawnDust, dustForBiome } from './dustStore'
 import { spawnPickup } from './pickupStore'
 import { getWeaponBonus, getInventory, subscribeInventory, ITEM_DEFS } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
@@ -386,6 +387,20 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       // off a peak), take fall damage scaled by the drop past the safe height.
       if (!wasOnGround) {
         const fall = airTakeoffY.current - groundY
+        // Landing dust scaled by the drop — a real jump/fall thumps up a ring,
+        // tiny slope-steps (< 0.25) stay quiet so descending a hill isn't a
+        // dust cloud. Fires regardless of damage.
+        if (fall > 0.25) {
+          const land = Math.min(1.4, fall)
+          const dust = dustForBiome(tileBelow?.biome)
+          spawnDust(pos.current.x, groundY + 0.05, pos.current.z, {
+            count: Math.round(3 + land * 5),
+            spread: 0.7 + land * 0.9,
+            up: 0.4 + land * 0.5,
+            size: 1 + land * 0.5,
+            color: dust.color,
+          })
+        }
         if (fall > FALL_SAFE) {
           const dmg = Math.min(FALL_DMG_MAX, Math.round((fall - FALL_SAFE) * FALL_DMG_PER_UNIT))
           if (dmg > 0) {
@@ -446,6 +461,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           : b === 'rock' ? '/audio/footstep-stone.mp3'
           : '/audio/footstep-dirt.mp3'
         void playSfx(stepClip, 0.015, 0.12)
+        // Footfall dust: a sprint always kicks up a puff; a plain walk only
+        // stirs loose ground (sand / snow / scree) so packed grass stays clean.
+        const dust = dustForBiome(b)
+        if (sprinting) {
+          spawnDust(pos.current.x, groundY + 0.05, pos.current.z, { count: 3, spread: 0.95, up: 0.5, size: 1.1, color: dust.color })
+        } else if (dust.loose) {
+          spawnDust(pos.current.x, groundY + 0.05, pos.current.z, { count: 2, spread: 0.55, up: 0.3, size: 0.8, color: dust.color })
+        }
       }
     } else {
       lastStepHalfCycle.current = Math.floor(wp / Math.PI)

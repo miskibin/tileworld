@@ -30,6 +30,7 @@ import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
 import { Projectiles } from './Projectiles'
 import { Impacts } from './Impacts'
+import { Dust } from './Dust'
 import { Orbs } from './Orbs'
 import { Pickups } from './Pickups'
 import { Chest, type ChestVariant } from './Chest'
@@ -311,6 +312,9 @@ export function World() {
 
         {/* Hit-impact spark/splinter bursts (grid-space, pooled like bolts) */}
         <Impacts />
+
+        {/* Soft ground dust kicked up by sprinting / landing (grid-space pool) */}
+        <Dust />
 
         {/* Reward orbs (gold/XP) that burst off kills and home to the hero */}
         <Orbs />
