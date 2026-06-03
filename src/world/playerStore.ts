@@ -69,6 +69,12 @@ const state: PlayerLive = {
   levelUpFlashUntil: 0,
 }
 
+// Dev-only: expose the live player state so profiling scripts can teleport the
+// player to test specific map regions. Stripped from production builds.
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  ;(window as unknown as { __player: PlayerLive }).__player = state
+}
+
 type HpListener = (hp: number, max: number, dead: boolean) => void
 const hpSubs = new Set<HpListener>()
 type GoldListener = (gold: number) => void

@@ -54,20 +54,20 @@ const SHADOW_MAP_SIZE = 1024
 // Re-aim/re-render the shadow map only after the player drifts this far from
 // where it was last centred (world units). Keeps the frustum locked — and the
 // shadow pass skipped — while standing still or making small moves.
-const RECENTER_DIST = 6
+const RECENTER_DIST = 9
 const RECENTER_DIST_SQ = RECENTER_DIST * RECENTER_DIST
 
 // Even when not recentering, refresh every Nth frame so animated casters (orks,
-// bears, the knight) get fresh shadows. 6 ≈ 10fps shadow updates at 60fps —
-// imperceptible for soft shadows, and halves the shadow-pass frequency (the
-// periodic 300→1300 draw-call spikes) vs the old every-3rd-frame.
-const ANIM_REFRESH_INTERVAL = 6
-// When the player is STANDING STILL the camera is static and the only movers are
-// distant wandering critters, so the soft shadow can refresh far less often
-// without anyone noticing — halving the idle shadow-pass spikes. The moment the
-// player walks we drop back to ANIM_REFRESH_INTERVAL so their own shadow tracks
-// smoothly (a frozen player shadow under a moving knight WOULD read as a bug).
-const IDLE_REFRESH_INTERVAL = 12
+// bears, the knight) get fresh shadows. The shadow pass redraws ALL ~850 casters
+// (frame jumps 380→1230 draw calls — measured), so each refresh is a real CPU
+// spike; firing it every 6 frames WHILE MOVING was the "lag when sprinting"
+// stutter. 12 ≈ 5fps shadow updates — still imperceptible for blurry soft shadows
+// in motion, half the spikes.
+const ANIM_REFRESH_INTERVAL = 12
+// Standing still, only distant critters move, so the soft shadow can refresh far
+// less often without anyone noticing. The moment the player walks we drop back to
+// ANIM_REFRESH_INTERVAL so their own shadow still tracks.
+const IDLE_REFRESH_INTERVAL = 24
 
 interface Props {
   intensity: number
