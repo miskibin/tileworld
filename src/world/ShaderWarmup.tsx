@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { OrkView } from './Ork'
 import { Grave } from './Grave'
@@ -56,15 +56,44 @@ export function ShaderWarmup() {
   const camera = useThree((s) => s.camera)
   const [active, setActive] = useState(true)
 
-  // Tear down once the player starts (leaves the menu).
-  useEffect(() => subscribePhase((p) => p !== 'menu' && setActive(false)), [])
+  // The comprehensive precompile — runs ONCE, covering everything currently in
+  // the scene (warm-up orks/grave above, PLUS all the entities the world creates
+  // lazily at load via requestAnimationFrame+setState: wild animals incl. the
+  // biome creatures spread across the map, bears, villagers, and the Cullable
+  // structures). Those are exactly the shaders that otherwise compile the first
+  // time you explore into their area — a synchronous link wait
+  // (getProgramParameter) that stalls the main thread for whole seconds.
+  // compileAsync links them in the background (KHR_parallel_shader_compile) with
+  // no blocking; sync compile() is the fallback (one hidden hitch behind the
+  // start screen). compile()/compileAsync walk the scene with traverse(), so the
+  // invisible (culled / visible:false) structures are warmed too.
+  const didFull = useRef(false)
+  const runFull = useCallback(() => {
+    if (didFull.current) return
+    didFull.current = true
+    const r = gl as unknown as {
+      compileAsync?: (s: typeof scene, c: typeof camera) => Promise<unknown>
+    }
+    if (typeof r.compileAsync === 'function') r.compileAsync(scene, camera).catch(() => {})
+    else gl.compile(scene, camera)
+  }, [gl, scene, camera])
 
-  // Compile after the warm-up meshes have committed into the scene graph.
   useEffect(() => {
-    if (!active) return
-    const id = requestAnimationFrame(() => gl.compile(scene, camera))
-    return () => cancelAnimationFrame(id)
-  }, [active, gl, scene, camera])
+    // Fire after the lazily-mounted content (and the HDRI environment) has
+    // settled, while the player is still on the start screen; or the instant
+    // they press Play, whichever comes first.
+    const t = setTimeout(runFull, 1200)
+    const unsub = subscribePhase((p) => {
+      if (p !== 'menu') {
+        runFull()
+        setActive(false)
+      }
+    })
+    return () => {
+      clearTimeout(t)
+      unsub()
+    }
+  }, [runFull])
 
   if (!active) return null
   // visible={false}: the normal render loop never draws these (no artifact behind
