@@ -18,6 +18,7 @@ import { isTowerAlive, damageTower } from './towerStore'
 import { spawnBolt } from './projectileStore'
 import { spawnFloat } from './fxStore'
 import { spawnImpact } from './impactStore'
+import { spawnDust, dustForBiome } from './dustStore'
 import { tileAt, tileTopY } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { bridgeAt } from './bridges'
@@ -203,7 +204,19 @@ export function OrkView({ state }: OrkViewProps) {
 
     // Death fade
     if (state.hp <= 0) {
-      if (deadFadeFrom.current === null) deadFadeFrom.current = tNow
+      if (deadFadeFrom.current === null) {
+        deadFadeFrom.current = tNow
+        // Dirt puff as the body crumples — grounds the kill in the terrain
+        // (biome-tinted, soft; the bright spark burst is spawned by the killer).
+        const biome = tileAt(Math.floor(state.x), Math.floor(state.z))?.biome
+        spawnDust(state.x, state.y + 0.1, state.z, {
+          count: 6,
+          spread: 1.2,
+          up: 0.55,
+          size: 1.3,
+          color: dustForBiome(biome).color,
+        })
+      }
       const elapsed = tNow - deadFadeFrom.current
       const opacity = Math.max(0, 1 - elapsed / 1.4)
       const sink = Math.min(0.4, elapsed * 0.3)

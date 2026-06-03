@@ -71,9 +71,9 @@ describe('wave phase — spawning', () => {
   })
 
   it('scales ork hp by the wave hpScale', () => {
-    // Wave 3 hpScale 1.33, grunt base hp 254 -> round(338).
+    // Wave 3 hpScale 1.45, grunt base hp 254 -> round(368).
     const r = step('wave', wave({ index: 2, spawned: 0 }), timers(), 0, 0)
-    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 338 })
+    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 368 })
   })
 
   it('stops spawning once the quota is met', () => {

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { getObstacles, type Obstacle } from './obstacles'
+import { applyWind, windTime } from './wind'
+import { isFrozen } from './pauseStore'
 
 // ─── Shared materials (module singletons) ───────────────────────────────────
 const TRUNK_MAT = new THREE.MeshStandardMaterial({ color: '#5a3a22', roughness: 1 })
@@ -70,6 +73,24 @@ const FLOWER_PETAL_MATS = [
   new THREE.MeshStandardMaterial({ color: '#6abadf', roughness: 0.9 }),
   new THREE.MeshStandardMaterial({ color: '#e88ad6', roughness: 0.9 }),
 ]
+
+// Inject wind sway into the leafy materials only — broadleaf canopies, bushes,
+// reeds and grass tufts. Trunks (TRUNK/BIRCH_TRUNK), snow caps, cactus, rocks,
+// bones, mushrooms and flowers stay rigid. Done once here at module load on the
+// shared singletons, so every instanced foliage mesh sways off one uniform.
+;[
+  FOLIAGE_DARK_MAT,
+  FOLIAGE_MID_MAT,
+  FOLIAGE_LIGHT_MAT,
+  BIRCH_DARK_MAT,
+  BIRCH_LIGHT_MAT,
+  BUSH_MATS[0],
+  BUSH_MATS[1],
+  BUSH_MATS[2],
+  REED_MAT,
+  REED_DARK_MAT,
+  TUFT_MAT,
+].forEach(applyWind)
 
 // ─── Part geometry helpers (pre-translated / pre-rotated to bake local offset)
 interface Part {
@@ -329,6 +350,16 @@ function InstancedPart({ part, obstacles }: { part: Part; obstacles: Obstacle[] 
   )
 }
 
+// Advances the shared wind clock once per frame. Frozen behind any modal so the
+// world (foliage included) holds still, matching every other useFrame.
+function WindDriver() {
+  useFrame(({ clock }) => {
+    if (isFrozen()) return
+    windTime.value = clock.getElapsedTime()
+  })
+  return null
+}
+
 export function Scatter() {
   const groups = useMemo(() => {
     const obstacles = getObstacles()
@@ -343,6 +374,7 @@ export function Scatter() {
 
   return (
     <group>
+      <WindDriver />
       {Array.from(groups.entries()).flatMap(([key, list]) => {
         if (!PARTS[key]) return []
         const parts = mergedParts(key)

@@ -15,14 +15,15 @@ export interface WaveDef {
 // Tuned harder than the first pass: early waves carry a scout/berserker so
 // they're a real fight, and counts/HP ramp steeper to match the stronger
 // defenses (keep archers, reinforced keep, tower mastery, militia).
+// Ork base HP compounds +15% per night (g_h = 1.15): hpScale[n] = 1.1 * 1.15^n.
 export const WAVES: WaveDef[] = [
   { count: 9, hpScale: 1.1, variants: ['grunt', 'grunt', 'scout', 'berserker'], spawnInterval: 1.1 },
-  { count: 9, hpScale: 1.21, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.1 },
-  { count: 12, hpScale: 1.33, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
-  { count: 15, hpScale: 1.46, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
-  { count: 18, hpScale: 1.61, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },
-  { count: 22, hpScale: 1.77, variants: ['berserker', 'scout', 'shaman', 'grunt'], spawnInterval: 0.85 },
-  { count: 26, hpScale: 1.95, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.75 },
+  { count: 9, hpScale: 1.27, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.1 },
+  { count: 12, hpScale: 1.45, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
+  { count: 15, hpScale: 1.67, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
+  { count: 18, hpScale: 1.92, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },
+  { count: 22, hpScale: 2.21, variants: ['berserker', 'scout', 'shaman', 'grunt'], spawnInterval: 0.85 },
+  { count: 26, hpScale: 2.54, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.75 },
   { count: 1, hpScale: 14.0, variants: ['berserker'], spawnInterval: 0.5 }, // boss
 ]
 

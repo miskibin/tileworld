@@ -11,6 +11,7 @@ import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
 import { audioMix, applyLoopVolumes } from '../audio/audio'
 import { gradeTunables } from './gradeStore'
 import { fovTunables } from './fxStore'
+import { windStrength, windSpeed } from './wind'
 
 interface Props {
   onLights: (l: {
@@ -95,6 +96,12 @@ export function DebugBindings({ onLights }: Props) {
     }),
   })
 
+  // Foliage wind sway (wind.ts shared uniforms; read in the foliage vertex shader).
+  const wind = useControls('Foliage wind', {
+    strength: { value: windStrength.value, min: 0, max: 3, step: 0.05 },
+    speed: { value: windSpeed.value, min: 0, max: 4, step: 0.05 },
+  })
+
   // Camera FOV punch (fxStore.fovTunables; read at the Character.tsx call sites).
   const fov = useControls('Camera FOV punch', {
     kill: { value: fovTunables.kill, min: 0, max: 8, step: 0.1 },
@@ -149,6 +156,12 @@ export function DebugBindings({ onLights }: Props) {
     grade.winceDarken,
     grade.winceDesat,
   ])
+
+  // Wind → shared uniforms (read in the foliage vertex shader).
+  useEffect(() => {
+    windStrength.value = wind.strength
+    windSpeed.value = wind.speed
+  }, [wind.strength, wind.speed])
 
   // FOV punch → live holder (read at the Character call sites / camera).
   useEffect(() => {

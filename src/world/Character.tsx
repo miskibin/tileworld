@@ -611,7 +611,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             }
           }
 
-          // ─── Cleave: splash 50% to orks beside any orks we directly hit ──
+          // ─── Cleave: splash 30% to orks beside any orks we directly hit ──
           const cleaveFrac = getCleave()
           if (cleaveFrac > 0 && directHits.length > 0) {
             const cleaveDmg = Math.round(dmg * cleaveFrac)

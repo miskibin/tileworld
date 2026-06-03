@@ -441,14 +441,14 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_cleave',
     branch: 'hero',
     name: 'Cleave',
-    desc: 'Strikes splash 50% damage to orks beside your target.',
+    desc: 'Strikes splash 30% damage to orks beside your target.',
     icon: '🌀',
     cost: 110,
     prereqId: 'hero_dmg_2',
     apply() {
       if (getPlayer().cleave > 0) return false
       if (!spendGold(this.cost)) return false
-      setCleave(0.5)
+      setCleave(0.3)
       return true
     },
   },
