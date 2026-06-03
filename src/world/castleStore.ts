@@ -15,9 +15,14 @@ export interface CastleState {
   maxHp: number
   /** Reinforced Keep upgrade — raises max HP and slowly self-repairs in prep */
   reinforced: boolean
+  /**
+   * Wall-clock time (performance.now() * 0.001) until which the keep mesh flashes
+   * on being hit. Transient, read per-frame by the Keep view — never notifies.
+   */
+  hurtFlashUntil: number
 }
 
-const state: CastleState = { hp: CASTLE_MAX_HP, maxHp: CASTLE_MAX_HP, reinforced: false }
+const state: CastleState = { hp: CASTLE_MAX_HP, maxHp: CASTLE_MAX_HP, reinforced: false, hurtFlashUntil: 0 }
 const subs = new Set<(s: CastleState) => void>()
 
 function notify(): void {
@@ -31,6 +36,7 @@ export function getCastle(): CastleState {
 export function damageCastle(amount: number): void {
   if (state.hp <= 0) return
   state.hp = Math.max(0, state.hp - amount)
+  state.hurtFlashUntil = performance.now() * 0.001 + 0.18
   addShake(0.25, 0.3)
   notify()
   if (state.hp <= 0 && getPhase() === 'wave') setPhase('defeat')

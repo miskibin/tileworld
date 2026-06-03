@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { openTree, closeTree, isTreeOpen } from './townHallStore'
+import { getCastle } from './castleStore'
 import { KEEP_INTERACT, INTERACT_DIST, CITY_WALL_HEIGHT } from './cityPlan'
 import { stoneTexture, woodTexture, shingleTexture, soilTexture } from './textures'
 
@@ -80,7 +81,122 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
   const promptRef = useRef<THREE.Group>(null!)
   const inRangeRef = useRef(false)
 
+  // Refs for the staged-destruction visuals, toggled each frame off the HP ratio.
+  const merlonFullRef = useRef<THREE.Mesh>(null!)
+  const merlonPartialRef = useRef<THREE.Mesh>(null!)
+  const merlonSparseRef = useRef<THREE.Mesh>(null!)
+  const rubbleRef = useRef<THREE.Mesh>(null!)
+  const smokeRef = useRef<THREE.Group>(null!)
+  const emberRef = useRef<THREE.Group>(null!)
+
+  const roofY = KEEP_FOUND + KEEP_H
+
+  // Keep-local material clones. STONE/* are singletons shared with every wall
+  // and house, so tinting them on damage would soot the whole town — clone the
+  // four the staged look mutates and remember their pristine colours.
+  const mats = useMemo(() => {
+    const stone = STONE.clone()
+    const darkStone = DARK_STONE.clone()
+    const lightStone = LIGHT_STONE.clone()
+    const roof = ROOF.clone()
+    return {
+      stone,
+      darkStone,
+      lightStone,
+      roof,
+      base: {
+        stone: stone.color.clone(),
+        darkStone: darkStone.color.clone(),
+        lightStone: lightStone.color.clone(),
+        roof: roof.color.clone(),
+      },
+    }
+  }, [])
+
+  useEffect(
+    () => () => {
+      mats.stone.dispose()
+      mats.darkStone.dispose()
+      mats.lightStone.dispose()
+      mats.roof.dispose()
+    },
+    [mats],
+  )
+
+  // Three merlon variants (full / partial / sparse) + ground rubble, each one
+  // merged geometry. Only one merlon mesh is visible at a time, so the single
+  // draw-call benefit holds — we just toggle .visible by HP stage.
+  const merlons = useMemo(() => {
+    const build = (keep: (i: number) => boolean) => {
+      const geos: THREE.BufferGeometry[] = []
+      let i = 0
+      const push = (x: number, z: number) => {
+        if (keep(i)) geos.push(box(0.5, 0.5, 0.5, x, roofY + 0.25, z))
+        i++
+      }
+      for (let x = -KEEP_W / 2 + 0.4; x <= KEEP_W / 2 - 0.4; x += 1.0) {
+        push(x, -KEEP_D / 2 + 0.2)
+        push(x, KEEP_D / 2 - 0.2)
+      }
+      for (let z = -KEEP_D / 2 + 1.2; z <= KEEP_D / 2 - 1.2; z += 1.0) {
+        push(-KEEP_W / 2 + 0.2, z)
+        push(KEEP_W / 2 - 0.2, z)
+      }
+      return mergeGeometries(geos, false) as THREE.BufferGeometry
+    }
+    // Rubble block: rotate about its own centre, then place on the ground.
+    const rb = (x: number, z: number, ry: number, s = 0.5) => {
+      const g = new THREE.BoxGeometry(s, s * 0.85, s)
+      g.rotateY(ry)
+      g.translate(x, s * 0.42, z)
+      return g
+    }
+    return {
+      full: build(() => true),
+      partial: build((i) => i % 3 !== 0), // ~1/3 knocked off
+      sparse: build((i) => i % 3 === 1), // ~2/3 gone, a jagged few left
+      rubble: mergeGeometries(
+        [
+          rb(-KEEP_W / 2 - 0.4, 0.6, 0.5),
+          rb(KEEP_W / 2 + 0.3, -1.1, 1.2, 0.45),
+          rb(0.8, KEEP_D / 2 + 0.5, 2.1),
+          rb(-1.4, -KEEP_D / 2 - 0.4, 0.8, 0.4),
+        ],
+        false,
+      ) as THREE.BufferGeometry,
+    }
+  }, [roofY])
+
   useFrame(() => {
+    // Destruction visuals run regardless of the pause gate so the keep stays
+    // correctly damaged-looking while a modal (shop / upgrade tree) is open.
+    const c = getCastle()
+    const ratio = c.maxHp > 0 ? c.hp / c.maxHp : 0
+    const hurting = performance.now() * 0.001 < c.hurtFlashUntil
+
+    const b = mats.base
+    if (hurting) {
+      mats.stone.color.set('#c98850')
+      mats.darkStone.color.set('#c98850')
+      mats.lightStone.color.set('#c98850')
+      mats.roof.color.copy(b.roof)
+    } else {
+      const k = ratio > 0.66 ? 1 : ratio > 0.33 ? 0.7 : 0.45
+      mats.stone.color.copy(b.stone).multiplyScalar(k)
+      mats.darkStone.color.copy(b.darkStone).multiplyScalar(k)
+      mats.lightStone.color.copy(b.lightStone).multiplyScalar(k)
+      mats.roof.color.copy(b.roof).multiplyScalar(k)
+    }
+
+    if (merlonFullRef.current) merlonFullRef.current.visible = ratio > 0.66
+    if (merlonPartialRef.current) merlonPartialRef.current.visible = ratio > 0.33 && ratio <= 0.66
+    if (merlonSparseRef.current) merlonSparseRef.current.visible = ratio <= 0.33
+    const burning = ratio <= 0.33
+    if (rubbleRef.current) rubbleRef.current.visible = burning
+    if (smokeRef.current) smokeRef.current.visible = burning
+    if (emberRef.current) emberRef.current.visible = burning
+
+    // Proximity prompt — still gated on pause like the rest of the sim.
     if (isPaused()) return
     const p = getPlayer()
     const dx = p.x - KEEP_INTERACT.x
@@ -106,42 +222,27 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
     }
   }, [])
 
-  const roofY = KEEP_FOUND + KEEP_H
-
-  // All battlement merlons merged into one geometry → a single draw call
-  // instead of ~16 separate meshes.
-  const merlonGeo = useMemo(() => {
-    const geos: THREE.BufferGeometry[] = []
-    const stepX = 1.0
-    const stepZ = 1.0
-    for (let x = -KEEP_W / 2 + 0.4; x <= KEEP_W / 2 - 0.4; x += stepX) {
-      geos.push(box(0.5, 0.5, 0.5, x, roofY + 0.25, -KEEP_D / 2 + 0.2))
-      geos.push(box(0.5, 0.5, 0.5, x, roofY + 0.25, KEEP_D / 2 - 0.2))
-    }
-    for (let z = -KEEP_D / 2 + 1.2; z <= KEEP_D / 2 - 1.2; z += stepZ) {
-      geos.push(box(0.5, 0.5, 0.5, -KEEP_W / 2 + 0.2, roofY + 0.25, z))
-      geos.push(box(0.5, 0.5, 0.5, KEEP_W / 2 - 0.2, roofY + 0.25, z))
-    }
-    return mergeGeometries(geos, false) as THREE.BufferGeometry
-  }, [roofY])
-
   return (
     <group position={position} rotation={[0, rotation, 0]} scale={[0.88, 0.7, 0.88]}>
       {/* Foundation */}
-      <mesh position={[0, KEEP_FOUND / 2, 0]} castShadow receiveShadow material={DARK_STONE}>
+      <mesh position={[0, KEEP_FOUND / 2, 0]} castShadow receiveShadow material={mats.darkStone}>
         <boxGeometry args={[KEEP_W + 0.5, KEEP_FOUND, KEEP_D + 0.5]} />
       </mesh>
       {/* Main keep block */}
-      <mesh position={[0, KEEP_FOUND + KEEP_H / 2, 0]} castShadow receiveShadow material={STONE}>
+      <mesh position={[0, KEEP_FOUND + KEEP_H / 2, 0]} castShadow receiveShadow material={mats.stone}>
         <boxGeometry args={[KEEP_W, KEEP_H, KEEP_D]} />
       </mesh>
-      {/* Battlement merlons (merged) */}
-      <mesh geometry={merlonGeo} material={DARK_STONE} castShadow />
+      {/* Battlement merlons — three staged variants, one visible at a time */}
+      <mesh ref={merlonFullRef} geometry={merlons.full} material={mats.darkStone} castShadow />
+      <mesh ref={merlonPartialRef} geometry={merlons.partial} material={mats.darkStone} castShadow visible={false} />
+      <mesh ref={merlonSparseRef} geometry={merlons.sparse} material={mats.darkStone} castShadow visible={false} />
+      {/* Knocked-off rubble on the ground (low HP only) */}
+      <mesh ref={rubbleRef} geometry={merlons.rubble} material={mats.darkStone} castShadow receiveShadow visible={false} />
       {/* Central tower rising above the roof */}
-      <mesh position={[0, roofY + 0.65, 0]} castShadow receiveShadow material={LIGHT_STONE}>
+      <mesh position={[0, roofY + 0.65, 0]} castShadow receiveShadow material={mats.lightStone}>
         <boxGeometry args={[2.0, 1.3, 2.0]} />
       </mesh>
-      <mesh position={[0, roofY + 1.55, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={ROOF}>
+      <mesh position={[0, roofY + 1.55, 0]} rotation={[0, Math.PI / 4, 0]} castShadow material={mats.roof}>
         <coneGeometry args={[1.4, 0.9, 4]} />
       </mesh>
       <mesh position={[0, roofY + 2.05, 0]} material={GOLD}>
@@ -167,6 +268,14 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
         <Text fontSize={0.34} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.025}>
           Press E — Upgrades
         </Text>
+      </group>
+
+      {/* Smoke + embers when the keep is burning (low HP only) */}
+      <group ref={smokeRef} position={[0, roofY + 2, 0]} visible={false}>
+        <Sparkles count={12} scale={[3, 4, 3]} size={6} speed={0.3} opacity={0.5} color="#3a3a3a" noise={1.5} />
+      </group>
+      <group ref={emberRef} position={[0, roofY + 1.4, 0]} visible={false}>
+        <Sparkles count={8} scale={[2.4, 3, 2.4]} size={2.5} speed={0.8} opacity={0.9} color="#ff7a2a" />
       </group>
     </group>
   )
