@@ -58,15 +58,17 @@ const RECENTER_DIST = 9
 const RECENTER_DIST_SQ = RECENTER_DIST * RECENTER_DIST
 
 // Even when not recentering, refresh every Nth frame so animated casters (orks,
-// bears, the knight) get fresh shadows. The shadow pass redraws ALL ~850 casters
-// (frame jumps 380→1230 draw calls — measured), so each refresh is a real CPU
-// spike; firing it every 6 frames WHILE MOVING was the "lag when sprinting"
-// stutter. 12 ≈ 5fps shadow updates — still imperceptible for blurry soft shadows
-// in motion, half the spikes.
-const ANIM_REFRESH_INTERVAL = 12
-// Standing still, only distant critters move, so the soft shadow can refresh far
-// less often without anyone noticing. The moment the player walks we drop back to
-// ANIM_REFRESH_INTERVAL so their own shadow still tracks.
+// bears, the knight) get fresh shadows WHILE MOVING. This directly sets how
+// smoothly the player's own shadow tracks them — 6 ≈ 10fps updates reads as
+// smooth; pushing it higher to save the shadow-pass spikes made the moving player
+// shadow visibly lag, so it stays at 6. (The pass redraws ~850 casters: frame
+// jumps 380→1230 draw calls. Cheaper shadows need fewer casters, not a lower
+// refresh — a separate change.)
+const ANIM_REFRESH_INTERVAL = 6
+// Standing still, the player isn't moving so their shadow is static; only distant
+// critters move, so the soft shadow can refresh far less often with nobody
+// noticing. The moment the player walks we drop back to ANIM_REFRESH_INTERVAL so
+// their own shadow tracks smoothly.
 const IDLE_REFRESH_INTERVAL = 24
 
 interface Props {
