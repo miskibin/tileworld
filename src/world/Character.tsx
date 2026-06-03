@@ -6,7 +6,7 @@ import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx } from '../audio/audio'
 import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
-import { addShake, spawnFloat } from './fxStore'
+import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
 import { spawnPickup } from './pickupStore'
 import { getWeaponBonus, getInventory, subscribeInventory, ITEM_DEFS } from './inventoryStore'
@@ -162,7 +162,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Clear any lingering hit-stop when the world unmounts (new game / restart) so
   // a freeze triggered on the last frame can't carry getTimeScale()=0 into the
   // next run's first frames. Matches the unmount-reset pattern of Orbs/Projectiles.
-  useEffect(() => () => resetHitStop(), [])
+  useEffect(() => () => { resetHitStop(); resetFovKick() }, [])
 
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
@@ -388,7 +388,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         const fall = airTakeoffY.current - groundY
         if (fall > FALL_SAFE) {
           const dmg = Math.min(FALL_DMG_MAX, Math.round((fall - FALL_SAFE) * FALL_DMG_PER_UNIT))
-          if (dmg > 0) damagePlayer(dmg, tNow)
+          if (dmg > 0) {
+            damagePlayer(dmg, tNow)
+            addFovKick(fovTunables.land) // crunchy impact on a hard landing
+          }
         }
       }
       pos.current.y = groundY
@@ -692,10 +695,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           if (killedAny) {
             playKill()
             addShake(0.55)
+            addFovKick(fovTunables.kill) // takedown shoves the view out — extra oomph
             triggerHitStop(0.09)
           } else if (hitAny) {
             playHit()
             addShake(0.3)
+            addFovKick(fovTunables.hit) // a connecting blow lands with weight
             triggerHitStop(0.05)
           } else {
             // Whiffed — only now the empty-swing whoosh, so a connecting hit

@@ -1,6 +1,6 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
+import { useThree, useFrame } from '@react-three/fiber'
 import { PositionalAudio, Sparkles, Environment } from '@react-three/drei'
 import {
   EffectComposer,
@@ -12,7 +12,7 @@ import {
   BrightnessContrast,
   SMAA,
 } from '@react-three/postprocessing'
-import { KernelSize, BlendFunction } from 'postprocessing'
+import { KernelSize, BlendFunction, VignetteEffect, HueSaturationEffect } from 'postprocessing'
 import { Perf } from 'r3f-perf'
 import { SoundScape } from '../audio/SoundScape'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
@@ -96,6 +96,39 @@ const CHESTS: { pos: [number, number, number]; rot: number; gold: number; loot: 
 ]
 import { CENTER_X, CENTER_Z, tileAt, tileTopY, type Biome } from './tileMap'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
+import { getPlayer } from './playerStore'
+import { getGradePulse, gradeTunables } from './gradeStore'
+
+// Drives the Vignette + HueSaturation passes (already in the stack, so no new
+// render cost) off live player state each frame: low HP desaturates + darkens
+// the edges with a slow heartbeat throb, and a fresh hit punches a brief "wince".
+// Lives outside the EffectComposer so its useFrame is a plain scene tick; it only
+// mutates plain uniform setters (no shader recompile). Refs are null until the
+// composer mounts (high quality only), so it no-ops safely otherwise. All factors
+// are live-tunable via gradeTunables (the leva "Reactive grade" folder).
+function ReactiveGrade({
+  vignette,
+  hue,
+}: {
+  vignette: RefObject<VignetteEffect | null>
+  hue: RefObject<HueSaturationEffect | null>
+}) {
+  useFrame(() => {
+    const now = performance.now() * 0.001
+    const pulse = getGradePulse(now)
+    const g = gradeTunables
+    const player = getPlayer()
+    const ratio = player.maxHp > 0 ? player.hp / player.maxHp : 1
+    // Dread ramps in below the threshold and deepens toward death.
+    const low = ratio < g.lowThreshold ? (g.lowThreshold - ratio) / g.lowThreshold : 0
+    const beat = low > 0 ? (Math.sin(now * 5.5) * 0.5 + 0.5) * low * g.heartbeat : 0
+    const v = vignette.current
+    if (v) v.darkness = Math.min(0.97, g.baseDarkness + low * g.lowDarken + pulse * g.winceDarken + beat)
+    const h = hue.current
+    if (h) h.saturation = Math.max(-0.8, g.baseSaturation - low * g.lowDesat - pulse * g.winceDesat)
+  })
+  return null
+}
 
 // Each chest takes on the look of the biome it sits in — auto-derived from the
 // tile under it, so it stays correct regardless of the exact coordinates.
@@ -129,6 +162,10 @@ export function World() {
   const [lights, setLights] = useState({ ambient: 0.22, hemi: 0.4, dir: 2.1 })
   // GodRays needs the rendered sun mesh; capture it via callback ref.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
+  // Effect handles the ReactiveGrade driver mutates each frame (low-HP grade +
+  // hit wince). Null until the composer mounts on high quality.
+  const vignetteRef = useRef<VignetteEffect>(null)
+  const hueRef = useRef<HueSaturationEffect>(null)
   // Render-quality tier (G key). 'low' drops the post stack below + the sun
   // shadows (SunShadow reads it per-frame) for weak GPUs.
   const [quality, setQuality] = useState(getQuality)
@@ -351,6 +388,7 @@ export function World() {
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
       {sunMesh && !CAPTURE_MODE && quality === 'high' && (
+        <>
         <EffectComposer multisampling={0} enableNormalPass={false}>
           {/* Ambient occlusion grounds props/buildings into the terrain so
               they stop looking pasted-on. Half-res + the "performance" preset
@@ -383,12 +421,16 @@ export function World() {
             intensity={0.7}
             kernelSize={KernelSize.MEDIUM}
           />
-          {/* Warm cinematic grade: a touch more saturation + contrast. */}
-          <HueSaturation saturation={0.12} />
+          {/* Warm cinematic grade: a touch more saturation + contrast. Saturation
+              is driven down by ReactiveGrade when the hero is hurt. */}
+          <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
           <BrightnessContrast brightness={-0.02} contrast={0.1} />
-          <Vignette offset={0.35} darkness={0.5} eskil={false} />
+          {/* Darkness is driven up by ReactiveGrade on low HP / a fresh hit. */}
+          <Vignette ref={vignetteRef} offset={0.35} darkness={gradeTunables.baseDarkness} eskil={false} />
           <SMAA />
         </EffectComposer>
+        <ReactiveGrade vignette={vignetteRef} hue={hueRef} />
+        </>
       )}
 
       <MouseLookCamera posRef={posRef} />

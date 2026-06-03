@@ -9,6 +9,8 @@ import {
 } from './vision'
 import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
 import { audioMix, applyLoopVolumes } from '../audio/audio'
+import { gradeTunables } from './gradeStore'
+import { fovTunables } from './fxStore'
 
 interface Props {
   onLights: (l: {
@@ -75,6 +77,33 @@ export function DebugBindings({ onLights }: Props) {
     maxDarken: { value: viewMaxDarkenUniform.value, min: 0, max: 1, step: 0.01 },
   })
 
+  // Reactive screen grade (ReactiveGrade in World.tsx reads gradeTunables live).
+  const grade = useControls('Reactive grade', {
+    base: folder({
+      baseDarkness: { value: gradeTunables.baseDarkness, min: 0, max: 1, step: 0.01, label: 'vignette' },
+      baseSaturation: { value: gradeTunables.baseSaturation, min: -0.5, max: 0.5, step: 0.01, label: 'saturation' },
+    }),
+    lowHp: folder({
+      lowThreshold: { value: gradeTunables.lowThreshold, min: 0, max: 0.6, step: 0.01, label: 'threshold' },
+      lowDarken: { value: gradeTunables.lowDarken, min: 0, max: 0.6, step: 0.01, label: 'darken' },
+      lowDesat: { value: gradeTunables.lowDesat, min: 0, max: 1, step: 0.01, label: 'desat' },
+      heartbeat: { value: gradeTunables.heartbeat, min: 0, max: 0.2, step: 0.01, label: 'throb' },
+    }),
+    onHit: folder({
+      winceDarken: { value: gradeTunables.winceDarken, min: 0, max: 0.6, step: 0.01, label: 'darken' },
+      winceDesat: { value: gradeTunables.winceDesat, min: 0, max: 1, step: 0.01, label: 'desat' },
+    }),
+  })
+
+  // Camera FOV punch (fxStore.fovTunables; read at the Character.tsx call sites).
+  const fov = useControls('Camera FOV punch', {
+    kill: { value: fovTunables.kill, min: 0, max: 8, step: 0.1 },
+    hit: { value: fovTunables.hit, min: 0, max: 8, step: 0.1 },
+    land: { value: fovTunables.land, min: 0, max: 8, step: 0.1 },
+    max: { value: fovTunables.max, min: 1, max: 12, step: 0.5, label: 'cap' },
+    decay: { value: fovTunables.decay, min: 4, max: 60, step: 1, label: 'ease-out' },
+  })
+
   const audio = useControls('Audio', {
     sfx: { value: audioMix.sfx, min: 0, max: 1, step: 0.01, label: 'combat sfx' },
     voice: { value: audioMix.voice, min: 0, max: 1, step: 0.01, label: 'creature voices' },
@@ -99,6 +128,36 @@ export function DebugBindings({ onLights }: Props) {
     viewFalloffUniform.value = vis.falloff
     viewMaxDarkenUniform.value = vis.maxDarken
   }, [vis.radius, vis.falloff, vis.maxDarken])
+
+  // Reactive grade → live holder (read each frame by ReactiveGrade).
+  useEffect(() => {
+    gradeTunables.baseDarkness = grade.baseDarkness
+    gradeTunables.baseSaturation = grade.baseSaturation
+    gradeTunables.lowThreshold = grade.lowThreshold
+    gradeTunables.lowDarken = grade.lowDarken
+    gradeTunables.lowDesat = grade.lowDesat
+    gradeTunables.heartbeat = grade.heartbeat
+    gradeTunables.winceDarken = grade.winceDarken
+    gradeTunables.winceDesat = grade.winceDesat
+  }, [
+    grade.baseDarkness,
+    grade.baseSaturation,
+    grade.lowThreshold,
+    grade.lowDarken,
+    grade.lowDesat,
+    grade.heartbeat,
+    grade.winceDarken,
+    grade.winceDesat,
+  ])
+
+  // FOV punch → live holder (read at the Character call sites / camera).
+  useEffect(() => {
+    fovTunables.kill = fov.kill
+    fovTunables.hit = fov.hit
+    fovTunables.land = fov.land
+    fovTunables.max = fov.max
+    fovTunables.decay = fov.decay
+  }, [fov.kill, fov.hit, fov.land, fov.max, fov.decay])
 
   // Audio mix → live holder. sfx/voice/range are read live by the players;
   // music/ambient are pushed onto the running loop nodes.

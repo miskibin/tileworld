@@ -7,6 +7,7 @@ import {
   playPlayerDeath,
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
+import { addGradePulse, resetGrade } from './gradeStore'
 import { getDamageTakenMult, resetBuffs } from './buffStore'
 import { getArmorDamageMult } from './inventoryStore'
 import { resetPickups } from './pickupStore'
@@ -168,6 +169,10 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
     playPlayerHurtVoice()
   }
   addShake(state.hp <= 0 ? 0.5 : 0.22)
+  // Screen wince: edge-darken + brief desaturation through the passes already
+  // running (see ReactiveGrade in World.tsx). Scale with the bite of the hit so
+  // a chip reads small and a near-fatal blow swamps the screen; death maxes it.
+  addGradePulse(state.hp <= 0 ? 1 : Math.min(0.6, 0.18 + dmg / 90))
   notifyHp()
 }
 
@@ -197,6 +202,7 @@ export function resetPlayer(): void {
   resetBlock()
   resetBuffs()
   resetPickups() // clear any ground loot so it doesn't carry into a fresh run
+  resetGrade() // drop any lingering screen wince from the prior run
   notifyHp()
   notifyGold()
   notifyStats()

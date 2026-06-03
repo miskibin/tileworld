@@ -1,11 +1,12 @@
 import { useEffect, useRef, type MutableRefObject } from 'react'
+import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import type { PlayerStateRef } from './Character'
 import { CENTER_X, CENTER_Z } from './tileMap'
 import { isShopOpen, subscribeShop } from './shopStore'
 import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
-import { getShake } from './fxStore'
+import { getShake, getFovKick } from './fxStore'
 import { isWarming } from './warmupStore'
 
 interface Props {
@@ -33,6 +34,9 @@ export function MouseLookCamera({ posRef }: Props) {
   const polar = useRef(Math.PI * 0.18)
   const dist = useRef(8)
   const locked = useRef(false)
+  // Resting FOV, captured once so the per-frame kick is always added on top of
+  // the camera's real base (rather than drifting from a hard-coded guess).
+  const baseFov = useRef<number | null>(null)
 
   useEffect(() => {
     const el = gl.domElement
@@ -124,6 +128,19 @@ export function MouseLookCamera({ posRef }: Props) {
       tz + Math.cos(a) * Math.cos(p) * r + sz,
     )
     camera.lookAt(tx, ty, tz)
+
+    // FOV punch: widen a few degrees off a hit/kill/landing, ease back to rest.
+    // Only touches the projection when it actually moved, so a settled camera
+    // pays nothing.
+    if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+      const cam = camera as THREE.PerspectiveCamera
+      if (baseFov.current === null) baseFov.current = cam.fov
+      const target = baseFov.current + getFovKick(performance.now() * 0.001)
+      if (Math.abs(cam.fov - target) > 0.01) {
+        cam.fov = target
+        cam.updateProjectionMatrix()
+      }
+    }
   })
 
   return null
