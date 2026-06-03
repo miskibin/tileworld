@@ -57,29 +57,31 @@ export function ShaderWarmup() {
   const camera = useThree((s) => s.camera)
   const [active, setActive] = useState(true)
 
-  // A tiny offscreen target + a high, wide top-down camera that frames the whole
-  // map. We RENDER through these (not just compile()) because gl.compile cannot
-  // reproduce three's render-time program selection — the envMap / shadow-receive
-  // variants of culled content compile lazily on first real draw otherwise, and
-  // three then BLOCKS in getUniforms()→getProgramParameter waiting for the link
-  // (the multi-second freeze in the trace). A real render forces every one of
-  // those programs to link + fetch its uniforms NOW, at load, behind the start
-  // screen. 16×16 so it's pixel-cheap; shader compilation is resolution-free.
+  // A high, wide top-down camera that frames the whole map. We RENDER through it
+  // (not just compile()) because gl.compile can't reproduce three's render-time
+  // program selection. CRUCIALLY we render to the real CANVAS, not an offscreen
+  // target: the canvas applies ACES tone-mapping + sRGB output, which is baked
+  // into the program key — a render-target (linear, no tone-map) compiles
+  // DIFFERENT programs that gameplay never uses, so they'd all recompile on the
+  // first real frame (a GPU trace showed exactly this: the same STANDARD/envMap
+  // programs re-linking while travelling). Rendering to the canvas behind the
+  // opaque-ish StartScreen warms the programs gameplay actually uses.
   const warm = useMemo(() => {
     const cam = new THREE.PerspectiveCamera(90, 1, 0.5, 1200)
     cam.position.set(0, 400, 80) // world space: the map is centred on the origin
     cam.lookAt(0, 0, 0)
     cam.updateMatrixWorld()
-    return { cam, target: new THREE.WebGLRenderTarget(16, 16) }
+    return { cam }
   }, [])
-  useEffect(() => () => warm.target.dispose(), [warm])
 
   const runFull = useCallback(() => {
     // compile() covers the base material programs (it walks traverse(), so culled
-    // structures are included). The offscreen full-map render then forces the
-    // render-time variants (envMap / shadow-receive) to fully link + fetch
-    // uniforms, which is the part that otherwise stalls mid-exploration.
+    // structures are included). The full-map canvas render then forces the
+    // render-time variants (envMap / shadow-receive, with the canvas's tone-map +
+    // sRGB output) to fully link + fetch uniforms — the part that otherwise
+    // stalls mid-travel.
     gl.compile(scene, camera)
+
     const hidden: THREE.Object3D[] = []
     scene.traverse((o) => {
       if (!o.visible) {
@@ -87,10 +89,7 @@ export function ShaderWarmup() {
         o.visible = true
       }
     })
-    const prevTarget = gl.getRenderTarget()
-    gl.setRenderTarget(warm.target)
-    gl.render(scene, warm.cam)
-    gl.setRenderTarget(prevTarget)
+    gl.render(scene, warm.cam) // to the canvas — matches gameplay output encoding
     for (const o of hidden) o.visible = false
   }, [gl, scene, camera, warm])
 

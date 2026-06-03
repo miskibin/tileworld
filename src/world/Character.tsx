@@ -121,6 +121,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const pos = useRef({ x: initial[0], y: initial[1], z: initial[2] })
   const facing = useRef(facing0)
   const walkPhase = useRef(0)
+  // Dev-only: profiling scripts teleport the player by writing pos.current
+  // (Character owns the position, so setting the store alone gets overwritten).
+  useEffect(() => {
+    if (import.meta.env.DEV && typeof window !== 'undefined') {
+      ;(window as unknown as { __charpos: typeof pos.current }).__charpos = pos.current
+    }
+  }, [])
   const movingAmt = useRef(0) // 0..1 smoothly tracks isMoving
   const velY = useRef(0)
   const onGround = useRef(true)

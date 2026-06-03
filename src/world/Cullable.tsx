@@ -4,19 +4,20 @@ import * as THREE from 'three'
 import { getPlayer } from './playerStore'
 
 // Distance-cull for whole STATIC STRUCTURES (camps, outlying villages, chests,
-// the shop, …). The profile's top cost is the three.js scene graph —
-// updateMatrixWorld / compose / traverse — run every frame over the WHOLE map,
-// including the dozens of structures the player can't see (fog hides everything
-// past ~45 units). This wraps a structure in a group that, once the player is
-// far, goes invisible AND stops three from updating its matrices or walking its
-// subtree (matrixWorldAutoUpdate = false + visible = false). Walking back in
-// range re-enables both and forces one matrix refresh, so doors/flames/HP-bars
-// and any other animation resume exactly as before — nothing is permanently
-// frozen, unlike a static-bake. The cull radius sits well past the fog so big
-// props don't pop at the view edge.
+// the shop, …) — hide their meshes + freeze their matrices once the player is far
+// (fog hides everything past ~45 units anyway), and re-enable on approach.
 //
-// Cheap: one squared-distance compare per structure per frame, and the toggle
-// only fires on the in↔out transition.
+// CRITICAL detail: we must NOT hide the structure's POINT LIGHTS (chests + camp
+// campfires each carry one). three bakes the scene's light COUNT into every
+// material's shader; toggling a light's visibility changes that count and forces
+// a recompile of EVERY material — and a GPU profile showed exactly that
+// (getProgramInfoLog at 93% while travelling, as chests culled in/out). So lights
+// stay visible (a stable count = compile once; they're ~free on any real GPU),
+// while only the meshes hide. Matrices still freeze — the lights don't move, so
+// their frozen world transform stays correct.
+//
+// Cheap: one squared-distance compare per structure per frame; the per-child
+// visibility flip only fires on the in↔out transition.
 const DIST = 62
 const DIST_SQ = DIST * DIST
 
@@ -33,9 +34,15 @@ export function Cullable({ x, z, children }: { x: number; z: number; children: R
     const near = dx * dx + dz * dz < DIST_SQ
     if (near === shown.current) return
     shown.current = near
-    g.visible = near
+    // Hide every mesh but keep lights visible so the scene light count is stable.
+    g.traverse((o) => {
+      if (o === g) return
+      o.visible = (o as THREE.Light).isLight ? true : near
+    })
+    // The group itself stays visible (so its lights are always gathered); freeze
+    // its matrices while far since nothing in it moves.
     g.matrixWorldAutoUpdate = near
-    if (near) g.updateMatrixWorld(true) // refresh transforms on re-show
+    if (near) g.updateMatrixWorld(true)
   })
 
   return <group ref={ref}>{children}</group>
