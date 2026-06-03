@@ -39,9 +39,9 @@ let fovLastT = 0
 // `kill`/`hit`/`land` are the per-event punch sizes (read at the call sites in
 // Character.tsx); `max` caps stacked punches; `decay` is the ease-out rate.
 export const fovTunables = {
-  kill: 2.6, // takedown punch (degrees)
-  hit: 1.3, // connecting-blow punch
-  land: 2.2, // hard-landing punch
+  kill: 1.3, // takedown punch (degrees)
+  hit: 0.65, // connecting-blow punch
+  land: 1.1, // hard-landing punch
   max: 7, // cap so stacked hits never blow the view open
   decay: 22, // degrees shed per second (snappy ease-out)
 }

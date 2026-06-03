@@ -14,11 +14,11 @@ export const gradeTunables = {
   baseDarkness: 0.5, // resting vignette darkness (calm, full HP)
   baseSaturation: 0.12, // resting hue/sat boost
   lowThreshold: 0.35, // hp ratio below which dread ramps in
-  lowDarken: 0.32, // extra vignette at 0 hp
-  lowDesat: 0.5, // saturation pulled out at 0 hp
-  heartbeat: 0.07, // low-hp edge throb amplitude
-  winceDarken: 0.26, // vignette spike on a fresh hit
-  winceDesat: 0.32, // saturation dip on a fresh hit
+  lowDarken: 0.16, // extra vignette at 0 hp
+  lowDesat: 0.25, // saturation pulled out at 0 hp
+  heartbeat: 0.035, // low-hp edge throb amplitude
+  winceDarken: 0.13, // vignette spike on a fresh hit
+  winceDesat: 0.16, // saturation dip on a fresh hit
 }
 
 let pulse = 0
