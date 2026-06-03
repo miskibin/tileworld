@@ -26,6 +26,17 @@ export default function App() {
           toneMappingExposure: 1.0,
         }}
         camera={{ position: [36, 40, 40], fov: 32 }}
+        onCreated={({ gl }) => {
+          // THE fix for the multi-second freezes while exploring. Shaders compile
+          // lazily the first time new content (a biome, a structure, a material
+          // variant) renders. three's default `debug.checkShaderErrors = true`
+          // calls getProgramInfoLog after every link — a SYNCHRONOUS GPU readback
+          // that stalls the main thread ~0.5–1.3s per program (the profile showed
+          // 12s of it, with single 7s blocking tasks). Off in production lets the
+          // driver compile asynchronously (KHR_parallel_shader_compile) with no
+          // stall; kept on in dev so genuine shader errors still surface.
+          gl.debug.checkShaderErrors = import.meta.env.DEV
+        }}
       >
         {/* Fallback clear colour — the <Sky> dome covers this once mounted. */}
         <color attach="background" args={['#cfd8e2']} />
