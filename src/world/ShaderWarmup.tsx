@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
 import { OrkView } from './Ork'
 import { Grave } from './Grave'
@@ -56,28 +57,42 @@ export function ShaderWarmup() {
   const camera = useThree((s) => s.camera)
   const [active, setActive] = useState(true)
 
-  // The comprehensive precompile. A WebGL shader trace showed this MUST be
-  // synchronous compile(), not compileAsync(): compileAsync ran too early and
-  // skipped the shadow-map (USE_SHADOWMAP / DEPTH_PACKING), envMap, post and
-  // <Text> program variants, which then compiled lazily during play — a
-  // getProgramParameter link-wait that froze the main thread for seconds every
-  // time a new caster entered the player-following shadow frustum. Sync compile()
-  // links ALL of them up front (it walks traverse(), so culled/hidden structures
-  // are covered too); with checkShaderErrors off the driver finishes linking in
-  // the background, so they're ready by the time you explore. Idempotent (cached)
-  // so it's safe — and necessary — to call repeatedly as content + the async HDRI
-  // environment settle.
+  // A tiny offscreen target + a high, wide top-down camera that frames the whole
+  // map. We RENDER through these (not just compile()) because gl.compile cannot
+  // reproduce three's render-time program selection — the envMap / shadow-receive
+  // variants of culled content compile lazily on first real draw otherwise, and
+  // three then BLOCKS in getUniforms()→getProgramParameter waiting for the link
+  // (the multi-second freeze in the trace). A real render forces every one of
+  // those programs to link + fetch its uniforms NOW, at load, behind the start
+  // screen. 16×16 so it's pixel-cheap; shader compilation is resolution-free.
+  const warm = useMemo(() => {
+    const cam = new THREE.PerspectiveCamera(90, 1, 0.5, 1200)
+    cam.position.set(0, 400, 80) // world space: the map is centred on the origin
+    cam.lookAt(0, 0, 0)
+    cam.updateMatrixWorld()
+    return { cam, target: new THREE.WebGLRenderTarget(16, 16) }
+  }, [])
+  useEffect(() => () => warm.target.dispose(), [warm])
+
   const runFull = useCallback(() => {
-    // compile() walks the scene with traverse(), so it compiles EVERY material —
-    // visible, culled, or hidden — and (with shadow-casting lights set up) emits
-    // their USE_SHADOWMAP variants too. The one variant it can't get up front is
-    // the envMap one, because the HDRI environment loads async: a material
-    // compiled before scene.environment exists has to recompile once it arrives.
-    // That's why this runs late + repeatedly (below) — by the second pass the
-    // environment is loaded, so every standard material's envMap program is in
-    // the cache before you ever explore.
+    // compile() covers the base material programs (it walks traverse(), so culled
+    // structures are included). The offscreen full-map render then forces the
+    // render-time variants (envMap / shadow-receive) to fully link + fetch
+    // uniforms, which is the part that otherwise stalls mid-exploration.
     gl.compile(scene, camera)
-  }, [gl, scene, camera])
+    const hidden: THREE.Object3D[] = []
+    scene.traverse((o) => {
+      if (!o.visible) {
+        hidden.push(o)
+        o.visible = true
+      }
+    })
+    const prevTarget = gl.getRenderTarget()
+    gl.setRenderTarget(warm.target)
+    gl.render(scene, warm.cam)
+    gl.setRenderTarget(prevTarget)
+    for (const o of hidden) o.visible = false
+  }, [gl, scene, camera, warm])
 
   useEffect(() => {
     // Compile across the start-screen dwell so we catch the rAF-spawned animals

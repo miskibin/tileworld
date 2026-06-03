@@ -60,28 +60,43 @@ try {
     return { newLinks: window.__links.length - before, programs: gl.info.programs.length }
   })
 
-  // TEST 2: force EVERYTHING visible (undo all culls) + compile again → reveals
-  // programs that only the currently-hidden/culled content needs.
+  // TEST 2 (the real one): actually RENDER the whole map with everything visible
+  // from a wide top-down camera — exactly what the warm-up does, and what
+  // exploring eventually does. If the warm-up worked, this links ~0 new programs;
+  // any it links here are programs that would otherwise compile (and freeze) mid-
+  // exploration.
   const test2 = await page.evaluate(() => {
-    window.__phase = 'allVisible'
+    window.__phase = 'render'
     const { gl, scene, camera } = window.__r3f
-    scene.traverse((o) => { o.visible = true; o.matrixWorldAutoUpdate = true })
+    scene.traverse((o) => { o.visible = true })
+    const save = { pos: camera.position.clone(), quat: camera.quaternion.clone(), fov: camera.fov }
+    camera.position.set(0, 400, 80)
+    camera.lookAt(0, 0, 0)
+    camera.fov = 90
+    camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
     const before = window.__links.length
-    gl.compile(scene, camera)
-    return { newLinks: window.__links.length - before }
+    gl.render(scene, camera)
+    const newLinks = window.__links.length - before
+    camera.position.copy(save.pos)
+    camera.quaternion.copy(save.quat)
+    camera.fov = save.fov
+    camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
+    return { newLinks }
   })
 
   const all = await page.evaluate(() => window.__links)
   // Summaries
   const byPhase = {}
   for (const l of all) byPhase[l.phase] = (byPhase[l.phase] || 0) + 1
-  const explore = all.filter((l) => l.phase === 'compile2' || l.phase === 'allVisible')
+  const explore = all.filter((l) => l.phase === 'compile2' || l.phase === 'render')
   const fps = {}
   for (const l of explore) fps[l.defs] = (fps[l.defs] || 0) + 1
 
   console.log('links during LOAD (mount+precompile):', loadCount)
   console.log('TEST1 2nd gl.compile → new programs:', test1.newLinks, '(total programs now', test1.programs + ')')
-  console.log('TEST2 all-visible gl.compile → new programs:', test2.newLinks)
+  console.log('TEST2 full-map RENDER → new programs (the real test):', test2.newLinks)
   console.log('by phase:', JSON.stringify(byPhase))
   console.log('\n=== define-fingerprints of programs NOT covered by precompile (top) ===')
   Object.entries(fps).sort((a, b) => b[1] - a[1]).slice(0, 20).forEach(([d, n]) => {
