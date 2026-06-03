@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useThree } from '@react-three/fiber'
 import { OrkView } from './Ork'
 import { Grave } from './Grave'
@@ -56,33 +56,45 @@ export function ShaderWarmup() {
   const camera = useThree((s) => s.camera)
   const [active, setActive] = useState(true)
 
-  // The comprehensive precompile — runs ONCE, covering everything currently in
-  // the scene (warm-up orks/grave above, PLUS all the entities the world creates
-  // lazily at load via requestAnimationFrame+setState: wild animals incl. the
-  // biome creatures spread across the map, bears, villagers, and the Cullable
-  // structures). Those are exactly the shaders that otherwise compile the first
-  // time you explore into their area — a synchronous link wait
-  // (getProgramParameter) that stalls the main thread for whole seconds.
-  // compileAsync links them in the background (KHR_parallel_shader_compile) with
-  // no blocking; sync compile() is the fallback (one hidden hitch behind the
-  // start screen). compile()/compileAsync walk the scene with traverse(), so the
-  // invisible (culled / visible:false) structures are warmed too.
-  const didFull = useRef(false)
+  // The comprehensive precompile. A WebGL shader trace showed this MUST be
+  // synchronous compile(), not compileAsync(): compileAsync ran too early and
+  // skipped the shadow-map (USE_SHADOWMAP / DEPTH_PACKING), envMap, post and
+  // <Text> program variants, which then compiled lazily during play — a
+  // getProgramParameter link-wait that froze the main thread for seconds every
+  // time a new caster entered the player-following shadow frustum. Sync compile()
+  // links ALL of them up front (it walks traverse(), so culled/hidden structures
+  // are covered too); with checkShaderErrors off the driver finishes linking in
+  // the background, so they're ready by the time you explore. Idempotent (cached)
+  // so it's safe — and necessary — to call repeatedly as content + the async HDRI
+  // environment settle.
   const runFull = useCallback(() => {
-    if (didFull.current) return
-    didFull.current = true
-    const r = gl as unknown as {
-      compileAsync?: (s: typeof scene, c: typeof camera) => Promise<unknown>
-    }
-    if (typeof r.compileAsync === 'function') r.compileAsync(scene, camera).catch(() => {})
-    else gl.compile(scene, camera)
+    // compile() walks the scene with traverse(), so it compiles EVERY material —
+    // visible, culled, or hidden — and (with shadow-casting lights set up) emits
+    // their USE_SHADOWMAP variants too. The one variant it can't get up front is
+    // the envMap one, because the HDRI environment loads async: a material
+    // compiled before scene.environment exists has to recompile once it arrives.
+    // That's why this runs late + repeatedly (below) — by the second pass the
+    // environment is loaded, so every standard material's envMap program is in
+    // the cache before you ever explore.
+    gl.compile(scene, camera)
   }, [gl, scene, camera])
 
   useEffect(() => {
-    // Fire after the lazily-mounted content (and the HDRI environment) has
-    // settled, while the player is still on the start screen; or the instant
-    // they press Play, whichever comes first.
-    const t = setTimeout(runFull, 1200)
+    // Compile across the start-screen dwell so we catch the rAF-spawned animals
+    // and the Cullable structures. Plus the instant Play is pressed, in case they
+    // skip through fast.
+    const t1 = setTimeout(runFull, 1500)
+    const t2 = setTimeout(runFull, 3500)
+    // And the instant the async HDRI environment lands — its envMap forces a
+    // recompile of every standard material, and we must catch that BEFORE the
+    // player explores, regardless of how fast/slow the HDRI loaded.
+    let envSeen = !!scene.environment
+    const iv = setInterval(() => {
+      if (!envSeen && scene.environment) {
+        envSeen = true
+        runFull()
+      }
+    }, 250)
     const unsub = subscribePhase((p) => {
       if (p !== 'menu') {
         runFull()
@@ -90,10 +102,12 @@ export function ShaderWarmup() {
       }
     })
     return () => {
-      clearTimeout(t)
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearInterval(iv)
       unsub()
     }
-  }, [runFull])
+  }, [runFull, scene])
 
   if (!active) return null
   // visible={false}: the normal render loop never draws these (no artifact behind
