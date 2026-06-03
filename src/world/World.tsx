@@ -30,8 +30,9 @@ import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
 import { Projectiles } from './Projectiles'
 import { Impacts } from './Impacts'
+import { Orbs } from './Orbs'
 import { Pickups } from './Pickups'
-import { Chest } from './Chest'
+import { Chest, type ChestVariant } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
@@ -54,6 +55,14 @@ import { QualityToggle } from './QualityToggle'
 import { ShaderWarmup } from './ShaderWarmup'
 import { Cullable } from './Cullable'
 import { getQuality, subscribeQuality } from './qualityStore'
+import { FrozenSpire } from './FrozenSpire'
+import { SunkenPyramid } from './SunkenPyramid'
+import { GiantDeadTree } from './GiantDeadTree'
+import { StandingStones } from './StandingStones'
+import { RuinedShrine } from './RuinedShrine'
+import { Ballista } from './Ballista'
+import { HealingShrine } from './HealingShrine'
+import { registerLandmarkBlockers } from './landmarks'
 
 // Treasure chests scattered across the map. Data-driven so each can be wrapped in
 // <Cullable> (most sit far out in the biomes — fog-hidden and worth freezing when
@@ -78,9 +87,29 @@ const CHESTS: { pos: [number, number, number]; rot: number; gold: number; loot: 
   { pos: [120, 1, 58], rot: -1.4, gold: 8, loot: ['goat_charm'] },
   { pos: [24, 1, 56], rot: 0.9, gold: 10, loot: ['stone_maul', 'iron_armor'] },
   { pos: [18, 1, 54], rot: 0.6, gold: 30, loot: ['gold_armor'] },
+  // Deep-biome reward chests beside each biome's signature landmark.
+  { pos: [33, 1, 30], rot: 0.7, gold: 18, loot: ['feast', 'gold_armor'] }, // snow spire
+  { pos: [112, 1, 31], rot: -0.8, gold: 16, loot: ['venom', 'iron_armor'] }, // desert pyramid
+  { pos: [116, 1, 82], rot: 1.5, gold: 16, loot: ['stone_maul'] }, // stone circle (SE frontier)
+  { pos: [73, 1, 90], rot: 2.1, gold: 14, loot: ['croc_steak', 'potion'] }, // swamp tree
+  { pos: [33, 1, 82], rot: -1.1, gold: 14, loot: ['elk_jerky', 'goat_charm'] }, // forest shrine
 ]
-import { CENTER_X, CENTER_Z } from './tileMap'
+import { CENTER_X, CENTER_Z, tileAt, tileTopY, type Biome } from './tileMap'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
+
+// Each chest takes on the look of the biome it sits in — auto-derived from the
+// tile under it, so it stays correct regardless of the exact coordinates.
+const BIOME_TO_VARIANT: Partial<Record<Biome, ChestVariant>> = {
+  snow: 'snow',
+  desert: 'desert',
+  swamp: 'swamp',
+  forest: 'forest',
+  rock: 'rock',
+}
+function chestVariant(x: number, z: number): ChestVariant {
+  const t = tileAt(Math.floor(x), Math.floor(z))
+  return (t && BIOME_TO_VARIANT[t.biome]) || 'default'
+}
 
 function DebugExpose() {
   const state = useThree()
@@ -104,6 +133,10 @@ export function World() {
   // shadows (SunShadow reads it per-frame) for weak GPUs.
   const [quality, setQuality] = useState(getQuality)
   useEffect(() => subscribeQuality(setQuality), [])
+  // Solid collision footprints for the biome landmarks so the hero/orks route
+  // around them instead of clipping through (footprints reserved from scatter in
+  // obstacles.ts via the same LANDMARKS list). Cleared on unmount, scoped owner.
+  useEffect(() => registerLandmarkBlockers(), [])
 
   return (
     <>
@@ -137,11 +170,30 @@ export function World() {
         <Terrain />
         <Paths />
         <Scatter />
+
+        {/* Biome signature landmarks — one focal structure per biome, a reward
+            for exploring each. Placed at the biome's heart on its ground height;
+            distance-culled like the chests. No lights (point-light count fixed). */}
+        <Cullable x={26} z={24}>
+          <FrozenSpire position={[26, tileTopY(26, 24), 24]} rotation={0.4} />
+        </Cullable>
+        <Cullable x={112} z={28}>
+          <SunkenPyramid position={[112, tileTopY(112, 28), 28]} rotation={-0.5} />
+        </Cullable>
+        <Cullable x={118} z={82}>
+          <StandingStones position={[118, tileTopY(118, 82), 82]} rotation={0.2} />
+        </Cullable>
+        <Cullable x={72} z={92}>
+          <GiantDeadTree position={[72, tileTopY(72, 92), 92]} rotation={1.1} />
+        </Cullable>
+        <Cullable x={32} z={80}>
+          <RuinedShrine position={[32, tileTopY(32, 80), 80]} rotation={-0.8} />
+        </Cullable>
         <Character initial={[72, 1, 58]} facing0={Math.PI} posRef={posRef} />
 
         {/* Remote hamlet northwest of the castle, out in the grass belt */}
-        <Cullable x={50} z={38}>
-          <Village position={[50, 38]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        <Cullable x={66} z={32}>
+          <Village position={[66, 32]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
         </Cullable>
 
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
@@ -185,6 +237,11 @@ export function World() {
         <Towers />
         <KeepArchers />
 
+        {/* Town-Hall defense upgrades — each self-gates on its cityStore flag
+            (renders null until built): heavy ballista + in-walls healing shrine. */}
+        <Ballista />
+        <HealingShrine />
+
         {/* Orks rendered from shared store (registered by WaveDirector) */}
         <Mobs />
 
@@ -196,14 +253,14 @@ export function World() {
             out and clear. Orks here guard their camp (home anchor) instead of
             marching on the keep; blue warband so they read apart from the red
             night-horde (and brawl any wave ork that strays near). */}
-        <Cullable x={32} z={54}>
-          <OrkCamp position={[32, 1.5, 54]} rotation={1.4} seed={1.2} faction="blue" />
+        <Cullable x={42} z={64}>
+          <OrkCamp position={[42, tileTopY(42, 64), 64]} rotation={1.4} seed={1.2} faction="blue" />
         </Cullable>
-        <Cullable x={109} z={56}>
-          <OrkCamp position={[109, 1.5, 56]} rotation={-1.6} seed={2.7} faction="blue" />
+        <Cullable x={92} z={44}>
+          <OrkCamp position={[92, tileTopY(92, 44), 44]} rotation={-1.6} seed={2.7} faction="blue" />
         </Cullable>
-        <Cullable x={72} z={25}>
-          <OrkCamp position={[72, 1.5, 25]} rotation={0.1} seed={4.1} faction="blue" />
+        <Cullable x={74} z={26}>
+          <OrkCamp position={[74, tileTopY(74, 26), 26]} rotation={0.1} seed={4.1} faction="blue" />
         </Cullable>
 
         {/* Bears — neutral wildlife that maul the player when approached */}
@@ -218,6 +275,9 @@ export function World() {
         {/* Hit-impact spark/splinter bursts (grid-space, pooled like bolts) */}
         <Impacts />
 
+        {/* Reward orbs (gold/XP) that burst off kills and home to the hero */}
+        <Orbs />
+
         {/* Ground loot dropped by slain creatures (grid-space, pooled like Impacts) */}
         <Pickups />
 
@@ -227,7 +287,13 @@ export function World() {
             (see CHESTS above + Cullable.tsx). */}
         {CHESTS.map((c, i) => (
           <Cullable key={i} x={c.pos[0]} z={c.pos[2]}>
-            <Chest position={c.pos} rotation={c.rot} gold={c.gold} loot={c.loot} />
+            <Chest
+              position={c.pos}
+              rotation={c.rot}
+              gold={c.gold}
+              loot={c.loot}
+              variant={chestVariant(c.pos[0], c.pos[2])}
+            />
           </Cullable>
         ))}
 

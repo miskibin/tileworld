@@ -2,7 +2,7 @@ import { healPlayer } from './playerStore'
 import { playConsume, playEquip, playAbilityCast } from '../audio/sfx'
 import { applyBuff, type BuffKind } from './buffStore'
 
-// 6-slot Minecraft-style hotbar. Items are consumables (E / right-click → heal),
+// 8-slot Minecraft-style hotbar. Items are consumables (E / right-click → heal),
 // weapons (select/equip → attack bonus + held mesh), or armor (equip → re-skins
 // the knight + reduces incoming damage). Weapon and armor occupy separate equip
 // slots, so you can wield a sword AND wear plate at once.
@@ -59,7 +59,7 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.4, armorTint: '#e8b84b', armorMetal: 0.85, stackable: false },
 }
 
-export const HOTBAR_SIZE = 6
+export const HOTBAR_SIZE = 8
 
 export interface Slot {
   itemId: string | null

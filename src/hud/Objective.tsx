@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getPlayer } from '../world/playerStore'
 import { getWave, subscribeWave, requestPrepSkip, type WaveProgress } from '../world/waveStore'
 import { getCastle, subscribeCastle, type CastleState } from '../world/castleStore'
@@ -11,10 +11,30 @@ export function Objective() {
   const [wave, setWave] = useState<WaveProgress>(() => getWave())
   const [castle, setCastle] = useState<CastleState>(() => getCastle())
   const [townsfolk, setTownsfolk] = useState<number>(() => getStandingVillagerCount())
+  // "Keep under attack" flash: raised whenever the keep's HP drops, cleared a
+  // couple seconds after the last hit. Drives the alert badge + red bar + the
+  // screen-edge pulse so the player always sees when the keep is being chipped.
+  const [underAttack, setUnderAttack] = useState(false)
+  const prevHpRef = useRef(getCastle().hp)
+  const atkTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => subscribePhase(setPhase), [])
   useEffect(() => subscribeWave((s) => setWave({ ...s })), [])
-  useEffect(() => subscribeCastle((s) => setCastle({ ...s })), [])
+  useEffect(() => {
+    const unsub = subscribeCastle((s) => {
+      setCastle({ ...s })
+      if (s.hp < prevHpRef.current) {
+        setUnderAttack(true)
+        clearTimeout(atkTimer.current)
+        atkTimer.current = setTimeout(() => setUnderAttack(false), 2200)
+      }
+      prevHpRef.current = s.hp
+    })
+    return () => {
+      unsub()
+      clearTimeout(atkTimer.current)
+    }
+  }, [])
   useEffect(() => subscribeVillagers(() => setTownsfolk(getStandingVillagerCount())), [])
 
   // Release pointer-lock + play fanfare on victory.
@@ -73,7 +93,9 @@ export function Objective() {
   const secs = Math.max(0, wave.prepSecondsLeft)
   const mmss = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
   return (
-    <div className="objective-banner">
+    <>
+      {underAttack && <div className="keep-alert-vignette" aria-hidden="true" />}
+      <div className={`objective-banner${underAttack ? ' is-alarm' : ''}`}>
       <span className="objective-label">
         {phase === 'prep'
           ? `Wave ${wave.index + 2} incoming…`
@@ -90,17 +112,19 @@ export function Objective() {
       {phase === 'wave' && (
         <span className="objective-count">{wave.enemiesAlive} orks left</span>
       )}
-      <div className="castle-hp">
+      <div className={`castle-hp${underAttack ? ' is-hit' : ''}`}>
         <span className="castle-hp-label">Keep</span>
         <div className="castle-hp-track">
           <div className="castle-hp-fill" style={{ width: `${hpPct}%` }} />
         </div>
+        {underAttack && <span className="keep-alert">⚠ Under attack</span>}
       </div>
       {/* Townsfolk = the run's pool of lives. Each death passes the blade to one
           of them; when none remain, the next fall ends the run. */}
       <span className={`objective-townsfolk${townsfolk === 0 ? ' is-last' : ''}`}>
         🛡 {townsfolk} {townsfolk === 1 ? 'heir' : 'heirs'}
       </span>
-    </div>
+      </div>
+    </>
   )
 }

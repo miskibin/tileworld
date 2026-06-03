@@ -1,30 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { OrkView } from './Ork'
 import { Grave } from './Grave'
 import { subscribePhase } from './gameStore'
+import { setWarming } from './warmupStore'
 import type { OrkState } from './orkStore'
 import type { OrkVariant } from './orkConfig'
 
-// Pre-compiles the shaders of dynamic content that otherwise compiles lazily the
-// first time one spawns — which hitches the frame mid-combat (the perf trace
-// showed +13 shader programs the instant the first grave appeared, a visible fps
-// dip). We mount one of each ork variant plus a grave during the StartScreen so
-// their programs are already in three's cache before the real ones spawn.
-//
-// Safety: the warm-up orks are spawned ALREADY DEAD (hp 0), so OrkView takes its
-// death-fade branch — it renders the mesh once (compiling the program) then fades
-// out, and returns before any target-acquisition/attack code runs. They're not in
-// the ork roster, so nothing targets them and reapOrk() is a no-op on their fake
-// ids. gl.compile() additionally warms them frustum-independently. The whole rig
-// is torn down the moment the game leaves the menu.
+// Compiles EVERY shader program gameplay will use, at load, behind the StartScreen
+// — so travelling into a new area never compiles a program mid-frame (the
+// multi-second "stutter at the edges" a real-GPU profile pinned to shader
+// linking). Earlier attempts (gl.compile, offscreen renders) compiled
+// APPROXIMATIONS of the programs: the real ones depend on the exact render path
+// (the post EffectComposer's HDR target vs the canvas, tone-mapping, the shadow
+// pass), so they recompiled on first real draw. The only reliable warm-up is to
+// let the REAL render loop draw the whole map: for a handful of frames we suspend
+// the culls (warmupStore → everything visible), suspend MouseLookCamera, point
+// the game camera straight down over the whole island, and widen the sun's shadow
+// frustum to cover every caster. The loop (composer included) then renders it all
+// and links the genuine programs. Also mounts one dead ork per variant + a grave
+// so their programs warm too. Torn down the moment Play is pressed.
 
 const VARIANTS: OrkVariant[] = ['grunt', 'scout', 'berserker', 'shaman']
-// At the castle/player spawn — inside the camera view at menu, hidden behind the
-// opaque StartScreen DOM.
 const WARM_X = 72
 const WARM_Z = 58
+// Frames to keep rendering the whole map. The first frame links almost every
+// program (it blocks while they compile, behind the start screen); the rest are
+// cache hits that catch anything deferred.
+const WARM_FRAMES = 8
 
 function warmOrk(id: number, variant: OrkVariant): OrkState {
   return {
@@ -36,6 +40,8 @@ function warmOrk(id: number, variant: OrkVariant): OrkState {
     hp: 0, // dead → render-then-fade, no AI/combat
     maxHp: 1,
     hurtFlashUntil: 0,
+    kbVX: 0,
+    kbVZ: 0,
     variant,
     faction: 'red',
     home: null,
@@ -51,85 +57,108 @@ function warmOrk(id: number, variant: OrkVariant): OrkState {
   }
 }
 
+interface ShadowSave {
+  cam: THREE.OrthographicCamera
+  l: number
+  r: number
+  t: number
+  b: number
+  f: number
+}
+
 export function ShaderWarmup() {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
-  const camera = useThree((s) => s.camera)
+  const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera
+  const size = useThree((s) => s.size)
   const [active, setActive] = useState(true)
+  const groupRef = useRef<THREE.Group>(null!)
+  const st = useRef({ started: false, done: false, frame: 0, wait: 0, fov: 0, shadow: null as ShadowSave | null })
 
-  // A high, wide top-down camera that frames the whole map. We RENDER through it
-  // (not just compile()) because gl.compile can't reproduce three's render-time
-  // program selection. CRUCIALLY we render to the real CANVAS, not an offscreen
-  // target: the canvas applies ACES tone-mapping + sRGB output, which is baked
-  // into the program key — a render-target (linear, no tone-map) compiles
-  // DIFFERENT programs that gameplay never uses, so they'd all recompile on the
-  // first real frame (a GPU trace showed exactly this: the same STANDARD/envMap
-  // programs re-linking while travelling). Rendering to the canvas behind the
-  // opaque-ish StartScreen warms the programs gameplay actually uses.
-  const warm = useMemo(() => {
-    const cam = new THREE.PerspectiveCamera(90, 1, 0.5, 1200)
-    cam.position.set(0, 400, 80) // world space: the map is centred on the origin
-    cam.lookAt(0, 0, 0)
-    cam.updateMatrixWorld()
-    return { cam }
-  }, [])
-
-  const runFull = useCallback(() => {
-    // compile() covers the base material programs (it walks traverse(), so culled
-    // structures are included). The full-map canvas render then forces the
-    // render-time variants (envMap / shadow-receive, with the canvas's tone-map +
-    // sRGB output) to fully link + fetch uniforms — the part that otherwise
-    // stalls mid-travel.
-    gl.compile(scene, camera)
-
-    const hidden: THREE.Object3D[] = []
-    scene.traverse((o) => {
-      if (!o.visible) {
-        hidden.push(o)
-        o.visible = true
-      }
-    })
-    gl.render(scene, warm.cam) // to the canvas — matches gameplay output encoding
-    for (const o of hidden) o.visible = false
-  }, [gl, scene, camera, warm])
+  const finish = useCallback(() => {
+    if (st.current.done) return
+    st.current.done = true
+    if (st.current.fov) {
+      camera.fov = st.current.fov
+      camera.updateProjectionMatrix()
+    }
+    const sh = st.current.shadow
+    if (sh) {
+      sh.cam.left = sh.l
+      sh.cam.right = sh.r
+      sh.cam.top = sh.t
+      sh.cam.bottom = sh.b
+      sh.cam.far = sh.f
+      sh.cam.updateProjectionMatrix()
+      gl.shadowMap.needsUpdate = true // re-render the real (tight) shadow next frame
+    }
+    setWarming(false) // MouseLookCamera + culls resume
+    setActive(false)
+  }, [camera, gl])
 
   useEffect(() => {
-    // Compile across the start-screen dwell so we catch the rAF-spawned animals
-    // and the Cullable structures. Plus the instant Play is pressed, in case they
-    // skip through fast.
-    const t1 = setTimeout(runFull, 1500)
-    const t2 = setTimeout(runFull, 3500)
-    // And the instant the async HDRI environment lands — its envMap forces a
-    // recompile of every standard material, and we must catch that BEFORE the
-    // player explores, regardless of how fast/slow the HDRI loaded.
-    let envSeen = !!scene.environment
-    const iv = setInterval(() => {
-      if (!envSeen && scene.environment) {
-        envSeen = true
-        runFull()
-      }
-    }, 250)
-    const unsub = subscribePhase((p) => {
-      if (p !== 'menu') {
-        runFull()
-        setActive(false)
-      }
-    })
+    setWarming(true)
+    // Bail (and restore) if the player hits Play before the warm-up finishes.
+    const unsub = subscribePhase((p) => p !== 'menu' && finish())
     return () => {
-      clearTimeout(t1)
-      clearTimeout(t2)
-      clearInterval(iv)
+      setWarming(false)
       unsub()
     }
-  }, [runFull, scene])
+  }, [finish])
+
+  useFrame(() => {
+    const s = st.current
+    if (s.done) return
+
+    if (!s.started) {
+      // Wait for the async HDRI to land so the envMap program variants warm too
+      // (fallback after ~3s so a failed/slow env never deadlocks the warm-up).
+      if (!scene.environment && ++s.wait < 180) return
+      s.started = true
+      s.fov = camera.fov
+      // gl.compile covers every material's base program (walks traverse()).
+      gl.compile(scene, camera)
+      // Widen the sun's shadow frustum to the whole map so the warm-up's shadow
+      // pass links every caster's depth program (otherwise they compile as new
+      // casters enter the player-following frustum mid-travel).
+      let light: THREE.DirectionalLight | null = null
+      scene.traverse((o) => {
+        if ((o as THREE.DirectionalLight).isDirectionalLight && o.castShadow) light = o as THREE.DirectionalLight
+      })
+      if (light) {
+        const c = (light as THREE.DirectionalLight).shadow.camera
+        s.shadow = { cam: c, l: c.left, r: c.right, t: c.top, b: c.bottom, f: c.far }
+        c.left = -135
+        c.right = 135
+        c.top = 135
+        c.bottom = -135
+        c.far = 800
+        c.updateProjectionMatrix()
+      }
+    }
+
+    s.frame++
+    if (s.frame > WARM_FRAMES) {
+      finish()
+      return
+    }
+
+    // Point the game camera straight down over the whole island and let the real
+    // loop (post composer in High, direct in Low) render through it. Cull +
+    // MouseLookCamera are suspended (warmupStore), so the whole map is in view.
+    camera.position.set(0, 440, 150) // world space; map is centred on the origin
+    camera.lookAt(0, 0, 0)
+    camera.fov = 104
+    camera.aspect = size.width / Math.max(1, size.height)
+    camera.updateProjectionMatrix()
+    camera.updateMatrixWorld()
+    gl.shadowMap.needsUpdate = true // link the (wide) depth programs this frame
+    if (groupRef.current) groupRef.current.visible = true
+  })
 
   if (!active) return null
-  // visible={false}: the normal render loop never draws these (no artifact behind
-  // the semi-transparent StartScreen), but gl.compile() warms their materials
-  // anyway — three's compile() walks the scene with traverse(), not
-  // traverseVisible(), so hidden objects are still compiled.
   return (
-    <group visible={false}>
+    <group ref={groupRef}>
       {VARIANTS.map((v, i) => (
         <OrkView key={v} state={warmOrk(-100 - i, v)} />
       ))}

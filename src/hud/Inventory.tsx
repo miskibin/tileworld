@@ -10,6 +10,7 @@ import {
   type ItemDef,
 } from '../world/inventoryStore'
 import { BUFF_LABEL } from '../world/buffStore'
+import { isFrozen } from '../world/pauseStore'
 
 /** One-line stat summary for the hover/scroll popup. */
 function statLine(def: ItemDef): string {
@@ -31,6 +32,24 @@ export function Inventory() {
   const [popupOpen, setPopupOpen] = useState(false)
   const selRef = useRef(getInventory().selected)
   useEffect(() => subscribeGold(setGold), [])
+  // Mouse wheel cycles the selected hotbar slot (down → next, up → previous,
+  // wrap-around). Listening on the window catches scrolls over the canvas, which
+  // is most of the screen. ctrl+wheel is camera zoom (owned by MouseLookCamera).
+  // While anything is frozen — the StartScreen, pause menu, shop, or upgrade tree
+  // — we bail before preventDefault so those panels scroll natively and the
+  // hotbar can't change behind a menu.
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) return // ctrl+wheel = camera zoom
+      if (isFrozen()) return // a menu/modal is up — leave the scroll to it
+      e.preventDefault()
+      const cur = getInventory().selected
+      const dir = e.deltaY > 0 ? 1 : -1
+      selectSlot((cur + dir + HOTBAR_SIZE) % HOTBAR_SIZE)
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => window.removeEventListener('wheel', onWheel)
+  }, [])
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
     const unsub = subscribeInventory(() => {
@@ -94,7 +113,7 @@ export function Inventory() {
           )
         })}
       </div>
-      <div className="hotbar-hint">1–6 select · Q use/equip</div>
+      <div className="hotbar-hint">scroll / 1–8 select · Q use/equip · ctrl+scroll zoom</div>
     </div>
   )
 }

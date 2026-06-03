@@ -2,19 +2,25 @@ import { useRef, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getPlayer } from './playerStore'
+import { isWarming } from './warmupStore'
 
 // Distance-cull for whole STATIC STRUCTURES (camps, outlying villages, chests,
 // the shop, …) — hide their meshes + freeze their matrices once the player is far
 // (fog hides everything past ~45 units anyway), and re-enable on approach.
 //
-// CRITICAL detail: we must NOT hide the structure's POINT LIGHTS (chests + camp
-// campfires each carry one). three bakes the scene's light COUNT into every
-// material's shader; toggling a light's visibility changes that count and forces
-// a recompile of EVERY material — and a GPU profile showed exactly that
-// (getProgramInfoLog at 93% while travelling, as chests culled in/out). So lights
-// stay visible (a stable count = compile once; they're ~free on any real GPU),
-// while only the meshes hide. Matrices still freeze — the lights don't move, so
-// their frozen world transform stays correct.
+// CRITICAL detail: we must NOT drop the structure's POINT LIGHTS (chests + camp
+// campfires each carry one) from the scene. three bakes the scene's light COUNT
+// into every material's shader; changing that count forces a recompile of EVERY
+// material — a GPU profile pinned the travel stutter to exactly this (shader
+// linking at >90% while chests crossed the cull radius).
+//
+// And keeping the light visible is NOT enough on its own: three's projectObject
+// bails on the FIRST invisible ancestor (`if (object.visible === false) return`),
+// so a visible light under a hidden parent group is still never gathered — the
+// count drops anyway. So we hide only LEAF RENDERABLES (meshes/points/lines) and
+// leave every GROUP and every LIGHT visible, keeping each light's whole ancestor
+// chain intact. Empty groups cost ~nothing to traverse; a recompile costs frames.
+// Matrices still freeze — the lights don't move, so their frozen transform holds.
 //
 // Cheap: one squared-distance compare per structure per frame; the per-child
 // visibility flip only fires on the in↔out transition.
@@ -31,13 +37,17 @@ export function Cullable({ x, z, children }: { x: number; z: number; children: R
     const p = getPlayer()
     const dx = x - p.x
     const dz = z - p.z
-    const near = dx * dx + dz * dz < DIST_SQ
+    // During the at-load warm-up everything stays shown so the loop renders it.
+    const near = isWarming() || dx * dx + dz * dz < DIST_SQ
     if (near === shown.current) return
     shown.current = near
-    // Hide every mesh but keep lights visible so the scene light count is stable.
+    // Hide only leaf renderables; keep groups + lights visible (see header) so the
+    // scene light count — baked into every shader — never changes.
     g.traverse((o) => {
       if (o === g) return
-      o.visible = (o as THREE.Light).isLight ? true : near
+      const r = o as THREE.Mesh & THREE.Points & THREE.Line & THREE.Sprite
+      const renderable = r.isMesh || r.isPoints || r.isLine || r.isSprite
+      o.visible = renderable ? near : true
     })
     // The group itself stays visible (so its lights are always gathered); freeze
     // its matrices while far since nothing in it moves.

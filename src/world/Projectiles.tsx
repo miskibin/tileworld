@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getBolts, resetBolts, stepProjectiles } from './projectileStore'
 import { isFrozen } from './pauseStore'
+import { getTimeScale } from './hitStopStore'
 
 // Renders + drives the bolt pool. Bolts live in grid coords, so this must mount
 // inside World's offset group. Two instanced meshes — one per team — so ork
@@ -34,7 +35,10 @@ export function Projectiles() {
 
   useFrame(({ clock }, dtFrame) => {
     if (isFrozen()) return
-    stepProjectiles(Math.min(0.05, dtFrame), clock.getElapsedTime())
+    // Scale by the hit-stop time factor so bolts hang in the air during the
+    // freeze, matching orks / bears / orbs / impacts (else a bolt flies through
+    // a target that's frozen mid-animation).
+    stepProjectiles(Math.min(0.05, dtFrame) * getTimeScale(), clock.getElapsedTime())
     const ork = orkRef.current
     const def = defRef.current
     if (!ork || !def) return

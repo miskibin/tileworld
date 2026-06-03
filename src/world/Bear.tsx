@@ -8,6 +8,7 @@ import { houseBlocksAt } from './houseBlockers'
 import { bridgeAt } from './bridges'
 import { findPath } from './pathfinding'
 import { isFrozen } from './pauseStore'
+import { getTimeScale } from './hitStopStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { createBear, getBears, resetBears, type BearState } from './bearStore'
 import { playBearRoar, playBearGrowl } from '../audio/sfx'
@@ -73,7 +74,7 @@ function BearView({ state }: { state: BearState }) {
     if (isFrozen()) return
     const tNow = clock.getElapsedTime()
     const t = tNow + state.seed
-    const dt = Math.min(0.05, dtFrame)
+    const dt = Math.min(0.05, dtFrame) * getTimeScale()
     const g = groupRef.current
     if (!g) return
 

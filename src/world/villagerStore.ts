@@ -3,7 +3,7 @@ import { isInsideCastle } from './cityPlan'
 export type VillagerStateName = 'idle' | 'wander' | 'tend' | 'rest' | 'home'
 
 /** HP a militia/villager can soak before being downed. */
-export const VILLAGER_MAX_HP = 70
+export const VILLAGER_MAX_HP = 140
 
 export interface VillagerState {
   id: number

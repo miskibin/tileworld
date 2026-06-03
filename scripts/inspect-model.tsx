@@ -28,7 +28,6 @@ import { OrkCamp } from '../src/world/OrkCamp'
 import { Archer } from '../src/world/KeepArchers'
 import { OrkView } from '../src/world/Ork'
 import { createOrk } from '../src/world/orkStore'
-import { Character } from '../src/world/Character'
 import { Wall, Tower, Gate, Keep } from '../src/world/cityModels'
 import { VillagerView } from '../src/world/Villager'
 import { createVillager } from '../src/world/villagerStore'
@@ -46,6 +45,27 @@ import { BogCrocView } from '../src/world/BogCroc'
 import { GoatView } from '../src/world/Goat'
 import { GolemView } from '../src/world/Golem'
 import { createAnimal } from '../src/world/animalStore'
+import { Chest } from '../src/world/Chest'
+import { FrozenSpire } from '../src/world/FrozenSpire'
+import { SunkenPyramid } from '../src/world/SunkenPyramid'
+import { GiantDeadTree } from '../src/world/GiantDeadTree'
+import { StandingStones } from '../src/world/StandingStones'
+import { RuinedShrine } from '../src/world/RuinedShrine'
+
+// Character is loaded lazily/tolerantly: it transitively imports a number of
+// gameplay stores, and if any of those is mid-refactor (a dangling import) a
+// static import here would crash the whole inspector for EVERY model. Loading
+// it dynamically inside main() lets the inspector still work for all other
+// models; only `inspect Character` reports a clean failure in that case.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Character: any = null
+async function loadCharacter(): Promise<void> {
+  try {
+    Character = (await import('../src/world/Character')).Character
+  } catch (err) {
+    console.error(`(Character unavailable: ${(err as Error).message})`)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Registry: name -> a thunk that builds the element with inspection-friendly
@@ -82,6 +102,13 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Boat: () => <Boat />,
   Grave: () => <Grave position={[0, 0, 0]} />,
   DistantMountains: () => <DistantMountains />,
+  // Chest carries a drei <Text> prompt; pass inspect to omit it so it mounts headless.
+  Chest: () => <Chest position={[0, 0, 0]} inspect />,
+  FrozenSpire: () => <FrozenSpire position={[0, 0, 0]} />,
+  SunkenPyramid: () => <SunkenPyramid position={[0, 0, 0]} />,
+  GiantDeadTree: () => <GiantDeadTree position={[0, 0, 0]} />,
+  StandingStones: () => <StandingStones position={[0, 0, 0]} />,
+  RuinedShrine: () => <RuinedShrine position={[0, 0, 0]} />,
   Villager: () => (
     <VillagerView
       state={createVillager({
@@ -91,9 +118,10 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
       })}
     />
   ),
-  Character: () => (
-    <Character initial={[0, 0, 0]} posRef={{ current: { x: 0, y: 1, z: 0, moving: false } }} />
-  ),
+  Character: () => {
+    if (!Character) throw new Error('Character module failed to load (see error above).')
+    return <Character initial={[0, 0, 0]} posRef={{ current: { x: 0, y: 1, z: 0, moving: false } }} />
+  },
 }
 
 // NOTE: components that render a drei <Text> label (e.g. Chest, Shop, the city
@@ -192,6 +220,7 @@ function boxGap(a: THREE.Box3, b: THREE.Box3): number {
 
 async function main(): Promise<void> {
   installShims()
+  await loadCharacter()
 
   const name = process.argv[2]
   const names = Object.keys(REGISTRY).sort()

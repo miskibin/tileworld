@@ -1,4 +1,6 @@
 import type { OrkVariant } from './orkConfig'
+import { getCity } from './cityStore'
+import { addGold } from './playerStore'
 
 // Escalating assault waves. `variants` is the pool sampled (round-robin by spawn
 // index) for that wave; `hpScale` multiplies each ork's base HP; `count` orks
@@ -15,16 +17,30 @@ export interface WaveDef {
 // defenses (keep archers, reinforced keep, tower mastery, militia).
 export const WAVES: WaveDef[] = [
   { count: 9, hpScale: 1.1, variants: ['grunt', 'grunt', 'scout', 'berserker'], spawnInterval: 1.1 },
-  { count: 9, hpScale: 1.1, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.1 },
-  { count: 12, hpScale: 1.15, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
-  { count: 15, hpScale: 1.25, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
-  { count: 18, hpScale: 1.4, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },
-  { count: 22, hpScale: 1.55, variants: ['berserker', 'scout', 'shaman', 'grunt'], spawnInterval: 0.85 },
-  { count: 26, hpScale: 1.75, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.75 },
+  { count: 9, hpScale: 1.21, variants: ['grunt', 'scout', 'grunt', 'berserker'], spawnInterval: 1.1 },
+  { count: 12, hpScale: 1.33, variants: ['grunt', 'scout', 'berserker', 'shaman'], spawnInterval: 1.1 },
+  { count: 15, hpScale: 1.46, variants: ['grunt', 'berserker', 'scout', 'shaman'], spawnInterval: 1.0 },
+  { count: 18, hpScale: 1.61, variants: ['berserker', 'scout', 'grunt', 'shaman'], spawnInterval: 0.95 },
+  { count: 22, hpScale: 1.77, variants: ['berserker', 'scout', 'shaman', 'grunt'], spawnInterval: 0.85 },
+  { count: 26, hpScale: 1.95, variants: ['berserker', 'shaman', 'scout', 'grunt'], spawnInterval: 0.75 },
   { count: 1, hpScale: 14.0, variants: ['berserker'], spawnInterval: 0.5 }, // boss
 ]
 
 export const PREP_DURATION = 120 // seconds between waves — a full "day" to rebuild
+
+/** Gold paid by the Tax Office (Economy upgrade) each time a wave is cleared. */
+export const TAX_STIPEND = 25
+
+/**
+ * Pay the Tax Office stipend on a wave clear. Called by the wave director at the
+ * wave→prep transition (the only "wave cleared" event). No-op unless the Tax
+ * Office has been purchased. Returns the gold paid (0 if not owned).
+ */
+export function payWaveClearStipend(): number {
+  if (!getCity().taxOffice) return 0
+  addGold(TAX_STIPEND)
+  return TAX_STIPEND
+}
 
 export interface WaveProgress {
   /** 0-based index into WAVES; -1 before the first wave starts. */

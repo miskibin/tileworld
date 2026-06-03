@@ -90,21 +90,41 @@ function noise(
   src.stop(t0 + dur + 0.02)
 }
 
-/** Sword whoosh — descending band-passed noise sweep. */
-export function playSwing(): void {
-  const c = ctx()
-  if (!c) return
-  const t = c.currentTime
-  noise(c, t, 0.2, 0.12, 'bandpass', 2600, 700)
+/** ±frac random pitch multiplier — keeps repeated synth SFX from sounding
+ *  identical every time (sampled SFX get this via playSfx's pitchJitter). */
+function vary(frac = 0.06): number {
+  return 1 + (Math.random() * 2 - 1) * frac
 }
 
-/** Blade-on-flesh impact — noise crack + low thud. */
-export function playHit(): void {
+/** Sword whoosh — sampled blade swipe, synth fallback. `vol` (0..1) scales it
+ *  down for distant fights (villagers); the hero's own swing uses the default 1. */
+export function playSwing(vol = 1): void {
+  if (vol <= 0.02) return
+  playSfx('/audio/sword-swing.mp3', 0.3 * vol, 0.12).catch(() => swingSynth(vol))
+}
+
+/** Synth fallback for playSwing — descending band-passed noise sweep. */
+function swingSynth(vol = 1): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
-  noise(c, t, 0.09, 0.18, 'highpass', 1800, 600)
-  tone(c, 'triangle', 180, t, 0.12, 0.14, 70)
+  noise(c, t, 0.2, 0.12 * vol, 'bandpass', 2600, 700)
+}
+
+/** Blade-on-flesh impact — sampled hit (clang + crunch), synth fallback. `vol`
+ *  (0..1) scales it for distance — the hero's own hit uses the default 1. */
+export function playHit(vol = 1): void {
+  if (vol <= 0.02) return
+  playSfx('/audio/sword-hit.mp3', 0.5 * vol, 0.08).catch(() => hitSynth(vol))
+}
+
+/** Synth fallback for playHit — noise crack + low thud. */
+function hitSynth(vol = 1): void {
+  const c = ctx()
+  if (!c) return
+  const t = c.currentTime
+  noise(c, t, 0.09, 0.18 * vol, 'highpass', 1800, 600)
+  tone(c, 'triangle', 180, t, 0.12, 0.14 * vol, 70)
 }
 
 /** Heavier impact on a kill. */
@@ -112,8 +132,9 @@ export function playKill(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
-  noise(c, t, 0.16, 0.22, 'lowpass', 1400, 250)
-  tone(c, 'square', 130, t, 0.2, 0.16, 48)
+  const p = vary(0.07)
+  noise(c, t, 0.16, 0.22, 'lowpass', 1400 * p, 250 * p)
+  tone(c, 'square', 130 * p, t, 0.2, 0.16, 48 * p)
 }
 
 /** Player gets hurt — dull low thud. */
@@ -121,8 +142,9 @@ export function playHurt(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
-  tone(c, 'square', 150, t, 0.18, 0.16, 60)
-  noise(c, t, 0.1, 0.08, 'lowpass', 800, 200)
+  const p = vary(0.08)
+  tone(c, 'square', 150 * p, t, 0.18, 0.16, 60 * p)
+  noise(c, t, 0.1, 0.08, 'lowpass', 800 * p, 200 * p)
 }
 
 /** Coin pickup — two bright ascending blips. */
@@ -130,8 +152,9 @@ export function playGold(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
-  tone(c, 'square', 880, t, 0.08, 0.08)
-  tone(c, 'square', 1320, t + 0.06, 0.1, 0.08)
+  const p = vary(0.08)
+  tone(c, 'square', 880 * p, t, 0.08, 0.08)
+  tone(c, 'square', 1320 * p, t + 0.06, 0.1, 0.08)
 }
 
 /** Level-up — rising arpeggio. */
@@ -157,8 +180,18 @@ export function playVictory(): void {
   seq.forEach(([f, off]) => tone(c, 'triangle', f, t + off, 0.5, 0.14))
 }
 
-/** Villager "hmm" — nasal vowel grunt (Minecraft-style murmur). */
+/** Villager "hmm" — randomly the old synth murmur or the sampled grunt, so the
+ *  town speaks in two voices instead of one. Both kept quiet. */
 export function playVillagerGrunt(): void {
+  if (Math.random() < 0.5) {
+    villagerGruntSynth()
+  } else {
+    playSfx('/audio/villager-grunt.mp3', 0.16, 0.2).catch(villagerGruntSynth)
+  }
+}
+
+/** Synth fallback for playVillagerGrunt — nasal vowel grunt. */
+function villagerGruntSynth(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
@@ -175,15 +208,20 @@ export function playVillagerGrunt(): void {
   formant.Q.value = 6
   const g = c.createGain()
   g.gain.setValueAtTime(0.0001, t)
-  g.gain.exponentialRampToValueAtTime(0.15, t + 0.05)
+  g.gain.exponentialRampToValueAtTime(0.1, t + 0.05)
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36)
   osc.connect(formant).connect(g).connect(master(c))
   osc.start(t)
   osc.stop(t + 0.4)
 }
 
-/** Chest opening — wooden creak + a soft treasure chime. */
+/** Chest opening — sampled metallic latch, synth fallback. */
 export function playChestOpen(): void {
+  playSfx('/audio/chest-open.mp3', 0.45, 0.05).catch(chestOpenSynth)
+}
+
+/** Synth fallback for playChestOpen — wooden creak + a soft treasure chime. */
+function chestOpenSynth(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
@@ -210,8 +248,13 @@ export function playEquip(): void {
   noise(c, t, 0.06, 0.05, 'highpass', 4000, 2000)
 }
 
-/** Shield block — bright metallic clang (parry feedback). */
+/** Shield block — sampled wood knock, synth fallback. */
 export function playBlock(): void {
+  playSfx('/audio/block.mp3', 0.45, 0.1).catch(blockSynth)
+}
+
+/** Synth fallback for playBlock — bright metallic clang (parry feedback). */
+function blockSynth(): void {
   const c = ctx()
   if (!c) return
   const t = c.currentTime
@@ -265,7 +308,7 @@ const ORK_GRUNTS = [
   '/audio/monster-growl.ogg',
 ]
 const ORK_ROARS = ['/audio/ork-roar.ogg', '/audio/monster-roar-big.ogg']
-const BEAR_ROAR = '/audio/bear-roar.ogg'
+const BEAR_ROAR = '/audio/bear-roar.mp3'
 const BEAR_GROWL = '/audio/bear-growl.ogg'
 
 function volForDist(dist: number, base: number): number {
@@ -373,7 +416,7 @@ export function playPlayerAttack(): void {
 
 /** Hero pain cry when taking a (non-fatal) hit — quiet voice over playHurt's thud. */
 export function playPlayerHurtVoice(): void {
-  playSfx('/audio/player-hurt.ogg', 0.32, 0.1).catch(() => {})
+  playSfx('/audio/player-hurt.mp3', 0.32, 0.1).catch(() => {})
 }
 
 /** Hero death scream — fires once on the killing blow. */
@@ -383,7 +426,8 @@ export function playPlayerDeath(): void {
 
 /** Coin pickup — sampled jingle, falls back to the procedural blips. */
 export function playGoldPickup(): void {
-  playSfx('/audio/gold-pickup.ogg', 0.22, 0.1).catch(playGold)
+  // Synth two-blip jingle — preferred over the sampled clip.
+  playGold()
 }
 
 /** Level-up flourish — orchestral sting, falls back to the procedural arpeggio. */

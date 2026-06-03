@@ -52,7 +52,7 @@ describe('wave phase — spawning', () => {
   it('spawns one ork when the interval is up', () => {
     const r = step('wave', wave({ index: 0, spawned: 0 }), timers(), 0, 0)
     expect(r.actions).toEqual([
-      { type: 'spawn', variant: 'grunt', hp: 242, spawnIndex: 0, waveIndex: 0 }, // grunt 220 × wave-0 hpScale 1.1
+      { type: 'spawn', variant: 'grunt', hp: 279, spawnIndex: 0, waveIndex: 0 }, // grunt 254 × wave-0 hpScale 1.1
     ])
     expect(r.timers.spawnIndex).toBe(1)
     expect(r.timers.nextSpawnAt).toBe(WAVES[0].spawnInterval)
@@ -71,9 +71,9 @@ describe('wave phase — spawning', () => {
   })
 
   it('scales ork hp by the wave hpScale', () => {
-    // Wave 3 hpScale 1.15, grunt base hp 220 -> round(253).
+    // Wave 3 hpScale 1.33, grunt base hp 254 -> round(338).
     const r = step('wave', wave({ index: 2, spawned: 0 }), timers(), 0, 0)
-    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 253 })
+    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 338 })
   })
 
   it('stops spawning once the quota is met', () => {
@@ -107,8 +107,8 @@ describe('boss wave', () => {
   it('spawns the lone high-hp berserker', () => {
     const last = WAVES.length - 1
     const r = step('wave', wave({ index: last, spawned: 0 }), timers(), 0, 0)
-    // boss: berserker base hp 270 * hpScale 14 = 3780
-    expect(r.actions).toContainEqual({ type: 'spawn', variant: 'berserker', hp: 3780, spawnIndex: 0, waveIndex: last })
+    // boss: berserker base hp 306 * hpScale 14 = 4284
+    expect(r.actions).toContainEqual({ type: 'spawn', variant: 'berserker', hp: 4284, spawnIndex: 0, waveIndex: last })
   })
 })
 

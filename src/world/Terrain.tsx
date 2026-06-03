@@ -39,7 +39,16 @@ const detail = getDetailTextures()
 // and the seam-overlay material.
 type TopClass = 'grass' | 'grass_dark' | 'forest' | 'sand' | 'rock' | 'snow' | 'desert' | 'plains' | 'swamp'
 
-function classOf(biome: Biome, _h: number): TopClass {
+// Tiles at or above this height class get a SNOW top regardless of their biome,
+// so the rock range (peak 13) wears a white cap on its upper classes and the
+// snow massif (peak 13) stays white over its top. Roughly peak-3 now that the
+// mountains are compact.
+export const SNOW_CAP_HEIGHT = 10
+
+function classOf(biome: Biome, h: number): TopClass {
+  // Very high ground is snow-capped whatever the biome — white rock peaks +
+  // fully-white snow massif. Checked first so it wins over the biome's own top.
+  if (h >= SNOW_CAP_HEIGHT) return 'snow'
   // Grassy biomes share ONE look: flat grass, forest floor, and grass plateaus
   // are all near-identical greens, so unifying them avoids "off grass" seams.
   // Forest still reads as forest from its dense trees, not the ground colour.

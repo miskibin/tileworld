@@ -4,7 +4,7 @@ import { Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
 import { getPlayer, spendGold } from './playerStore'
-import { openShop, closeShop, isShopOpen, type ShopItem } from './shopStore'
+import { openShop, closeShop, isShopOpen, discountedPrice, type ShopItem } from './shopStore'
 import { addItem } from './inventoryStore'
 import { getUnlockedWeapons } from './weaponUnlockStore'
 import { isUnlimitedMoney } from './debugStore'
@@ -57,12 +57,14 @@ function gableShape(halfD: number, h: number): THREE.Shape {
 // Buying adds the item to the player's hotbar (right-click to consume → heal).
 // apply() fails if the player can't afford it or the bag is full.
 function buy(price: number, itemId: string): boolean {
-  if (!spendGold(price)) return false
+  // Charge the Merchant-Guild-discounted price (matches what ShopPanel shows).
+  const charge = discountedPrice(price)
+  if (!spendGold(charge)) return false
   if (!addItem(itemId)) {
     // Bag full — refund and reject so gold isn't lost. Skip the refund under
     // unlimited money, since spendGold didn't actually deduct (a negative spend
     // would otherwise credit free gold).
-    if (!isUnlimitedMoney()) spendGold(-price)
+    if (!isUnlimitedMoney()) spendGold(-charge)
     return false
   }
   return true

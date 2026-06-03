@@ -11,7 +11,7 @@
     "shot": "node scripts/screenshot.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "inspect": "tsx --tsconfig tsconfig.app.json scripts/inspect-model.tsx",
+    "inspect": "node --import ./scripts/inspect-register.mjs --import tsx scripts/inspect-model.tsx",
     "tauri": "tauri"
   },
   "dependencies": {

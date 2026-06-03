@@ -6,6 +6,7 @@ import { isShopOpen, subscribeShop } from './shopStore'
 import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
 import { getShake } from './fxStore'
+import { isWarming } from './warmupStore'
 
 interface Props {
   posRef: MutableRefObject<PlayerStateRef>
@@ -53,10 +54,15 @@ export function MouseLookCamera({ posRef }: Props) {
       if (isShopOpen() || isPaused() || isTreeOpen()) return
       el.requestPointerLock()
     }
-    // Plain scroll wheel zooms the camera (the hotbar uses number keys, so the
-    // wheel is free for the conventional zoom gesture). Some setups convert the
-    // wheel to a horizontal delta, so fall back to deltaX when deltaY is zero.
+    // ctrl+wheel zooms the camera. The plain wheel is reserved for cycling the
+    // hotbar (see Inventory.tsx), so we only act when ctrl is held — otherwise
+    // bail and let the Inventory handler cycle the selection. preventDefault on
+    // a non-passive listener also stops Tauri/browser ctrl+wheel page-zoom. Some
+    // setups convert the wheel to a horizontal delta, so fall back to deltaX
+    // when deltaY is zero.
     const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return
+      e.preventDefault()
       const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX
       dist.current = Math.max(
         MIN_DIST,
@@ -69,7 +75,7 @@ export function MouseLookCamera({ posRef }: Props) {
 
     el.addEventListener('mousemove', onMouseMove)
     el.addEventListener('mousedown', onMouseDown)
-    el.addEventListener('wheel', onWheel, { passive: true })
+    el.addEventListener('wheel', onWheel, { passive: false })
     document.addEventListener('pointerlockchange', onLockChange)
 
     // Release pointer lock automatically when a HUD panel opens.
@@ -98,6 +104,7 @@ export function MouseLookCamera({ posRef }: Props) {
   }, [gl])
 
   useFrame(() => {
+    if (isWarming()) return // ShaderWarmup is driving the camera over the whole map
     const tx = posRef.current.x - CENTER_X
     const ty = posRef.current.y + 1
     const tz = posRef.current.z - CENTER_Z

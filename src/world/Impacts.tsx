@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getImpacts, resetImpacts, stepImpacts } from './impactStore'
 import { isFrozen } from './pauseStore'
+import { getTimeScale } from './hitStopStore'
 
 // Renders + drives the hit-impact shard pool. Shards live in grid coords, so
 // this must mount inside World's offset group. One instanced mesh; per-shard
@@ -23,7 +24,7 @@ export function Impacts() {
 
   useFrame((_, dtFrame) => {
     if (isFrozen()) return
-    stepImpacts(Math.min(0.05, dtFrame))
+    stepImpacts(Math.min(0.05, dtFrame) * getTimeScale())
     const m = ref.current
     if (!m) return
     const sparks = getImpacts()

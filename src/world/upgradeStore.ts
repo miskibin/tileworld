@@ -2,7 +2,18 @@
 // and auto-applies its effect into the city / player / shop stores — no
 // placement or targeting. Module-level pub/sub, mirroring the other stores.
 
-import { spendGold, getGold, bumpMaxHp, bumpAttackDamage } from './playerStore'
+import {
+  spendGold,
+  getGold,
+  getPlayer,
+  bumpMaxHp,
+  bumpAttackDamage,
+  setCritChance,
+  setLifesteal,
+  setMoveSpeedMult,
+  setCleave,
+  setBountyMult,
+} from './playerStore'
 import { isUnlimitedMoney } from './debugStore'
 import { playMenuClick } from '../audio/sfx'
 import {
@@ -14,7 +25,11 @@ import {
   setFarmBuilt,
   setKeepArchers,
   bumpVillagerArmor,
+  setBallistaBuilt,
+  setShrineBuilt,
+  setTaxOffice,
 } from './cityStore'
+import { getShopDiscount, setShopDiscount, resetShopDiscount } from './shopStore'
 import { reinforceCastle } from './castleStore'
 import { setTowerMastery } from './towerStore'
 import { unlockWeapon } from './weaponUnlockStore'
@@ -141,6 +156,48 @@ export const UPGRADE_NODES: UpgradeNode[] = [
       return true
     },
   },
+  {
+    id: 'eco_bounty',
+    branch: 'economy',
+    name: 'Bounty',
+    desc: 'Earn 50% more gold from every ork you slay.',
+    icon: '💰',
+    cost: 60,
+    apply() {
+      if (getPlayer().bountyMult > 1) return false
+      if (!spendGold(this.cost)) return false
+      setBountyMult(1.5)
+      return true
+    },
+  },
+  {
+    id: 'eco_tax_office',
+    branch: 'economy',
+    name: 'Tax Office',
+    desc: 'Collect a 25 gold stipend each time a wave is cleared.',
+    icon: '🏛️',
+    cost: 75,
+    apply() {
+      if (getCity().taxOffice) return false
+      if (!spendGold(this.cost)) return false
+      setTaxOffice(true)
+      return true
+    },
+  },
+  {
+    id: 'eco_merchant_guild',
+    branch: 'economy',
+    name: 'Merchant Guild',
+    desc: 'Negotiate a 20% discount on all shop wares.',
+    icon: '⚖️',
+    cost: 70,
+    apply() {
+      if (getShopDiscount() < 1) return false
+      if (!spendGold(this.cost)) return false
+      setShopDiscount(0.8)
+      return true
+    },
+  },
 
   // ---- Defense: fortify the city ----
   {
@@ -252,6 +309,34 @@ export const UPGRADE_NODES: UpgradeNode[] = [
       return true
     },
   },
+  {
+    id: 'def_ballista',
+    branch: 'defense',
+    name: 'Ballista',
+    desc: 'Mount a heavy bolt-thrower by the north gate that strikes far and hard.',
+    icon: '🎱',
+    cost: 110,
+    apply() {
+      if (getCity().ballistaBuilt) return false
+      if (!spendGold(this.cost)) return false
+      setBallistaBuilt(true)
+      return true
+    },
+  },
+  {
+    id: 'def_shrine',
+    branch: 'defense',
+    name: 'Healing Shrine',
+    desc: 'Raise a shrine that mends the hero while inside the walls.',
+    icon: '⛲',
+    cost: 95,
+    apply() {
+      if (getCity().shrineBuilt) return false
+      if (!spendGold(this.cost)) return false
+      setShrineBuilt(true)
+      return true
+    },
+  },
 
   // ---- Hero: the player knight ----
   {
@@ -308,6 +393,65 @@ export const UPGRADE_NODES: UpgradeNode[] = [
       return true
     },
   },
+  {
+    id: 'hero_crit',
+    branch: 'hero',
+    name: 'Crit Strike',
+    desc: '20% chance for a swing to deal double damage.',
+    icon: '💥',
+    cost: 80,
+    prereqId: 'hero_dmg_1',
+    apply() {
+      if (getPlayer().critChance > 0) return false
+      if (!spendGold(this.cost)) return false
+      setCritChance(0.2)
+      return true
+    },
+  },
+  {
+    id: 'hero_lifesteal',
+    branch: 'hero',
+    name: 'Lifesteal',
+    desc: 'Heal 10 HP every time you slay an ork.',
+    icon: '🩸',
+    cost: 90,
+    prereqId: 'hero_hp_1',
+    apply() {
+      if (getPlayer().lifesteal > 0) return false
+      if (!spendGold(this.cost)) return false
+      setLifesteal(10)
+      return true
+    },
+  },
+  {
+    id: 'hero_swift',
+    branch: 'hero',
+    name: 'Swift Boots',
+    desc: 'Move 18% faster.',
+    icon: '👢',
+    cost: 60,
+    apply() {
+      if (getPlayer().moveSpeedMult > 1) return false
+      if (!spendGold(this.cost)) return false
+      setMoveSpeedMult(1.18)
+      return true
+    },
+  },
+  {
+    id: 'hero_cleave',
+    branch: 'hero',
+    name: 'Cleave',
+    desc: 'Strikes splash 50% damage to orks beside your target.',
+    icon: '🌀',
+    cost: 110,
+    prereqId: 'hero_dmg_2',
+    apply() {
+      if (getPlayer().cleave > 0) return false
+      if (!spendGold(this.cost)) return false
+      setCleave(0.5)
+      return true
+    },
+  },
 
   // ---- Arsenal: unlock shop weapons ----
   {
@@ -338,6 +482,14 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     },
   },
 ]
+
+// Progression pacing: gold income is ~200/night, so the raw tree was buyable in
+// ~4 nights. Scale every cost up (rounded to 5) once at module load — apply(),
+// canBuy() and the HUD all read node.cost live, so this single pass rescales the
+// whole tree consistently. Together with the per-night ork HP ramp (waveStore)
+// the difficulty stays ahead of the player instead of being out-bought early.
+const UPGRADE_COST_SCALE = 1.6
+for (const n of UPGRADE_NODES) n.cost = Math.round((n.cost * UPGRADE_COST_SCALE) / 5) * 5
 
 const purchasedIds = new Set<string>()
 const subs = new Set<(ids: ReadonlySet<string>) => void>()
@@ -381,5 +533,9 @@ export function subscribeUpgrades(fn: (ids: ReadonlySet<string>) => void): () =>
 
 export function resetUpgrades(): void {
   purchasedIds.clear()
+  // The Merchant Guild discount is a global module flag (not in player/city
+  // state), so clearing purchase records here must also drop it back to full
+  // price, or it would leak across runs.
+  resetShopDiscount()
   notify()
 }

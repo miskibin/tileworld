@@ -4,12 +4,13 @@ import { isFrozen } from './pauseStore'
 import { setWantBlock } from './blockStore'
 
 // Non-visual input glue:
-//  • number keys 1–6 select a hotbar slot
+//  • number keys 1–8 select a hotbar slot
 //  • Q "uses" the selected slot (consume → heal, weapon/armor → equip). Unlike
 //    the old E binding, Q is dedicated to the hotbar — buildings own E for
 //    "interact", so the use key is never silently stolen while standing near one
 //  • right-mouse (hold) raises the shield (blockStore); release lowers it
-// Camera zoom lives on the plain scroll wheel now (see MouseLookCamera).
+// Plain scroll wheel cycles the hotbar (see Inventory.tsx); ctrl+scroll zooms
+// the camera (see MouseLookCamera).
 // Lives in the canvas tree so it mounts/unmounts with the world.
 export function HotbarInput() {
   useEffect(() => {

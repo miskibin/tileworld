@@ -25,18 +25,13 @@ import { houseBlocksAt, wallBetween } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
 import { isFrozen } from './pauseStore'
-import { getPhase } from './gameStore'
+import { getTimeScale } from './hitStopStore'
 import { cullVisible, isCulled } from './cull'
 import { mergeParts, type MergedPart } from './mergeParts'
 import { faceCamera } from './faceCamera'
 import { playOrkGrunt } from '../audio/sfx'
 
 const TURN_RATE_FALLBACK = 6
-
-// During a wave, orks lock onto the player from much farther so the horde
-// converges on you instead of trickling toward the keep. ~cull distance so any
-// non-culled ork is hunting the player.
-const WAVE_PLAYER_AGGRO = 46
 
 // Shared ember glow worn by every ork so they stay locatable in the dark. The
 // >1 colour pushes it past the Bloom luminance threshold so it reads as a
@@ -196,7 +191,7 @@ export function OrkView({ state }: OrkViewProps) {
     if (isFrozen()) return
     const t = clock.getElapsedTime() + state.seed
     const tNow = clock.getElapsedTime()
-    const dt = Math.min(0.05, dtFrame)
+    const dt = Math.min(0.05, dtFrame) * getTimeScale()
     const g = groupRef.current
     if (!g) return
 
@@ -233,19 +228,18 @@ export function OrkView({ state }: OrkViewProps) {
     const pdx = player.x - state.x
     const pdz = player.z - state.z
     const playerDist = Math.hypot(pdx, pdz)
-    // Waves widen player aggro so the horde marches on you, not just the keep.
-    // Camp orks (home set) keep their short aggro — they guard the camp and only
-    // engage when you come to them, rather than swarming you across the map.
-    const aggroR =
-      getPhase() === 'wave' && !state.home ? Math.max(cfg.aggro, WAVE_PLAYER_AGGRO) : cfg.aggro
-    const playerValid = isPlayerAlive() && playerDist < aggroR
+    // Wave orks march the keep; they peel off to the player only at close range.
+    // Player aggro is the normal (short) cfg.aggro for everyone — both camp guards
+    // (home set) and wave invaders engage you only when you come near, otherwise
+    // wave orks fall through to the castle fallback and head for the keep.
+    const playerValid = isPlayerAlive() && playerDist < cfg.aggro
     const enemy = nearestEnemyOrk(state, cfg.aggro)
     const enemyDist = enemy ? Math.hypot(enemy.x - state.x, enemy.z - state.z) : Infinity
 
     // Nearby defenders (militia + standing towers). Melee orks turn on whatever
     // is closest rather than marching past it; kept to the normal (short) aggro
-    // so the wide wave aggro still pulls the horde toward the player. Shamans
-    // skip defenders — their bolts only home on the player/rival orks.
+    // like player aggro, so an ork with nothing close falls through to the keep.
+    // Shamans skip defenders — their bolts only home on the player/rival orks.
     let defVillager: VillagerState | null = null
     let defTowerIdx = -1
     let defDist = cfg.aggro
@@ -548,6 +542,25 @@ export function OrkView({ state }: OrkViewProps) {
     const hurtRemain = state.hurtFlashUntil - tNow
     const recoil = hurtRemain > 0 ? Math.max(0, hurtRemain / 0.25) : 0
 
+    // Knockback impulse — decaying shove away from the attacker, blocked by
+    // terrain/props so the ork can't be punted through a wall. dt is ~0 during
+    // hit-stop, so the shove holds frozen on the blow then flies once it lifts.
+    if (state.kbVX !== 0 || state.kbVZ !== 0) {
+      const kx = state.x + state.kbVX * dt
+      const kz = state.z + state.kbVZ * dt
+      const standOk = (cx: number, cz: number) =>
+        tileAt(Math.floor(cx), Math.floor(cz)) !== null || bridgeAt(cx + 0.5, cz + 0.5) !== null
+      if (standOk(kx, state.z) && !obstacleCollidesAt(kx, state.z, state.collisionRadius)) state.x = kx
+      if (standOk(state.x, kz) && !obstacleCollidesAt(state.x, kz, state.collisionRadius)) state.z = kz
+      const decay = Math.max(0, 1 - 9 * dt)
+      state.kbVX *= decay
+      state.kbVZ *= decay
+      if (Math.abs(state.kbVX) < 0.05 && Math.abs(state.kbVZ) < 0.05) {
+        state.kbVX = 0
+        state.kbVZ = 0
+      }
+    }
+
     g.position.set(state.x, state.y, state.z)
     g.rotation.y = state.facing + Math.sin(t * 0.55) * 0.04
     g.rotation.z = 0
@@ -581,9 +594,14 @@ export function OrkView({ state }: OrkViewProps) {
     }
     if (walking) g.position.y = state.y + Math.abs(Math.sin(t * 8)) * 0.06
 
-    // Hurt flash → tint this ork's skin briefly.
+    // Hurt flash → tint this ork's skin briefly, plus a sharp white emissive
+    // pop for the first ~70ms so the blow visibly "lands" on the low-poly model.
+    // (emissive colour/intensity are plain uniforms — no shader recompile.)
     if (tNow < state.hurtFlashUntil) skinMat.color.set('#ffb060')
     else skinMat.color.set(cfg.skin)
+    const flashAmt = hurtRemain > 0 ? Math.max(0, (hurtRemain - 0.18) / 0.07) : 0
+    skinMat.emissive.setRGB(flashAmt, flashAmt, flashAmt)
+    skinMat.emissiveIntensity = flashAmt
 
     // HP bar
     if (billboardGroupRef.current) {

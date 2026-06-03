@@ -69,14 +69,20 @@ export function Water() {
     }
   })
 
-  return <mesh geometry={geo} material={mat} position={[0, 0.05, 0]} receiveShadow />
+  // Surface sits at y≈0.9 — just below the land top (height-1 tiles top out at
+  // y=1.0), so lakes/rivers read as nearly flush with the shore with only a thin
+  // lip of bank showing, instead of a 1-unit-deep sunken pit. The ±0.05 ripple
+  // displacement still never crests the shore (0.95 < 1.0).
+  return <mesh geometry={geo} material={mat} position={[0, 0.9, 0]} receiveShadow />
 }
 
-// Solid darker floor under water so transparent areas don't reveal sky.
+// Solid darker floor under water so transparent areas don't reveal sky. Raised
+// to just under the surface (which now sits at y≈0.9) so the shallow lakes/rivers
+// don't read as a bottomless void through the semi-transparent water.
 export function WaterFloor() {
   return (
     <mesh
-      position={[0, -0.2, 0]}
+      position={[0, 0.65, 0]}
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
     >

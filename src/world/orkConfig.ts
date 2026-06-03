@@ -36,7 +36,7 @@ export interface OrkConfig {
 export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   // Baseline — identical to the pre-variant ork.
   grunt: {
-    hp: 220,
+    hp: 254,
     damage: 24,
     speed: 2.3,
     aggro: 9,
@@ -54,7 +54,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   },
   // Fast, fragile harasser with a wide aggro range.
   scout: {
-    hp: 120,
+    hp: 136,
     damage: 15,
     speed: 3.3,
     aggro: 13,
@@ -72,7 +72,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   },
   // Glass cannon: rapid swings, frenzies (faster) when wounded.
   berserker: {
-    hp: 270,
+    hp: 306,
     damage: 30,
     speed: 2.6,
     aggro: 10,
@@ -91,7 +91,7 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
   },
   // Ranged caster: lobs magic bolts and heals wounded allies.
   shaman: {
-    hp: 175,
+    hp: 201,
     damage: 26, // bolt damage
     speed: 1.8,
     aggro: 15,
@@ -112,6 +112,20 @@ export const ORK_CONFIG: Record<OrkVariant, OrkConfig> = {
     healCooldown: 5,
     healRange: 8,
   },
+}
+
+/** Gold dropped by a slain ork of `variant`, after the player's bounty
+ *  multiplier, rounded to whole gold. The per-variant bountyGold above is the
+ *  base — kept here as the single source of the reward so every variant pays
+ *  what its config advertises (a shaman is worth more than a grunt). */
+export function orkBountyGold(variant: OrkVariant, bountyMult: number): number {
+  return Math.round(ORK_CONFIG[variant].bountyGold * bountyMult)
+}
+
+/** XP dropped by a slain ork of `variant` (no bounty multiplier — that boon is
+ *  gold-only, matching the wild-animal reward path). */
+export function orkBountyXp(variant: OrkVariant): number {
+  return ORK_CONFIG[variant].bountyXp
 }
 
 /** Warband tint shown on loincloth + war-paint so camps read as rivals. */

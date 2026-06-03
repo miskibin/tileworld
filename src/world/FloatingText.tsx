@@ -17,10 +17,11 @@ function Float({ f }: { f: FloatText }) {
     const t = performance.now() * 0.001 - f.born
     const k = Math.min(1, t / FLOAT_LIFETIME)
     if (ref.current) {
+      ref.current.position.x = f.x + f.dx * Math.min(1, t * 4)
       ref.current.position.y = f.y + k * 1.3
       // Pop in fast with a slight overshoot, then settle at 1 — gives hits punch.
       const pop = t < 0.16 ? 0.6 + (t / 0.16) * 0.55 : Math.max(1, 1.15 - (t - 0.16) * 1.6)
-      ref.current.scale.setScalar(pop)
+      ref.current.scale.setScalar(pop * f.scale)
     }
     if (matRef.current) matRef.current.opacity = 1 - k * k
   })

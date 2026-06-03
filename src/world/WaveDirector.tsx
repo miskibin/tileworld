@@ -12,6 +12,7 @@ import {
   setEnemiesAlive,
   setPrepSecondsLeft,
   consumePrepSkip,
+  payWaveClearStipend,
 } from './waveStore'
 import { reviveTowers } from './towerStore'
 import { reviveVillagers } from './villagerStore'
@@ -48,6 +49,9 @@ function applyWaveAction(a: WaveAction): void {
       beginWave(a.index)
       break
     case 'setPhase':
+      // Tax Office stipend: pays only on a wave-clear → prep transition (the
+      // game-start menu→prep goes through StartScreen, not this reducer).
+      if (a.phase === 'prep') payWaveClearStipend()
       setPhase(a.phase)
       break
     case 'spawn': {

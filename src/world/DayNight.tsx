@@ -12,6 +12,25 @@ import {
 } from './timeStore'
 import { isFrozen } from './pauseStore'
 import { subscribePhase } from './gameStore'
+import { getPlayer } from './playerStore'
+import { tileAt, type Biome } from './tileMap'
+
+// Per-biome fog tint — the global day/night fog colour is nudged toward the
+// biome the player currently stands in, so each biome reads with its own mood
+// (warm dunes, cold snow, murky swamp). Faded out at night so nights stay dark.
+// No new fog object — just a colour lerp on the shared scene fog each frame.
+const BIOME_FOG: Partial<Record<Biome, THREE.Color>> = {
+  snow: new THREE.Color('#cdd8e8'),
+  desert: new THREE.Color('#e7d29a'),
+  swamp: new THREE.Color('#7c8a58'),
+  forest: new THREE.Color('#9fb37a'),
+  rock: new THREE.Color('#b6b4bc'),
+}
+const BIOME_FOG_MIX = 0.45
+// Ease rate for the displayed fog colour toward its biome target. At a biome
+// edge the tile biome flips frame-to-frame; easing the shown colour (instead of
+// snapping it each frame) fades those flips smoothly instead of flickering.
+const BIOME_FOG_EASE = 2.2
 
 // How far out the sun glow sphere + moon sit (matches the old SUN_FAR).
 const SUN_FAR = 700
@@ -71,6 +90,10 @@ export function DayNight({ lights, onSunMesh }: Props) {
 
   const sample = useMemo(() => makeDaySample(), [])
   const sunDir = useMemo(() => new THREE.Vector3(), [])
+  // Persistent (eased) fog colour + a scratch target, so the biome tint fades in
+  // smoothly rather than snapping each frame (fixes the boundary flicker).
+  const fogColor = useMemo(() => new THREE.Color('#d6c6a0'), [])
+  const fogTarget = useMemo(() => new THREE.Color(), [])
   const starGeo = useMemo(() => buildStarField(420, 600), [])
   // Baseline at the frozen start so the StartScreen shows golden hour.
   const startPos = useMemo(
@@ -148,8 +171,19 @@ export function DayNight({ lights, onSunMesh }: Props) {
     ambRef.current.intensity = lights.ambient * sample.ambientScale
     ambRef.current.color.copy(sample.ambientColor)
 
-    // Fog colour tracks the sky (density stays leva-tunable).
-    if (scene.fog) scene.fog.color.copy(sample.fogColor)
+    // Fog colour tracks the sky (density stays leva-tunable), then leans toward
+    // the player's current biome tint in daylight for per-biome atmosphere. The
+    // shown colour EASES toward that target so crossing a biome edge (where the
+    // tile biome flips frame-to-frame) fades smoothly instead of flickering.
+    if (scene.fog) {
+      const player = getPlayer()
+      const ptile = tileAt(Math.floor(player.x), Math.floor(player.z))
+      const tint = ptile ? BIOME_FOG[ptile.biome] : undefined
+      fogTarget.copy(sample.fogColor)
+      if (tint) fogTarget.lerp(tint, BIOME_FOG_MIX * (1 - sample.nightAmount))
+      fogColor.lerp(fogTarget, Math.min(1, dt * BIOME_FOG_EASE))
+      scene.fog.color.copy(fogColor)
+    }
   })
 
   return (

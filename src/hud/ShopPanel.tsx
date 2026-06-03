@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getActiveShop, subscribeShop, closeShop } from '../world/shopStore'
+import { getActiveShop, subscribeShop, closeShop, getShopDiscount, discountedPrice } from '../world/shopStore'
 import { getGold, subscribeGold } from '../world/playerStore'
 
 export function ShopPanel() {
@@ -35,7 +35,11 @@ export function ShopPanel() {
         </div>
         <div className="shop-items">
           {shop.items.map((it) => {
-            const canAfford = gold >= it.price
+            // Merchant Guild discount: the price actually charged is the
+            // discounted one, so afford-check + display both use it.
+            const discounted = getShopDiscount() < 1
+            const price = discountedPrice(it.price)
+            const canAfford = gold >= price
             return (
               <button
                 key={it.id}
@@ -51,7 +55,9 @@ export function ShopPanel() {
               >
                 <span className="shop-item-icon">{it.icon}</span>
                 <span className="shop-item-name">{it.name}</span>
-                <span className="shop-item-price">{it.price} ★</span>
+                <span className="shop-item-price">
+                  {price} ★{discounted && <span className="shop-item-discount"> −20%</span>}
+                </span>
                 {flash === it.id && <span className="shop-item-pop">+</span>}
               </button>
             )

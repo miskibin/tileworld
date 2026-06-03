@@ -1,5 +1,6 @@
 import type { Object3D } from 'three'
 import { getPlayer } from './playerStore'
+import { isWarming } from './warmupStore'
 
 // Distance culling for creatures/props. The camera-centric FogExp2 already
 // hides anything beyond ~40 units, so there's no point running AI + animation
@@ -28,6 +29,7 @@ const CULL_DIST_SQ = CULL_DIST * CULL_DIST
 
 /** True if (x, z) is far enough from the player to skip updating/rendering. */
 export function isCulled(x: number, z: number): boolean {
+  if (isWarming()) return false // keep everything visible during the at-load warm-up
   const p = getPlayer()
   const dx = x - p.x
   const dz = z - p.z

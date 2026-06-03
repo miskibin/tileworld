@@ -53,31 +53,29 @@ function floodFrom(sx: number, sz: number): Set<number> {
 // Castle south-gate apron — open grass just outside the walls.
 const START: [number, number] = [72, 64]
 
-// A foot/apron tile of every biome + every ork camp, PLUS every mountain summit.
-// Each mountain now carries a carved climbable ramp (see rampClass in tileMap),
-// so "at least one walkable path to the top" is a guarantee we assert here — the
-// summit centres must be in the same walkable component as the castle. Snapped to
-// the nearest standable, prop-free tile.
+// The map now has exactly FIVE big biome regions (one per quadrant around the
+// castle): SNOW massif (NW, mountain), DESERT (NE, flat), ROCK range (E,
+// mountain), FOREST (SW, flat), SWAMP (S, flat). We assert a foot/apron tile of
+// every biome is reachable from the castle, PLUS each mountain summit — every
+// mountain carries a carved climbable ramp (see rampClass in tileMap), so "at
+// least one walkable path to the top" is a guarantee. Coordinates snapped to the
+// nearest standable, prop-free tile by findSpawnNear.
+//
+// Ork-camp targets were dropped from this list: camp placement lives in
+// obstacles.ts (its own pipeline step) and is re-derived from this biome layout,
+// so pinning stale camp coordinates here would test the wrong module. Biome +
+// summit connectivity is the guarantee this test owns.
 const TARGETS: Record<string, [number, number]> = {
-  'snow massif (NW) foot': [40, 34],
-  'desert (NE)': [100, 30],
-  'forest (SW)': [40, 72],
-  'forest (SE)': [108, 82],
-  'swamp (S)': [72, 88],
-  'rock range (W) foot': [33, 54],
-  'rock range (E) foot': [115, 54],
-  'rock range (N) foot': [72, 28],
-  'ork camp (W)': [32, 54],
-  'ork camp (E)': [109, 56],
-  'ork camp (N)': [72, 25],
-  // Mountain summits (region centres) — reachable via the carved ramp.
-  'snow massif (NW) summit': [28, 22],
-  'rock range (W) summit': [18, 54],
-  'rock range (E) summit': [124, 56],
-  'rock range (N) summit': [72, 12],
-  'NE corner peaks summit': [136, 14],
-  'SW corner peaks summit': [10, 96],
-  'N snow extension summit': [96, 10],
+  // Flat-biome aprons (approach side, just inside each blob). Snow/rock feet
+  // snapped onto the now-compact (r18) mountain blobs.
+  'snow massif (NW) foot': [38, 34],
+  'desert (NE)': [104, 28],
+  'forest (SW)': [40, 76],
+  'swamp (S)': [72, 84],
+  'rock range (E) foot': [110, 66],
+  // Mountain summits (region centres) — reachable only via the carved ramp.
+  'snow massif (NW) summit': [26, 24],
+  'rock range (E) summit': [122, 58],
 }
 
 describe('map reachability', () => {

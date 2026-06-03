@@ -17,7 +17,6 @@ export function SoulWisp() {
   useEffect(() => subscribeSoul(setSoul), [])
 
   const group = useRef<THREE.Group>(null)
-  const light = useRef<THREE.PointLight>(null)
   const core = useRef<THREE.Mesh>(null)
 
   const coreMat = useMemo(
@@ -61,14 +60,15 @@ export function SoulWisp() {
     const flick = 0.85 + Math.sin(now * 22) * 0.12
     const scale = (0.7 + Math.sin(t * Math.PI) * 0.5) * flick
     if (core.current) core.current.scale.setScalar(scale)
-    if (light.current) light.current.intensity = 5 * flick
   })
 
   if (!soul) return null
 
   return (
+    // No point light here on purpose: a wisp that mounts/unmounts each succession
+    // would change NUM_POINT_LIGHTS and recompile every lit material twice per
+    // hero death (a multi-frame stutter). The additive core+halo carry the glow.
     <group ref={group}>
-      <pointLight ref={light} color={SOUL_COLOR} intensity={5} distance={6} decay={2} />
       <mesh ref={core} material={coreMat}>
         <sphereGeometry args={[0.22, 16, 16]} />
       </mesh>

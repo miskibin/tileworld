@@ -90,6 +90,22 @@ function buildRoadGeometry(): THREE.BufferGeometry {
   return geo
 }
 
+// Hand-placed footbridges across the two rivers (N–S river ≈x40, E–W river
+// ≈z20). The roads route around the water, so these are the deliberate
+// crossings: each <Bridge> registers a walkable span (bridgeAt → standable) and
+// renders the plank deck. Endpoints sit on height-1 banks, the deck spans the
+// water at y=1. Verified land-water-land at each crossing.
+const RIVER_BRIDGES: { from: [number, number]; to: [number, number] }[] = [
+  { from: [40, 40], to: [44, 40] },
+  { from: [37, 50], to: [41, 50] },
+  { from: [33, 64], to: [37, 64] },
+  { from: [39, 70], to: [43, 70] },
+  { from: [60, 22], to: [60, 26] },
+  { from: [80, 15], to: [80, 19] },
+  { from: [100, 22], to: [100, 26] },
+  { from: [118, 17], to: [118, 21] },
+]
+
 export function Paths() {
   const geo = useMemo(() => buildRoadGeometry(), [])
   const bridges = useMemo(() => getRoadBridges(), [])
@@ -99,6 +115,9 @@ export function Paths() {
       <mesh geometry={geo} material={PATH_MAT} receiveShadow />
       {bridges.map((b, i) => (
         <Bridge key={`b${i}`} from={[b.fromX, b.fromZ]} to={[b.toX, b.toZ]} y={1.0} />
+      ))}
+      {RIVER_BRIDGES.map((b, i) => (
+        <Bridge key={`rb${i}`} from={b.from} to={b.to} y={1.0} />
       ))}
     </group>
   )

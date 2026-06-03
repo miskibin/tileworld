@@ -2,18 +2,24 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   WAVES,
   PREP_DURATION,
+  TAX_STIPEND,
   getWave,
   beginWave,
   markSpawned,
   setEnemiesAlive,
   resetWaves,
   subscribeWave,
+  payWaveClearStipend,
 } from './waveStore'
+import { setTaxOffice, resetCity } from './cityStore'
+import { resetPlayer, getGold } from './playerStore'
 
 const VARIANTS = new Set(['grunt', 'scout', 'berserker', 'shaman'])
 
 beforeEach(() => {
   resetWaves()
+  resetCity()
+  resetPlayer()
 })
 
 describe('wave progress state', () => {
@@ -102,5 +108,28 @@ describe('WAVES table', () => {
 
   it('keeps a positive prep breather', () => {
     expect(PREP_DURATION).toBeGreaterThan(0)
+  })
+})
+
+describe('Tax Office wave-clear stipend', () => {
+  it('pays nothing when the Tax Office is not owned', () => {
+    const before = getGold()
+    expect(payWaveClearStipend()).toBe(0)
+    expect(getGold()).toBe(before) // untouched
+  })
+
+  it('pays the stipend once the Tax Office is built', () => {
+    setTaxOffice(true)
+    const before = getGold()
+    expect(payWaveClearStipend()).toBe(TAX_STIPEND)
+    expect(getGold()).toBe(before + TAX_STIPEND)
+  })
+
+  it('pays the stipend each time it is called (per wave clear)', () => {
+    setTaxOffice(true)
+    const before = getGold()
+    payWaveClearStipend()
+    payWaveClearStipend()
+    expect(getGold()).toBe(before + TAX_STIPEND * 2)
   })
 })

@@ -106,7 +106,9 @@ export function Ships() {
         x *= 1.08
         z *= 1.08
       }
-      g.position.set(x, 0.12 + Math.sin(t * 0.8 + o.seed) * 0.08, z)
+      // Float on the water surface (raised to y≈0.9). Keeps the old ~0.07
+      // freeboard above the waterline so the hull sits in the sea, not under it.
+      g.position.set(x, 0.97 + Math.sin(t * 0.8 + o.seed) * 0.08, z)
       // Heading = tangent of the orbit (derivative), so the bow leads the turn.
       const hx = -Math.sin(ang) * o.rx * o.speed
       const hz = Math.cos(ang) * o.rz * o.speed

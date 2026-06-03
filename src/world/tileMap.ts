@@ -61,13 +61,12 @@ function distFromCastle(x: number, z: number): number {
 // each ring differs from its neighbour by exactly one class, the whole hill is
 // climbable (see canStep). Tile tops stay discrete so neighbouring boxes stay
 // flush (no grid seams).
-const PLATEAUS: ReadonlyArray<{ x: number; z: number; r: number; peak: number }> = [
-  { x: 40, z: 30, r: 3, peak: 3 }, // NW frontier grass
-  { x: 100, z: 34, r: 4, peak: 4 }, // NE frontier
-  { x: 52, z: 80, r: 4, peak: 4 }, // S grass
-  { x: 96, z: 78, r: 5, peak: 5 }, // SE big hill
-  { x: 30, z: 64, r: 4, peak: 4 }, // W grass
-]
+//
+// Trimmed to EMPTY for the five-big-biome layout: the SNOW/DESERT/ROCK/FOREST/
+// SWAMP blobs (r 32–38) now crowd the frontier so tightly there is no clear
+// grass pocket outside the castle safe-zone wide enough for a hill — any plateau
+// would poke out of a biome. Re-add entries here if the layout opens up.
+const PLATEAUS: ReadonlyArray<{ x: number; z: number; r: number; peak: number }> = []
 /** Plateau height class at (x,z): 0 = none, else 2..peak stepped by distance
  *  to the hill centre (concentric terraces, foot=2, core=peak). One class per
  *  ~one tile of distance keeps every neighbour within Δ1 → climbable. */
@@ -162,12 +161,19 @@ export function getRiverZ(x: number): number {
   return riverZ(x)
 }
 
-// Deliberate biome regions arranged in a ring around the centred castle, with
-// several mountain masses pushed out toward the map edges (more mountains, not
-// forced into a continuous rim). Each region is a soft blob (radius + noise
-// wobble) so the edges read organically. Mountains (rock/snow) carry a `peak`
-// height class; a gentle climbable apron rises into a steep, partly-cliffed core
-// (see mountainHeight). The grass interior (safe-zone) holds the castle.
+// FIVE large, distinct biome regions — one per quadrant around the centred
+// castle, each well beyond the flat-grass safe-zone:
+//   SNOW   NW — a TALL icy massif (mountain, big white peak)
+//   DESERT NE — vast flat dunes (height 1, big footprint)
+//   ROCK   E  — a TALL jagged range (mountain, big snow-capped peak)
+//   FOREST SW — dense low wood (height 1, big footprint)
+//   SWAMP  S  — murky marsh (height 1, big footprint)
+// Each region is a soft blob (radius + noise wobble) so the edges read
+// organically; where two blobs overlap, regionAt picks the DEEPER one. The
+// mountains (snow/rock) carry a `peak` height class and a steep quadratic core
+// (real Δ≥2 cliffs) with ONE carved climbable ramp to the summit (see
+// mountainHeight / rampClass). The grass interior (safe-zone) holds the castle,
+// and a grass frontier ring fills the gaps between the five blobs.
 interface Region {
   x: number
   z: number
@@ -179,25 +185,27 @@ interface Region {
    *  omitted the ramp faces the castle (the approach side). See rampClass. */
   rampAng?: number
 }
-// Biomes are larger than the first pass (the map read as mostly grass): the
-// non-mountain blobs are widened so the biome ring crowds the grass belt, and
-// the mountains are both taller (higher peaks) and broader. Each still sits
-// beyond the castle safe-zone, which is forced flat-grass first regardless.
+// Mountain (peak,r) pairs satisfy the ramp-feasibility rule r/(peak-2) ≥ ~1.6
+// so the strict one-class staircase ramp always reaches the summit:
+//   SNOW : peak 13, r 18 → stepLen 18/11 = 1.64 ✓
+//   ROCK : peak 13, r 18 → stepLen 18/11 = 1.64 ✓
+// The mountains are deliberately small + short now (r 18, much less map than the
+// old r 36–38 massifs) and ASYMMETRIC: the rampClass corridor carves the one
+// guaranteed climbable path while the quadratic core fractures into Δ≥2 cliff
+// faces on every other side. The flat biomes keep their big radii (32–34) so
+// they fill their quadrant. Some organic edge overlap between neighbours is
+// intentional.
 const REGIONS: Region[] = [
-  // Inner ring around the castle — biomes set back beyond the safe-zone.
-  { x: 28, z: 22, r: 24, biome: 'snow', peak: 10 }, // NW snow massif (taller)
-  { x: 110, z: 24, r: 26, biome: 'desert' }, // NE dunes (wider)
-  { x: 34, z: 78, r: 23, biome: 'forest' }, // SW deep wood (N of the river mouth)
-  { x: 116, z: 86, r: 26, biome: 'forest' }, // SE pinewood (wider)
-  { x: 72, z: 94, r: 23, biome: 'swamp' }, // S marsh (wider)
-  // Mountain ranges spread around + out toward the edges — higher + broader, so
-  // they carry real cliffs while a carved ramp keeps one route to each summit.
-  { x: 18, z: 54, r: 20, biome: 'rock', peak: 11 }, // W range
-  { x: 124, z: 56, r: 21, biome: 'rock', peak: 11 }, // E range
-  { x: 72, z: 12, r: 18, biome: 'rock', peak: 9 }, // N range
-  { x: 136, z: 14, r: 14, biome: 'rock', peak: 8 }, // NE corner peaks
-  { x: 10, z: 96, r: 15, biome: 'rock', peak: 8 }, // SW corner peaks
-  { x: 96, z: 10, r: 15, biome: 'snow', peak: 9 }, // N snow extension
+  // NW — compact snow peak (white from foot to summit; see Terrain SNOW_CAP_HEIGHT).
+  { x: 26, z: 24, r: 18, biome: 'snow', peak: 13 },
+  // NE — vast flat dunes.
+  { x: 112, z: 28, r: 34, biome: 'desert' },
+  // E — compact jagged rock peak (snow-capped summit).
+  { x: 122, z: 58, r: 18, biome: 'rock', peak: 13 },
+  // SW — dense low wood.
+  { x: 32, z: 80, r: 34, biome: 'forest' },
+  // S — murky marsh.
+  { x: 72, z: 92, r: 32, biome: 'swamp' },
 ]
 
 /** True if (x,z) falls inside (or just outside) any mountain region blob

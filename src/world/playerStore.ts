@@ -19,7 +19,7 @@ import {
   BLOCK_REDUCTION,
 } from './blockStore'
 
-export const PLAYER_MAX_HP = 100
+export const PLAYER_MAX_HP = 125
 // Player boots at the centred castle (just south of the keep, inside the walls).
 export const PLAYER_SPAWN = { x: 72, y: 1, z: 58 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
@@ -49,6 +49,17 @@ export interface PlayerLive {
   xpToNext: number
   attackDamage: number
   levelUpFlashUntil: number
+  // ─── Upgrade-tree combat/economy flags (read per-frame in useFrame) ───
+  /** Crit Strike: chance [0..1] a swing deals 2× damage. */
+  critChance: number
+  /** Lifesteal: HP healed on a player kill (0 = off). */
+  lifesteal: number
+  /** Swift Boots: movement-speed multiplier (1 = base). */
+  moveSpeedMult: number
+  /** Cleave: fraction of damage splashed to nearby orks (0 = off). */
+  cleave: number
+  /** Bounty: multiplier on gold awarded from a kill (1 = base). */
+  bountyMult: number
 }
 
 const state: PlayerLive = {
@@ -67,6 +78,11 @@ const state: PlayerLive = {
   xpToNext: XP_FIRST_LEVEL,
   attackDamage: PLAYER_BASE_DAMAGE,
   levelUpFlashUntil: 0,
+  critChance: 0,
+  lifesteal: 0,
+  moveSpeedMult: 1,
+  cleave: 0,
+  bountyMult: 1,
 }
 
 // Dev-only: expose the live player state so profiling scripts can teleport the
@@ -130,7 +146,7 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
       dmg = dmg * (1 - BLOCK_REDUCTION)
       absorbBlockedHit()
       playBlock()
-      addShake(0.1, 0.14)
+      addShake(0.1)
       spawnFloat('BLOCK', '#bcd4ff', state.x, state.y + 2.4, state.z)
     }
   }
@@ -151,7 +167,7 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
   } else {
     playPlayerHurtVoice()
   }
-  addShake(state.hp <= 0 ? 0.5 : 0.22, state.hp <= 0 ? 0.5 : 0.25)
+  addShake(state.hp <= 0 ? 0.5 : 0.22)
   notifyHp()
 }
 
@@ -172,6 +188,11 @@ export function resetPlayer(): void {
   state.xpToNext = XP_FIRST_LEVEL
   state.attackDamage = PLAYER_BASE_DAMAGE
   state.levelUpFlashUntil = 0
+  state.critChance = 0
+  state.lifesteal = 0
+  state.moveSpeedMult = 1
+  state.cleave = 0
+  state.bountyMult = 1
   state.facing = Math.PI
   resetBlock()
   resetBuffs()
@@ -256,9 +277,60 @@ export function bumpAttackDamage(n: number): void {
   notifyStats()
 }
 
+// ─── Upgrade-tree combat/economy flags ──────────────────────────────────
+// Setters are discrete purchase events (toggle once), so they're cheap; the
+// getters are read per-frame in Character.useFrame and never notify.
+export function getCritChance(): number {
+  return state.critChance
+}
+export function setCritChance(n: number): void {
+  state.critChance = n
+}
+
+export function getLifesteal(): number {
+  return state.lifesteal
+}
+export function setLifesteal(n: number): void {
+  state.lifesteal = n
+}
+
+export function getMoveSpeedMult(): number {
+  return state.moveSpeedMult
+}
+export function setMoveSpeedMult(n: number): void {
+  state.moveSpeedMult = n
+}
+
+export function getCleave(): number {
+  return state.cleave
+}
+export function setCleave(n: number): void {
+  state.cleave = n
+}
+
+export function getBountyMult(): number {
+  return state.bountyMult
+}
+export function setBountyMult(n: number): void {
+  state.bountyMult = n
+}
+
+/**
+ * Pure crit roll. Given a base damage, a crit chance [0..1] and a random sample
+ * `r` (defaults to Math.random()), returns the final damage and whether it crit
+ * (2× on crit). Kept pure so the math is unit-testable.
+ */
+export function rollCrit(
+  baseDamage: number,
+  critChance: number,
+  r: number = Math.random(),
+): { damage: number; crit: boolean } {
+  const crit = r < critChance
+  return { damage: crit ? baseDamage * 2 : baseDamage, crit }
+}
+
 /** Grants xp and resolves any resulting level-ups (heals to full, raises stats). */
 export function addXp(n: number): void {
-  if (state.hp <= 0) return
   state.xp += n
   let leveled = false
   while (state.xp >= state.xpToNext) {
@@ -266,14 +338,18 @@ export function addXp(n: number): void {
     state.level += 1
     state.maxHp += HP_PER_LEVEL
     state.attackDamage += DAMAGE_PER_LEVEL
-    state.hp = state.maxHp // level-up fully heals
+    // Level-up fully heals — but NEVER while dead: a kill's XP can land (via
+    // reward orbs) just after a fatal blow, and healing here would revive the
+    // corpse mid-succession. respawnPlayerAt restores hp to the new maxHp, so
+    // the earned progression still pays out on the heir.
+    if (state.hp > 0) state.hp = state.maxHp
     state.xpToNext = XP_FIRST_LEVEL * state.level
     leveled = true
   }
   if (leveled) {
     state.levelUpFlashUntil = performance.now() * 0.001 + 1.2
     playLevelUpFanfare()
-    addShake(0.2, 0.3)
+    addShake(0.2)
     notifyHp()
   }
   notifyStats()

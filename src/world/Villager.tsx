@@ -246,7 +246,10 @@ export function VillagerView({ state }: Props) {
         if (!attacking && inMelee && tNow >= state.attackReadyAt) {
           state.attackingSince = tNow
           state.attackHitDealt = false
-          if (Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z) < 12) playSwing()
+          // NPC combat fades with distance and is capped below the hero's own
+          // swing, so a fight across the field doesn't blast at full volume.
+          const pd = Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z)
+          playSwing(Math.max(0, 1 - pd / 16) * 0.7)
         }
         // Chase the foe, or hold ground once in melee.
         state.targetX = inMelee ? state.x : foe.x
@@ -264,7 +267,8 @@ export function VillagerView({ state }: Props) {
               if (dist <= GUARD_MELEE + 0.4) {
                 const dmg = armorTier > 0 ? GUARD_DAMAGE_ARMORED : GUARD_DAMAGE
                 foe.hit(dmg, tNow)
-                if (Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z) < 12) playHit()
+                const pd = Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z)
+                playHit(Math.max(0, 1 - pd / 16) * 0.7)
                 spawnFloat(`-${dmg}`, '#ffe6a8', foe.x, foe.y + 2.0, foe.z)
               }
             }

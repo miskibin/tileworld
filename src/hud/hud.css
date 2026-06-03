@@ -1034,6 +1034,48 @@
   background: linear-gradient(90deg, #6fd0ff, #2a8fd6);
   transition: width 0.2s linear;
 }
+
+/* ── Keep-under-attack alert (raised while the keep is taking damage) ── */
+.keep-alert {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ff5a48;
+  text-shadow: 0 0 8px rgba(255, 60, 40, 0.85);
+  animation: keep-alert-pulse 0.7s ease-in-out infinite;
+}
+@keyframes keep-alert-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+.castle-hp.is-hit .castle-hp-fill {
+  background: linear-gradient(90deg, #ff8a5a, #d6342a);
+}
+.castle-hp.is-hit .castle-hp-track {
+  border-color: rgba(255, 80, 60, 0.95);
+  box-shadow: 0 0 8px rgba(255, 60, 40, 0.7);
+}
+.objective-banner.is-alarm {
+  animation: keep-banner-pulse 0.7s ease-in-out infinite;
+}
+@keyframes keep-banner-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 50, 40, 0); }
+  50% { box-shadow: 0 0 14px rgba(255, 50, 40, 0.6); }
+}
+/* Peripheral red pulse so an attack is felt even when looking away from the HUD */
+.keep-alert-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: inset 0 0 130px 24px rgba(214, 40, 30, 0.55);
+  animation: keep-vignette-pulse 0.7s ease-in-out infinite;
+}
+@keyframes keep-vignette-pulse {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.7; }
+}
 .defeat-screen .victory-title {
   color: #ff6a5a;
 }

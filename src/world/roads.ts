@@ -13,36 +13,40 @@ export interface RoadBridge {
   toZ: number
 }
 
-// Waypoints in grid coords. Roads emanate from the four castle gates
-// (N 57,24 · S 57,42 · W 44,33 · E 70,33), starting one tile outside, and
-// branch out to the biome regions.
+// Waypoints in grid coords. Roads emanate from the four castle gates of the
+// re-centred castle (cityPlan GATE_SLOTS: N 72,45 · S 72,63 · W 59,54 ·
+// E 85,54), starting one tile outside, and radiate toward the FIVE big biomes
+// and the ork camps re-derived for the new layout (see ORK_CAMPS in
+// obstacles.ts): SNOW NW · DESERT NE · ROCK E · FOREST SW · SWAMP S.
+// Every consecutive pair is axis-aligned; routes were traced to stay on land
+// (scripts/probe-road.mjs), bridging any river crossing.
 const ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
-  // South gate → southern trunk → swamp (SW) / pine (SE)
-  [[57, 43], [57, 49]],
-  [[57, 49], [20, 49], [20, 55]],
-  [[57, 49], [74, 49], [74, 53]],
-  // North gate → northern trunk (crosses the E-W river) → snow (NW) / desert (NE).
-  // The branch runs at z12, north of the E-W river, so corners stay on land.
-  [[57, 23], [57, 12]],
-  [[57, 12], [20, 12]],
-  [[57, 12], [78, 12]],
-  // West gate → forest (W) — crosses the N-S river
-  [[43, 33], [16, 33], [16, 38]],
-  // East gate → stone highlands (E)
-  [[71, 33], [82, 33], [82, 37]],
-  // Spurs off the trunks to the landmarks — more trails, not wider ones.
-  // South trunk → market stall (S gate).
-  [[57, 45], [62, 45]],
-  // West road → western hamlet.
-  [[27, 33], [27, 30]],
-  // North trunk → north warcamp.
-  [[50, 12], [50, 15]],
-  // North branch → NE ork camp.
-  [[76, 12], [76, 20]],
-  // South branch → into SE ork camp.
-  [[74, 53], [71, 53]],
-  // Southern trunk → into SW ork camp.
-  [[20, 52], [24, 52]],
+  // ── North gate (72,44 outside) → northern trunk between snow & desert ──
+  [[72, 44], [72, 26]],
+  // North trunk → north ork camp (snow/desert frontier).
+  [[72, 26], [74, 26]],
+  // North trunk → NW snow foot.
+  [[72, 30], [60, 30]],
+  // North trunk → NE desert / east camp.
+  [[72, 30], [90, 30], [90, 42]],
+
+  // ── South gate (72,64 outside) → southern trunk toward the swamp ──
+  [[72, 64], [72, 84]],
+  // South trunk → SW forest + forest ork camp (crosses no water on this line).
+  [[72, 72], [44, 72], [44, 64]],
+
+  // ── West gate (58,54 outside) → SW forest (heads into the wood) ──
+  [[58, 54], [42, 54], [42, 66], [36, 66]],
+
+  // ── East gate (86,54 outside) → desert/rock foot + east ork camp ──
+  // Steps north off the cliffy gate apron onto flat desert before heading east.
+  [[86, 54], [86, 46], [92, 46], [92, 44]],
+
+  // ── Spurs to landmarks (more trails, not wider ones) ──
+  // South gate → market stall just outside the wall.
+  [[72, 66], [68, 66], [68, 71]],
+  // North trunk → NW frontier hamlet.
+  [[72, 32], [66, 32]],
 ]
 
 interface RoadData {

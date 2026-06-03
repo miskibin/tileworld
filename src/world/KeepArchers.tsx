@@ -11,7 +11,7 @@ import { isFrozen } from './pauseStore'
 // auto-fire defender bolts at the nearest ork in range. Logic mirrors Towers;
 // the figures are static low-poly props (cheap — they never move).
 
-const ARCHER = { range: 20, damage: 7, cooldown: 1.3, maxRange: 26 }
+const ARCHER = { range: 13, damage: 6, cooldown: 1.7, maxRange: 16 }
 // Keep roof deck height, in the keep's *scaled* space (keep block 0.3 + 1.9 tall,
 // squashed by the keep group's Y-scale). Archers stand here so they sit on the
 // roof rather than floating above it — keep this in sync with the Keep scale.

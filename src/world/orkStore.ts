@@ -12,6 +12,9 @@ export interface OrkState {
   hp: number
   maxHp: number
   hurtFlashUntil: number
+  /** transient knockback velocity (grid units/sec), decays to 0; applied on hit */
+  kbVX: number
+  kbVZ: number
   /** which variant (grunt/scout/berserker/shaman) — drives stats + look */
   variant: OrkVariant
   /** warband; orks fight rival-faction orks */
@@ -85,6 +88,8 @@ export function createOrk(
     hp: cfg.hp,
     maxHp: cfg.hp,
     hurtFlashUntil: 0,
+    kbVX: 0,
+    kbVZ: 0,
     variant,
     faction,
     home,
@@ -143,6 +148,15 @@ export function damageOrk(o: OrkState, amount: number, now: number): boolean {
   o.hp = Math.max(0, o.hp - amount)
   o.hurtFlashUntil = now + 0.25
   return o.hp <= 0
+}
+
+/** Shove an ork along (dirX,dirZ) at `strength` grid-units/sec — decays in Ork's
+ * useFrame. Direction is normalised here so callers can pass a raw hero→ork delta. */
+export function knockbackOrk(o: OrkState, dirX: number, dirZ: number, strength: number): void {
+  if (o.hp <= 0) return
+  const len = Math.hypot(dirX, dirZ) || 1
+  o.kbVX = (dirX / len) * strength
+  o.kbVZ = (dirZ / len) * strength
 }
 
 /**

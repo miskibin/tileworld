@@ -9,7 +9,10 @@
       "Bash(git commit -m '@ *)",
       "Bash(git commit *)",
       "Bash(rm .git/COMMIT_MSG_TMP.txt)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(findstr /R /S \"useFrame\" src\\\\world\\\\*.tsx)",
+      "Bash(Get-Content -Path \"D:\\\\tileworld\\\\src\\\\world\\\\Character.tsx\")",
+      "Bash(Select-String \"spawnFloat\" -Context 1)"
     ]
   }
 }

@@ -32,8 +32,13 @@ try {
   })
   await page.goto(`http://localhost:${port}/`, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForFunction(() => !!window.__r3f && !!window.__charpos, { timeout: 120000 }).catch(() => {})
+  // Let the at-load ShaderWarmup finish AT THE MENU first: it waits for the HDRI
+  // env, then drives a whole-map render for several frames. Press Play only after,
+  // so travel-phase compiles aren't conflated with the warm-up's compiles.
+  await page.waitForFunction(() => window.__r3f?.scene?.environment != null, { timeout: 20000 }).catch(() => {})
+  await page.waitForTimeout(5000)
   await page.evaluate(() => { const el = [...document.querySelectorAll('*')].find((e) => /^\s*▶?\s*Play\s*▶?\s*$/i.test(e.textContent || '') && e.children.length <= 1); el && el.click() })
-  await page.waitForTimeout(4500)
+  await page.waitForTimeout(1200)
   const loadCount = await page.evaluate(() => window.__links.length)
 
   // Patch Material.prototype.needsUpdate setter to capture WHO sets it during travel.

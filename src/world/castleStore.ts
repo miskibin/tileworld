@@ -5,7 +5,7 @@ import { addShake } from './fxStore'
 // The keep is the thing you defend. Orks march to CASTLE_CORE and chip its HP;
 // at 0 the run is lost. Hand-rolled store, same shape as playerStore.
 export const CASTLE_CORE = { x: CITY_CENTER.x, z: CITY_CENTER.z } as const
-export const CASTLE_MAX_HP = 500
+export const CASTLE_MAX_HP = 650
 
 /** Extra max HP granted by the Reinforced Keep upgrade. */
 export const REINFORCED_BONUS_HP = 350
@@ -37,7 +37,7 @@ export function damageCastle(amount: number): void {
   if (state.hp <= 0) return
   state.hp = Math.max(0, state.hp - amount)
   state.hurtFlashUntil = performance.now() * 0.001 + 0.18
-  addShake(0.25, 0.3)
+  addShake(0.25)
   notify()
   if (state.hp <= 0 && getPhase() === 'wave') setPhase('defeat')
 }

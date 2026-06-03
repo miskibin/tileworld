@@ -37,6 +37,26 @@ const TUFT_MAT = new THREE.MeshStandardMaterial({ color: '#3aa044', roughness: 1
 const CACTUS_MAT = new THREE.MeshStandardMaterial({ color: '#3e8b3e', roughness: 0.85, flatShading: true })
 const CACTUS_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#2f6a2f', roughness: 0.9, flatShading: true })
 
+// Ice shard (snow): pale translucent crystal spires + a frosted base dusting.
+const ICE_MAT = new THREE.MeshStandardMaterial({
+  color: '#bfe4f5',
+  roughness: 0.25,
+  metalness: 0.05,
+  transparent: true,
+  opacity: 0.85,
+  flatShading: true,
+})
+const ICE_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#8fc4dd', roughness: 0.3, flatShading: true })
+
+// Bones (desert): sun-bleached skull + ribs, lying on the sand.
+const BONE_MAT = new THREE.MeshStandardMaterial({ color: '#e8e0cc', roughness: 0.95, flatShading: true })
+const BONE_SHADOW_MAT = new THREE.MeshStandardMaterial({ color: '#cfc4a6', roughness: 1, flatShading: true })
+
+// Reeds (swamp): tall thin marsh blades + brown cattail tips.
+const REED_MAT = new THREE.MeshStandardMaterial({ color: '#6b8a44', roughness: 1, flatShading: true })
+const REED_DARK_MAT = new THREE.MeshStandardMaterial({ color: '#4f6c34', roughness: 1, flatShading: true })
+const CATTAIL_MAT = new THREE.MeshStandardMaterial({ color: '#7a4a2a', roughness: 1, flatShading: true })
+
 const STEM_MAT = new THREE.MeshStandardMaterial({ color: '#f0e8d0', roughness: 0.9 })
 const RED_CAP_MAT = new THREE.MeshStandardMaterial({ color: '#c83838', roughness: 0.9, flatShading: true })
 const BROWN_CAP_MAT = new THREE.MeshStandardMaterial({ color: '#8a5a3a', roughness: 0.9, flatShading: true })
@@ -198,6 +218,43 @@ const PARTS: Record<string, Part[]> = {
     { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.07, 0.2, 6), [-0.17, 0.28, 0], [0, 0, Math.PI / 2]), mat: CACTUS_MAT, castShadow: true },
     { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.07, 0.2, 6), [-0.27, 0.38, 0]), mat: CACTUS_MAT, castShadow: true },
     { geo: bake(() => new THREE.SphereGeometry(0.06, 6, 5), [-0.27, 0.48, 0]), mat: CACTUS_DARK_MAT, castShadow: true },
+  ],
+  // Ice shard — a cluster of angular crystal spires jutting from a frosted base.
+  // Tall pointed cones (low radial segs → faceted), so it reads icy and sharp.
+  iceShard: [
+    // Frosted base dusting at ground level (snow tone, no shadow — flat on ground).
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.16, 0), [0, 0.02, 0]), mat: ICE_DARK_MAT },
+    // Main spire.
+    { geo: bake(() => new THREE.ConeGeometry(0.1, 0.5, 4), [0, 0.27, 0]), mat: ICE_MAT, castShadow: true },
+    // Two leaning side spires.
+    { geo: bake(() => new THREE.ConeGeometry(0.07, 0.34, 4), [0.13, 0.18, 0.05], [0, 0.6, 0.35]), mat: ICE_MAT, castShadow: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.06, 0.26, 4), [-0.12, 0.14, -0.04], [0, -0.4, -0.3]), mat: ICE_MAT, castShadow: true },
+  ],
+  // Bones — a sun-bleached skull + a small fan of ribs half-buried in sand.
+  // Lies flat (low profile), so it casts a soft shadow but blocks nothing.
+  bones: [
+    // Skull dome.
+    { geo: bake(() => new THREE.SphereGeometry(0.1, 7, 5, 0, Math.PI * 2, 0, Math.PI / 1.6), [-0.12, 0.07, 0]), mat: BONE_MAT, castShadow: true },
+    // Snout / jaw block.
+    { geo: bake(() => new THREE.BoxGeometry(0.1, 0.06, 0.08), [-0.02, 0.05, 0]), mat: BONE_SHADOW_MAT, castShadow: true },
+    // Eye sockets.
+    { geo: bake(() => new THREE.SphereGeometry(0.022, 5, 4), [-0.13, 0.09, 0.05]), mat: BONE_SHADOW_MAT },
+    { geo: bake(() => new THREE.SphereGeometry(0.022, 5, 4), [-0.13, 0.09, -0.05]), mat: BONE_SHADOW_MAT },
+    // Rib arcs fanning out from the skull (thin half-buried cylinders).
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.012, 0.22, 5), [0.1, 0.03, 0.08], [0.5, 0, Math.PI / 2]), mat: BONE_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.012, 0.24, 5), [0.16, 0.03, 0], [0, 0, Math.PI / 2]), mat: BONE_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.012, 0.22, 5), [0.1, 0.03, -0.08], [-0.5, 0, Math.PI / 2]), mat: BONE_MAT, castShadow: true },
+  ],
+  // Reeds — a clump of tall thin marsh blades with a couple of brown cattail
+  // heads. Flimsy low growth: walk-through, casts a light shadow.
+  reeds: [
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.02, 0.6, 4), [0, 0.3, 0], [0.08, 0, 0.05]), mat: REED_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.02, 0.52, 4), [0.07, 0.26, 0.04], [0.05, 0, -0.18]), mat: REED_DARK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.012, 0.02, 0.46, 4), [-0.06, 0.23, -0.03], [-0.1, 0, 0.2]), mat: REED_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.01, 0.016, 0.4, 4), [0.04, 0.2, -0.06], [0.15, 0, 0.12]), mat: REED_DARK_MAT, castShadow: true },
+    // Cattail heads.
+    { geo: bake(() => new THREE.CylinderGeometry(0.028, 0.028, 0.1, 6), [0.01, 0.58, 0.02]), mat: CATTAIL_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.024, 0.024, 0.08, 6), [0.09, 0.5, 0.05]), mat: CATTAIL_MAT, castShadow: true },
   ],
 }
 

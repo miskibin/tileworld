@@ -13,6 +13,12 @@ export interface CityState {
   keepArchers: boolean
   /** global villager armour tier (0 = none); applies to all villagers */
   villagerArmorTier: number
+  /** Ballista — heavy single-target turret outside the north gate */
+  ballistaBuilt: boolean
+  /** Healing Shrine — regenerates player HP while inside the city */
+  shrineBuilt: boolean
+  /** Tax Office — pays a gold stipend each time a wave is cleared */
+  taxOffice: boolean
 }
 
 const state: CityState = {
@@ -23,6 +29,9 @@ const state: CityState = {
   farmBuilt: false,
   keepArchers: false,
   villagerArmorTier: 0,
+  ballistaBuilt: false,
+  shrineBuilt: false,
+  taxOffice: false,
 }
 
 const subs = new Set<(s: CityState) => void>()
@@ -78,6 +87,21 @@ export function bumpVillagerArmor(): void {
   notify()
 }
 
+export function setBallistaBuilt(v: boolean): void {
+  state.ballistaBuilt = v
+  notify()
+}
+
+export function setShrineBuilt(v: boolean): void {
+  state.shrineBuilt = v
+  notify()
+}
+
+export function setTaxOffice(v: boolean): void {
+  state.taxOffice = v
+  notify()
+}
+
 export function resetCity(): void {
   state.housesBuilt = 0
   state.wallsBuilt = false
@@ -86,5 +110,8 @@ export function resetCity(): void {
   state.farmBuilt = false
   state.keepArchers = false
   state.villagerArmorTier = 0
+  state.ballistaBuilt = false
+  state.shrineBuilt = false
+  state.taxOffice = false
   notify()
 }

@@ -11,23 +11,31 @@ import { spawnImpact } from './impactStore'
 import { spawnPickup } from './pickupStore'
 import { getWeaponBonus, getInventory, subscribeInventory, ITEM_DEFS } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
-import { damageOrk, getAliveOrks, orkCollidesAt } from './orkStore'
+import { damageOrk, knockbackOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
 import { damageAnimal, getAliveAnimals, animalCollidesAt } from './animalStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
 import {
-  addGold,
-  addXp,
   damagePlayer,
   getAttackDamage,
   getPlayer,
   respawnPlayerAt,
   setPlayerPos,
   XP_PER_ORK,
+  getCritChance,
+  getLifesteal,
+  getMoveSpeedMult,
+  getCleave,
+  getBountyMult,
+  healPlayer,
+  rollCrit,
 } from './playerStore'
 import { isFrozen } from './pauseStore'
+import { triggerHitStop, getTimeScale, resetHitStop } from './hitStopStore'
+import { orkBountyGold, orkBountyXp } from './orkConfig'
+import { spawnOrbs } from './orbStore'
 import { getDamageDealtMult, getSpeedMult } from './buffStore'
 import { setVisionPlayerPos } from './vision'
 import { nearestVillager, removeVillager } from './villagerStore'
@@ -138,6 +146,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Attack state — left-click triggers a single swing.
   const attackProcessed = useRef(0)
   const attacking = useRef(false)
+  // Swing timer runs on a hit-stop-scaled clock (not wall-clock), so the swing
+  // animation actually hangs on the blow during hit-stop instead of sweeping on.
+  const attackClock = useRef(0)
   const attackStart = useRef(0)
   const attackHitDealt = useRef(false)
 
@@ -147,6 +158,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const successionStarted = useRef(false)
   const deathAt = useRef(0)
   const heir = useRef<{ x: number; y: number; z: number } | null>(null)
+
+  // Clear any lingering hit-stop when the world unmounts (new game / restart) so
+  // a freeze triggered on the last frame can't carry getTimeScale()=0 into the
+  // next run's first frames. Matches the unmount-reset pattern of Orbs/Projectiles.
+  useEffect(() => () => resetHitStop(), [])
 
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
@@ -204,12 +220,18 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const camRight = useMemo(() => new THREE.Vector3(), [])
   const moveDir = useMemo(() => new THREE.Vector3(), [])
 
-  useFrame((rfState, dt) => {
+  useFrame((rfState, dtRaw) => {
     if (isFrozen()) {
       // Discard any clicks queued while paused so user doesn't auto-swing on resume.
       attackProcessed.current = attackClickCount
       return
     }
+    // Hit-stop: dt collapses to ~0 for a few frames after a connect so movement /
+    // swing animation hang on the blow while the renderer keeps drawing.
+    const dt = dtRaw * getTimeScale()
+    // Swing clock advances on the hit-stop-scaled dt, so getTimeScale()=0 holds
+    // the in-progress swing frozen for the duration of the freeze.
+    attackClock.current += dt
     const tNow = performance.now() * 0.001
     const player = getPlayer()
 
@@ -232,7 +254,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           heir.current = { x: v.x, y: v.y, z: v.z }
           removeVillager(v.id) // this townsperson takes up the blade
           startSoul({ fromX: dx, fromY: dy, fromZ: dz, toX: v.x, toY: v.y, toZ: v.z, startAt: tNow })
-          addShake(0.18, 0.3)
+          addShake(0.5)
         } else {
           heir.current = null // no one left — the line ends
         }
@@ -318,7 +340,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // ─── Apply motion with axis-separated collision (tile + props) ──
     const sprinting = moving && k.sprint
     if (moving) {
-      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * dt
+      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * getMoveSpeedMult() * dt
       const nx = pos.current.x + moveDir.x * step
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
@@ -413,7 +435,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       const half = Math.floor(wp / Math.PI)
       if (half !== lastStepHalfCycle.current) {
         lastStepHalfCycle.current = half
-        void playSfx('/audio/footstep-stone.mp3', 0.015, 0.12)
+        // Surface-matched footstep: snow on the icy massif, stone on rock
+        // highlands, soft dirt everywhere else.
+        const b = tileBelow?.biome
+        const stepClip =
+          b === 'snow' ? '/audio/footstep-snow.mp3'
+          : b === 'rock' ? '/audio/footstep-stone.mp3'
+          : '/audio/footstep-dirt.mp3'
+        void playSfx(stepClip, 0.015, 0.12)
       }
     } else {
       lastStepHalfCycle.current = Math.floor(wp / Math.PI)
@@ -441,9 +470,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     } else if (!attacking.current && attackClickCount > attackProcessed.current) {
       attackProcessed.current = attackClickCount
       attacking.current = true
-      attackStart.current = t
+      attackStart.current = attackClock.current
       attackHitDealt.current = false
-      playSwing()
+      // Whoosh is deferred to hit-resolution: a connecting strike plays the
+      // impact alone, a whiff plays the empty-swing whoosh. (grunt still here.)
       playPlayerAttack()
     }
 
@@ -455,7 +485,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     let attackSwordZ: number | null = null
     let attackBodyTwist = 0
     if (attacking.current) {
-      const phase = (t - attackStart.current) / ATTACK_DURATION
+      const phase = (attackClock.current - attackStart.current) / ATTACK_DURATION
       if (phase >= 1) {
         attacking.current = false
       } else {
@@ -495,7 +525,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           // the hit-flash decays in 0.25s instead of staying stuck (which flipped
           // bears upside down via the recoil rotation).
           const hitT = rfState.clock.getElapsedTime()
-          const dmg = Math.round((getAttackDamage() + getWeaponBonus()) * getDamageDealtMult())
+          // Roll crit once per swing — the whole strike crits or it doesn't.
+          const baseDmg = (getAttackDamage() + getWeaponBonus()) * getDamageDealtMult()
+          const { damage: critDmg, crit: didCrit } = rollCrit(baseDmg, getCritChance())
+          const dmg = Math.round(critDmg)
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
           let hitAny = false
@@ -511,7 +544,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             hitAny = true
             if (died) killedAny = true
           }
-          for (const ork of getAliveOrks()) {
+          // Primary cone hits — track who was struck so Cleave can splash to
+          // neighbours without double-hitting these.
+          const bounty = getBountyMult()
+          const lifesteal = getLifesteal()
+          const orkList = getAliveOrks()
+          const directHits: typeof orkList = []
+          for (const ork of orkList) {
             const vx = ork.x - pos.current.x
             const vz = ork.z - pos.current.z
             const dist = Math.hypot(vx, vz)
@@ -520,6 +559,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (dot < ATTACK_CONE_DOT) continue
             const died = damageOrk(ork, dmg, hitT)
             hitAny = true
+            directHits.push(ork)
+            if (!died) knockbackOrk(ork, vx, vz, didCrit ? 6 : 4)
             spawnImpact(ork.x, ork.y + 1.0, ork.z, {
               color: died ? '#fff0b0' : '#ffcf6a',
               count: died ? 16 : 8,
@@ -528,12 +569,59 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             })
             if (died) {
               killedAny = true
-              addGold(8) // bounty for an ork
-              addXp(XP_PER_ORK)
-              spawnFloat('+8 ★', '#ffd58c', ork.x, ork.y + 2.4, ork.z)
-              spawnFloat(`+${XP_PER_ORK} XP`, '#62c6e8', ork.x - 0.3, ork.y + 2.0, ork.z)
+              if (lifesteal > 0) healPlayer(lifesteal)
+              // Reward scales with the ork's variant (a shaman pays more than a
+              // grunt) — read from orkConfig so tougher kills are worth more.
+              const gold = orkBountyGold(ork.variant, bounty)
+              const xp = orkBountyXp(ork.variant)
+              // Reward now bursts out as orbs that home to the hero; gold/XP land
+              // when each orb arrives (see orbStore), so the HUD counter races up.
+              spawnOrbs('gold', ork.x, ork.y + 0.9, ork.z, Math.max(2, Math.min(4, Math.round(gold / 4))), gold)
+              spawnOrbs('xp', ork.x, ork.y + 0.9, ork.z, 4, xp)
+            } else if (didCrit) {
+              spawnFloat(`${dmg}!`, '#ffd24a', ork.x, ork.y + 2.2, ork.z, 1.6)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', ork.x, ork.y + 2.2, ork.z)
+            }
+          }
+
+          // ─── Cleave: splash 50% to orks beside any orks we directly hit ──
+          const cleaveFrac = getCleave()
+          if (cleaveFrac > 0 && directHits.length > 0) {
+            const cleaveDmg = Math.round(dmg * cleaveFrac)
+            const CLEAVE_R2 = 2 * 2
+            for (const ork of orkList) {
+              if (ork.hp <= 0) continue
+              if (directHits.includes(ork)) continue // don't double-hit the primaries
+              let near = false
+              for (const hit of directHits) {
+                const ddx = ork.x - hit.x
+                const ddz = ork.z - hit.z
+                if (ddx * ddx + ddz * ddz <= CLEAVE_R2) {
+                  near = true
+                  break
+                }
+              }
+              if (!near) continue
+              const died = damageOrk(ork, cleaveDmg, hitT)
+              hitAny = true
+              if (!died) knockbackOrk(ork, ork.x - pos.current.x, ork.z - pos.current.z, 3)
+              spawnImpact(ork.x, ork.y + 1.0, ork.z, {
+                color: died ? '#fff0b0' : '#ffcf6a',
+                count: died ? 12 : 5,
+                spread: died ? 3.5 : 2.4,
+                up: died ? 1.8 : 1.2,
+              })
+              if (died) {
+                killedAny = true
+                if (lifesteal > 0) healPlayer(lifesteal)
+                const gold = orkBountyGold(ork.variant, bounty)
+                const xp = orkBountyXp(ork.variant)
+                spawnOrbs('gold', ork.x, ork.y + 0.9, ork.z, Math.max(2, Math.min(4, Math.round(gold / 4))), gold)
+                spawnOrbs('xp', ork.x, ork.y + 0.9, ork.z, 4, xp)
+              } else {
+                spawnFloat(`${cleaveDmg}`, '#cfd8ff', ork.x, ork.y + 2.2, ork.z)
+              }
             }
           }
           for (const bear of getAliveBears()) {
@@ -553,10 +641,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             })
             if (died) {
               killedAny = true
-              addGold(20) // bears are tougher — bigger bounty
-              addXp(XP_PER_ORK * 2)
-              spawnFloat('+20 ★', '#ffd58c', bear.x, bear.y + 2.6, bear.z)
-              spawnFloat(`+${XP_PER_ORK * 2} XP`, '#62c6e8', bear.x - 0.3, bear.y + 2.2, bear.z)
+              // Bears are tougher — bigger bounty, so a fatter burst of orbs.
+              spawnOrbs('gold', bear.x, bear.y + 1.0, bear.z, 5, 20)
+              spawnOrbs('xp', bear.x, bear.y + 1.0, bear.z, 5, XP_PER_ORK * 2)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', bear.x, bear.y + 2.4, bear.z)
             }
@@ -579,7 +666,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             if (died) {
               killedAny = true
               const c = ANIMAL_CONFIG[animal.species]
-              addGold(c.bountyGold)
+              spawnOrbs(
+                'gold',
+                animal.x,
+                animal.y + 0.8,
+                animal.z,
+                Math.max(2, Math.min(5, Math.round(c.bountyGold / 5))),
+                c.bountyGold,
+              )
               if (c.dropItemId && Math.random() < (c.dropChance ?? 1)) {
                 spawnPickup(c.dropItemId, animal.x, animal.y, animal.z)
               }
@@ -588,20 +682,25 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               if (c.dropItemId2 && Math.random() < (c.dropChance2 ?? 1)) {
                 spawnPickup(c.dropItemId2, animal.x + 0.5, animal.y, animal.z + 0.5)
               }
-              addXp(c.bountyXp)
-              spawnFloat(`+${c.bountyGold} ★`, '#ffd58c', animal.x, animal.y + 2.2, animal.z)
-              spawnFloat(`+${c.bountyXp} XP`, '#62c6e8', animal.x - 0.3, animal.y + 1.8, animal.z)
+              spawnOrbs('xp', animal.x, animal.y + 0.8, animal.z, 4, c.bountyXp)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', animal.x, animal.y + 2.0, animal.z)
             }
           }
-          // Combat juice: impact SFX + camera shake scaled to the outcome.
+          // Combat juice: impact SFX + camera shake + hit-stop scaled to the
+          // outcome. A kill freezes longer so a takedown lands with more weight.
           if (killedAny) {
             playKill()
-            addShake(0.32, 0.32)
+            addShake(0.55)
+            triggerHitStop(0.09)
           } else if (hitAny) {
             playHit()
-            addShake(0.16, 0.2)
+            addShake(0.3)
+            triggerHitStop(0.05)
+          } else {
+            // Whiffed — only now the empty-swing whoosh, so a connecting hit
+            // never stacks whoosh + impact.
+            playSwing()
           }
         }
       }
