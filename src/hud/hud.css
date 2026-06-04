@@ -1,9 +1,26 @@
+/* ---- Design tokens ----
+   One source of truth for the recurring HUD surfaces/accents so every panel
+   reads as one set. Floating panels use --panel-bg; modal cards (shop, pause,
+   upgrade tree) use the heavier --panel-bg-strong. */
+:root {
+  --panel-bg: rgba(20, 26, 38, 0.82);
+  --panel-bg-strong: rgba(18, 22, 32, 0.94);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --panel-blur: blur(4px);
+  --panel-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --modal-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --accent-gold: #ffd58c;
+  --accent-blue: #5a7fd6;
+  --text: #f3f3f5;
+  --text-dim: #9aa0ac;
+}
+
 .hud {
   position: absolute;
   inset: 0;
   pointer-events: none;
   font-family: 'Inter', system-ui, sans-serif;
-  color: #f3f3f5;
+  color: var(--text);
   user-select: none;
 }
 
@@ -256,12 +273,12 @@
   right: 18px;
   bottom: 18px;
   padding: 12px 14px 14px;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--panel-shadow);
   pointer-events: auto;
 }
 
@@ -311,7 +328,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   color: #c8cbd1;
@@ -342,7 +359,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 6px;
   color: #c8cbd1;
@@ -387,7 +404,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 213, 140, 0.5);
   border-radius: 6px;
   color: #ffd58c;
@@ -408,7 +425,7 @@
   position: relative;
   width: 240px;
   height: 20px;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   overflow: hidden;
@@ -417,6 +434,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Damage "chip": a pale band that lingers over the just-lost slice of HP, then
+   drains away — so a hit reads even at a glance. Sits behind the red fill. */
+.hp-bar-chip {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: rgba(255, 196, 188, 0.55);
 }
 
 .hp-bar-fill {
@@ -442,7 +468,7 @@
   position: relative;
   width: 240px;
   height: 12px;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   overflow: hidden;
@@ -476,7 +502,7 @@
   position: relative;
   width: 240px;
   height: 7px;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 4px;
   overflow: hidden;
@@ -517,12 +543,12 @@
   align-items: center;
   gap: 2px;
   padding: 7px 16px;
-  background: rgba(20, 26, 38, 0.78);
+  background: var(--panel-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--panel-shadow);
   animation: slide-down 360ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -683,10 +709,10 @@
   gap: 10px;
   min-width: 240px;
   padding: 22px 26px 18px;
-  background: rgba(18, 22, 32, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg-strong);
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--modal-shadow);
 }
 
 .pause-card-anim {
@@ -774,10 +800,10 @@
   gap: 14px;
   min-width: 320px;
   padding: 22px 26px 18px;
-  background: rgba(22, 28, 40, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg-strong);
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--modal-shadow);
 }
 
 .shop-header {

@@ -15,12 +15,24 @@ export function PlayerHud() {
   const overlayRef = useRef<HTMLDivElement>(null)
   const levelUpRef = useRef<HTMLDivElement>(null)
   const staminaRef = useRef<HTMLDivElement>(null)
+  const chipRef = useRef<HTMLDivElement>(null)
+  // Live HP mirrored into refs for the rAF loop, plus the lagging "chip" value
+  // that trails behind after a hit and drains toward the real HP.
+  const hpRef = useRef(PLAYER_MAX_HP)
+  const maxHpRef = useRef(PLAYER_MAX_HP)
+  const chipValRef = useRef(PLAYER_MAX_HP)
+  const lastTickRef = useRef(0)
 
   useEffect(() => {
     return subscribeHp((curr, max, isDead) => {
       setHp(curr)
       setMaxHp(max)
       setDead(isDead)
+      hpRef.current = curr
+      maxHpRef.current = max
+      // A gain (heal / respawn / max-hp bump) snaps the chip up instantly; only
+      // damage leaves a trailing band to drain.
+      if (curr >= chipValRef.current) chipValRef.current = curr
     })
   }, [])
 
@@ -39,6 +51,21 @@ export function PlayerHud() {
       if (levelUpRef.current) {
         const remain = Math.max(0, p.levelUpFlashUntil - tNow)
         levelUpRef.current.style.opacity = String(Math.min(1, remain))
+      }
+      // Drain the damage chip toward the real HP — held briefly by the slow
+      // rate so the lost slice flashes pale before collapsing onto the bar.
+      if (chipRef.current) {
+        const now = performance.now() * 0.001
+        const dt = lastTickRef.current ? Math.min(0.1, now - lastTickRef.current) : 0
+        lastTickRef.current = now
+        const max = maxHpRef.current || 1
+        const live = hpRef.current
+        if (chipValRef.current > live) {
+          chipValRef.current = Math.max(live, chipValRef.current - max * 0.6 * dt)
+        } else {
+          chipValRef.current = live
+        }
+        chipRef.current.style.width = `${Math.max(0, (chipValRef.current / max) * 100)}%`
       }
       if (staminaRef.current) {
         const blk = getBlockState()
@@ -65,6 +92,7 @@ export function PlayerHud() {
         <div className="level-badge">Lv {stats.level}</div>
         <div className="bars">
           <div className="hp-bar">
+            <div ref={chipRef} className="hp-bar-chip" />
             <div className="hp-bar-fill" style={{ width: `${ratio * 100}%` }} />
             <div className="hp-bar-text">
               {Math.round(hp)} / {Math.round(maxHp)}

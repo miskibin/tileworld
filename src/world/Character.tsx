@@ -126,6 +126,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const leftLegRef = useRef<THREE.Group>(null!)
   const headRef = useRef<THREE.Group>(null!)
   const swordRef = useRef<THREE.Group>(null!)
+  // Slash trail — a glowing crescent that sweeps across the front on each swing.
+  const slashRef = useRef<THREE.Group>(null!)
+  // Swing parity: flips each swing so strikes alternate right↔left and read as a
+  // combo instead of the same canned slash every time.
+  const swingDir = useRef(1)
 
   const pos = useRef({ x: initial[0], y: initial[1], z: initial[2] })
   const facing = useRef(facing0)
@@ -183,6 +188,21 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const goldBladeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.8 }), [])
   const axeHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: AXE_STEEL, roughness: 0.45, metalness: 0.6 }), [])
   const stoneHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#8a8d92', roughness: 0.95, metalness: 0.05, flatShading: true }), [])
+  // Slash-trail material — additive so the arc reads as a bright flash of motion,
+  // never lit/shadowed. Opacity is driven per frame; 0 when no swing is mid-air.
+  const slashMat = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        color: '#e6f0ff',
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        toneMapped: false,
+      }),
+    [],
+  )
 
   // The held weapon mesh follows the equipped item (hotbar select/E → equip).
   const [equippedId, setEquippedId] = useState<string | null>(getInventory().equippedId)
@@ -498,6 +518,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       attacking.current = true
       attackStart.current = attackClock.current
       attackHitDealt.current = false
+      swingDir.current *= -1 // alternate the slash direction each swing
       // Whoosh is deferred to hit-resolution: a connecting strike plays the
       // impact alone, a whiff plays the empty-swing whoosh. (grunt still here.)
       playPlayerAttack()
@@ -516,26 +537,28 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         attacking.current = false
       } else {
         // Lift arm forward through whole swing (sword horizontal).
-        // Holding arm out so sword sweeps a wide horizontal arc.
+        // Holding arm out so sword sweeps a wide horizontal arc. `dir` mirrors the
+        // whole arc each swing so strikes alternate sides (combo feel).
         const liftX = -1.1 // arm rotated up so sword points forward
+        const dir = swingDir.current
         if (phase < 0.2) {
-          // Windup: ramp lift + swing arm to the RIGHT (cross body)
+          // Windup: ramp lift + cock the arm to one side (cross body)
           const u = phase / 0.2
           attackArmX = liftX * u
-          attackArmY = 1.4 * u
-          attackBodyTwist = 0.25 * u
+          attackArmY = 1.4 * u * dir
+          attackBodyTwist = 0.25 * u * dir
         } else if (phase < 0.55) {
-          // Strike: snap arm from +Y to -Y, sweeping the blade across
+          // Strike: snap the arm across, sweeping the blade through the front
           const u = (phase - 0.2) / 0.35
           attackArmX = liftX
-          attackArmY = 1.4 - 2.8 * u
-          attackBodyTwist = 0.25 - 0.55 * u
+          attackArmY = (1.4 - 2.8 * u) * dir
+          attackBodyTwist = (0.25 - 0.55 * u) * dir
         } else {
           // Return: ease back to neutral
           const u = (phase - 0.55) / 0.45
           attackArmX = liftX * (1 - u)
-          attackArmY = -1.4 * (1 - u)
-          attackBodyTwist = -0.3 * (1 - u)
+          attackArmY = -1.4 * (1 - u) * dir
+          attackBodyTwist = -0.3 * (1 - u) * dir
         }
         // Slight downward bite on the blade so it angles into target
         attackArmZ = -0.25 * Math.sin(phase * Math.PI)
@@ -785,6 +808,25 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       }
     }
 
+    // ─── Slash trail ────────────────────────────────────────────
+    // A bright crescent sweeps across the hero's front through the strike window
+    // and fades out. It lives in grid space (a sibling of the scaled body) so its
+    // radius lines up with the real attack reach. Mirrors with the swing.
+    if (slashRef.current) {
+      let opacity = 0
+      if (attacking.current) {
+        const phase = (attackClock.current - attackStart.current) / ATTACK_DURATION
+        if (phase > 0.16 && phase < 0.62) {
+          const u = (phase - 0.16) / 0.46 // 0..1 across the visible sweep
+          opacity = Math.sin(u * Math.PI) * 0.8
+          slashRef.current.position.set(pos.current.x, pos.current.y + 0.62, pos.current.z)
+          slashRef.current.rotation.y = facing.current + (0.5 - u) * 1.15 * swingDir.current
+        }
+      }
+      slashMat.opacity = opacity
+      slashRef.current.visible = opacity > 0.001
+    }
+
     // Apply group transform
     if (groupRef.current) {
       groupRef.current.position.set(pos.current.x, pos.current.y + bobY, pos.current.z)
@@ -815,6 +857,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   })
 
   return (
+    <>
+    <group ref={slashRef} position={[initial[0], initial[1] + 0.62, initial[2]]} visible={false}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} material={slashMat}>
+        {/* Crescent fan centred on the hero's forward (+Z) axis; radii ≈ reach. */}
+        <ringGeometry args={[1.2, 1.85, 28, 1, Math.PI / 2 - 0.8, 1.6]} />
+      </mesh>
+    </group>
     <group ref={groupRef} position={initial} rotation={[0, facing0, 0]} scale={0.5}>
       {/* Legs — each pivots at hip (y=0.36) */}
       <group ref={rightLegRef} position={[0.1, 0.36, 0]}>
@@ -983,5 +1032,6 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         </mesh>
       </group>
     </group>
+    </>
   )
 }
