@@ -1,0 +1,68 @@
+name: Release
+
+# Builds the TileWorld desktop executable and publishes a GitHub release with the
+# installers attached. Triggered by pushing a version tag (e.g. `v0.1.0`), or
+# manually via the Actions tab (provide the tag to cut).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+
+# tauri-action creates the release + uploads the bundles via GITHUB_TOKEN.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Windows-only release per project decision — produces the .msi (WiX) and
+    # .exe (NSIS) installers. The app is unsigned, so Windows SmartScreen will
+    # warn on first run ("More info" -> "Run anyway").
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build app and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # On a tag push, github.ref_name is the tag; on manual dispatch it's
+          # the input. tauri-action creates the tag if it doesn't exist yet.
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: 'TileWorld ${{ github.event.inputs.tag || github.ref_name }}'
+          releaseBody: |
+            TileWorld desktop build.
+
+            Download the installer below:
+            - `.msi` — Windows Installer
+            - `.exe` (setup) — NSIS installer
+
+            The app is unsigned; Windows SmartScreen may warn on first launch
+            (click **More info → Run anyway**).
+          releaseDraft: false
+          prerelease: false
