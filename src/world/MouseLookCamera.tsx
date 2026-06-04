@@ -6,6 +6,7 @@ import { CENTER_X, CENTER_Z } from './tileMap'
 import { isShopOpen, subscribeShop } from './shopStore'
 import { isTreeOpen, subscribeTree } from './townHallStore'
 import { isPaused, subscribePaused } from './pauseStore'
+import { getPhase } from './gameStore'
 import { getShake, getFovKick } from './fxStore'
 import { isWarming } from './warmupStore'
 
@@ -20,6 +21,11 @@ const MIN_DIST = 8
 const MAX_DIST = 150
 const MIN_POLAR = 0.18
 const MAX_POLAR = Math.PI / 2 - 0.07
+// Resting FOV — MUST match the <Canvas camera={{ fov }}> in App.tsx. Using this
+// constant (rather than reading whatever fov is live on the first frame) means the
+// load-time ShaderWarmup's wide overview FOV (104) can never be captured as the
+// rest value, which used to strand the camera in a permanent wide-angle "fishbowl".
+const REST_FOV = 32
 
 /**
  * Over-the-shoulder orbit camera with pointer-lock controls — moving the
@@ -34,9 +40,6 @@ export function MouseLookCamera({ posRef }: Props) {
   const polar = useRef(Math.PI * 0.18)
   const dist = useRef(8)
   const locked = useRef(false)
-  // Resting FOV, captured once so the per-frame kick is always added on top of
-  // the camera's real base (rather than drifting from a hard-coded guess).
-  const baseFov = useRef<number | null>(null)
 
   useEffect(() => {
     const el = gl.domElement
@@ -108,7 +111,11 @@ export function MouseLookCamera({ posRef }: Props) {
   }, [gl])
 
   useFrame(() => {
-    if (isWarming()) return // ShaderWarmup is driving the camera over the whole map
+    // Yield the camera to ShaderWarmup ONLY behind the StartScreen (phase 'menu'),
+    // its one legitimate window. Once the player is playing, take the camera back
+    // even if `isWarming()` is erroneously still true — otherwise a stuck warm-up
+    // flag would freeze the camera at the far overview with zoom dead.
+    if (isWarming() && getPhase() === 'menu') return
     const tx = posRef.current.x - CENTER_X
     const ty = posRef.current.y + 1
     const tz = posRef.current.z - CENTER_Z
@@ -134,8 +141,9 @@ export function MouseLookCamera({ posRef }: Props) {
     // pays nothing.
     if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       const cam = camera as THREE.PerspectiveCamera
-      if (baseFov.current === null) baseFov.current = cam.fov
-      const target = baseFov.current + getFovKick(performance.now() * 0.001)
+      // Rest FOV is the known Canvas constant + the transient hit/kill/landing kick,
+      // so a leaked warm-up FOV can never become the resting value.
+      const target = REST_FOV + getFovKick(performance.now() * 0.001)
       if (Math.abs(cam.fov - target) > 0.01) {
         cam.fov = target
         cam.updateProjectionMatrix()

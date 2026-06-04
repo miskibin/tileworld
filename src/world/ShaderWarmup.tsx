@@ -97,6 +97,11 @@ export function ShaderWarmup() {
   }, [camera, gl])
 
   useEffect(() => {
+    // Never re-arm warming once the warm-up has already finished: `finish()`
+    // self-disables (st.current.done), so a re-run that set warming=true again
+    // would strand it true forever — freezing MouseLookCamera (and disabling culls,
+    // which also read isWarming). After done, this effect is a no-op.
+    if (st.current.done) return
     setWarming(true)
     // Bail (and restore) if the player hits Play before the warm-up finishes.
     const unsub = subscribePhase((p) => p !== 'menu' && finish())
