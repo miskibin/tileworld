@@ -50,6 +50,8 @@ export interface VillagerState {
   downed: boolean
   /** castle-dwelling villagers double as militia — orks single these out */
   isGuard: boolean
+  /** recruited from a trader (vs. born a townsperson) — gets a distinct tabard */
+  recruited: boolean
 }
 
 const villagers: VillagerState[] = []
@@ -89,6 +91,7 @@ export function createVillager(
     | 'maxHp'
     | 'downed'
     | 'isGuard'
+    | 'recruited'
   >,
 ): VillagerState {
   const v: VillagerState = {
@@ -109,6 +112,7 @@ export function createVillager(
     maxHp: VILLAGER_MAX_HP,
     downed: false,
     isGuard: isInsideCastle(init.homeX, init.homeZ),
+    recruited: false,
     ...init,
   }
   villagers.push(v)

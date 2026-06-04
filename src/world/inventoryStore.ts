@@ -7,7 +7,10 @@ import { applyBuff, type BuffKind } from './buffStore'
 // the knight + reduces incoming damage). Weapon and armor occupy separate equip
 // slots, so you can wield a sword AND wear plate at once.
 
-export type ItemKind = 'consumable' | 'weapon' | 'armor'
+// 'token' = a key/quest item that just sits in the bag (the Mercenary Contract
+// spent to recruit a trader). It can't be eaten or equipped — activate/select
+// leave it inert; only consumeItem() removes it.
+export type ItemKind = 'consumable' | 'weapon' | 'armor' | 'token'
 
 export interface ItemDef {
   id: string
@@ -57,6 +60,9 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },
   iron_armor: { id: 'iron_armor', name: 'Iron Cuirass', icon: '🛡️', kind: 'armor', defense: 0.28, armorTint: '#aeb4c0', armorMetal: 0.6, stackable: false },
   gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.4, armorTint: '#e8b84b', armorMetal: 0.85, stackable: false },
+  // ─── Key items (tokens) ───────────────────────────────────────
+  // Rare ork/chest drop spent to recruit a trader into the militia (see recruit.ts).
+  mercenary_contract: { id: 'mercenary_contract', name: 'Mercenary Contract', icon: '📜', kind: 'token', stackable: true },
 }
 
 export const HOTBAR_SIZE = 8
@@ -160,6 +166,39 @@ export function addItem(itemId: string, count = 1): boolean {
   if (!empty) return false
   empty.itemId = itemId
   empty.count = count
+  notify()
+  return true
+}
+
+/** Total count of an item across the hotbar (stacks live in one slot, but scan
+ *  anyway so non-stackables count too). */
+function countItem(itemId: string): number {
+  let n = 0
+  for (const s of state.slots) if (s.itemId === itemId) n += s.count
+  return n
+}
+
+/** True if the player holds at least one of `itemId`. */
+export function hasItem(itemId: string): boolean {
+  return countItem(itemId) > 0
+}
+
+/** Remove `count` of `itemId` from the bag. Returns false (and changes nothing)
+ *  if the player doesn't hold that many. Used by recruiting to spend a token. */
+export function consumeItem(itemId: string, count = 1): boolean {
+  if (countItem(itemId) < count) return false
+  let remaining = count
+  for (const s of state.slots) {
+    if (remaining <= 0) break
+    if (s.itemId !== itemId) continue
+    const take = Math.min(s.count, remaining)
+    s.count -= take
+    remaining -= take
+    if (s.count <= 0) {
+      s.itemId = null
+      s.count = 0
+    }
+  }
   notify()
   return true
 }

@@ -37,6 +37,8 @@ import { Chest, type ChestVariant } from './Chest'
 import { HotbarInput } from './HotbarInput'
 import { DebugPaths } from './DebugPaths'
 import { Village, VillagerCrowd } from './Village'
+import { TraderVillage } from './TraderVillage'
+import { TraderCrowd } from './Trader'
 import { GraveField } from './Grave'
 import { SoulWisp } from './SoulWisp'
 import { SuccessionDirector } from './SuccessionDirector'
@@ -74,9 +76,9 @@ const CHESTS: { pos: [number, number, number]; rot: number; gold: number; loot: 
   { pos: [90, 1, 46], rot: 1.0, gold: 12, loot: ['potion'] },
   { pos: [78, 1, 38], rot: 2.2, gold: 5, loot: ['bread'] },
   { pos: [44, 1, 46], rot: 0.8, gold: 7, loot: ['potion'] },
-  { pos: [104, 1, 80], rot: -1.2, gold: 14, loot: ['feast'] },
+  { pos: [104, 1, 80], rot: -1.2, gold: 14, loot: ['feast', 'mercenary_contract'] },
   { pos: [40, 1, 80], rot: 1.6, gold: 9, loot: ['bread'] },
-  { pos: [96, 1, 30], rot: 2.6, gold: 10, loot: ['potion'] },
+  { pos: [96, 1, 39], rot: 2.6, gold: 10, loot: ['mercenary_contract'] }, // by the NE trader market — teaches recruiting
   { pos: [120, 1, 66], rot: 0.4, gold: 12, loot: ['potion'] },
   { pos: [60, 1, 88], rot: -0.9, gold: 12, loot: ['feast'] },
   { pos: [50, 1, 66], rot: 1.9, gold: 9, loot: ['bread'] },
@@ -234,9 +236,17 @@ export function World() {
           <Village position={[66, 32]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
         </Cullable>
 
+        {/* NE desert caravan market — independent traders to trade with / recruit
+            into the militia. Buildings (culled when far) are created here; the
+            merchant NPCs + the E/R interaction live in <TraderCrowd/> below. */}
+        <Cullable x={96} z={34}>
+          <TraderVillage position={[96, 34]} />
+        </Cullable>
+
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
         <City />
         <VillagerCrowd />
+        <TraderCrowd />
 
         {/* "The Blade Passes": graves the hero leaves behind, the spirit wisp
             mid-succession, and the dawn director that repopulates the town. */}

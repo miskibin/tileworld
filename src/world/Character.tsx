@@ -604,6 +604,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               // when each orb arrives (see orbStore), so the HUD counter races up.
               spawnOrbs('gold', ork.x, ork.y + 0.9, ork.z, Math.max(2, Math.min(4, Math.round(gold / 4))), gold)
               spawnOrbs('xp', ork.x, ork.y + 0.9, ork.z, 4, xp)
+              // Rare war-spoils: a Mercenary Contract spent to recruit a trader
+              // (see recruit.ts). Low odds so a recruit feels earned — a few per
+              // night of heavy fighting.
+              if (Math.random() < 0.04) spawnPickup('mercenary_contract', ork.x, ork.y + 0.4, ork.z)
             } else if (didCrit) {
               spawnFloat(`${dmg}!`, '#ffd24a', ork.x, ork.y + 2.2, ork.z, 1.6)
             } else {

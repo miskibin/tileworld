@@ -71,6 +71,8 @@ const RESERVED = new Set<string>(
     box(62, 70, 28, 36)
     // Market stall just outside the south gate.
     box(65, 71, 68, 74)
+    // NE desert caravan market — the trader village (see TraderVillage.tsx).
+    box(90, 102, 28, 38)
     // Biome signature landmarks — clear a margin around each so scatter never
     // grows up through the monument (footprint shared via landmarks.ts).
     for (const l of LANDMARKS) box(l.x - l.r - 1, l.x + l.r + 1, l.z - l.r - 1, l.z + l.r + 1)

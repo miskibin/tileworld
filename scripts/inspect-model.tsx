@@ -31,6 +31,8 @@ import { createOrk } from '../src/world/orkStore'
 import { Wall, Tower, Gate, Keep } from '../src/world/cityModels'
 import { VillagerView } from '../src/world/Villager'
 import { createVillager } from '../src/world/villagerStore'
+import { TraderView } from '../src/world/Trader'
+import { createTrader } from '../src/world/traderStore'
 import { Boat } from '../src/world/Boat'
 import { Grave } from '../src/world/Grave'
 import { DistantMountains } from '../src/world/DistantMountains'
@@ -115,6 +117,17 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
         x: 0, y: 0, z: 0, facing: 0,
         homeX: 0, homeZ: 0, gardenX: 1, gardenZ: 0, doorX: 0, doorZ: 1,
         seed: 1, paletteIndex: 0,
+      })}
+    />
+  ),
+  // Trader carries a drei <Text> prompt; pass inspect to omit it so it mounts headless.
+  Trader: () => (
+    <TraderView
+      inspect
+      state={createTrader({
+        x: 0, y: 0, z: 0, facing: 0,
+        homeX: 0, homeZ: 0, gardenX: 1, gardenZ: 0, doorX: 0, doorZ: 1,
+        seed: 1, paletteIndex: 0, name: 'Merchant',
       })}
     />
   ),

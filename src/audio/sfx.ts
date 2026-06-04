@@ -263,38 +263,8 @@ function blockSynth(): void {
   noise(c, t, 0.07, 0.12, 'highpass', 5200, 2600)
 }
 
-/** Bear roar — low growl sweep (synth fallback for the sampled clip). */
-export function playRoar(): void {
-  const c = ctx()
-  if (!c) return
-  const t = c.currentTime
-  tone(c, 'sawtooth', 130, t, 0.5, 0.18, 70)
-  noise(c, t, 0.45, 0.12, 'lowpass', 700, 200)
-}
-
-/** Guttural ork grunt — synth fallback if the sampled clip is unavailable. */
-function orkGruntSynth(): void {
-  const c = ctx()
-  if (!c) return
-  const t = c.currentTime
-  const f0 = 92 + Math.random() * 34
-  const osc = c.createOscillator()
-  osc.type = 'sawtooth'
-  osc.frequency.setValueAtTime(f0 * 1.4, t)
-  osc.frequency.exponentialRampToValueAtTime(f0, t + 0.18)
-  const formant = c.createBiquadFilter()
-  formant.type = 'bandpass'
-  formant.frequency.value = 520
-  formant.Q.value = 4
-  const g = c.createGain()
-  g.gain.setValueAtTime(0.0001, t)
-  g.gain.exponentialRampToValueAtTime(0.2, t + 0.04)
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3)
-  osc.connect(formant).connect(g).connect(master(c))
-  osc.start(t)
-  osc.stop(t + 0.34)
-  noise(c, t, 0.16, 0.06, 'lowpass', 900, 300)
-}
+// Creature voices have NO synth fallback — if the sample is missing/fails to
+// load, the call goes silent (procedural creature noise sounded terrible).
 
 // ─── Sampled creature voices (CC0 clips in public/audio) ─────────────────────
 // rubberduck — "80 CC0 creature SFX" (OpenGameArt, CC0 / public domain).
@@ -322,7 +292,7 @@ export function playOrkGrunt(dist = 0): void {
   const v = volForDist(dist, 0.55)
   if (v <= 0) return
   const f = ORK_GRUNTS[(Math.random() * ORK_GRUNTS.length) | 0]
-  playSfx(f, v, 0.14).catch(orkGruntSynth)
+  playSfx(f, v, 0.14).catch(() => {})
 }
 
 /** Heavier ork roar (e.g. on a charge) — random clip, distance-scaled. */
@@ -330,21 +300,21 @@ export function playOrkRoar(dist = 0): void {
   const v = volForDist(dist, 0.6)
   if (v <= 0) return
   const f = ORK_ROARS[(Math.random() * ORK_ROARS.length) | 0]
-  playSfx(f, v, 0.1).catch(orkGruntSynth)
+  playSfx(f, v, 0.1).catch(() => {})
 }
 
 /** Bear roar on aggro — distance-scaled, synth fallback. */
 export function playBearRoar(dist = 0): void {
   const v = volForDist(dist, 0.7)
   if (v <= 0) return
-  playSfx(BEAR_ROAR, v, 0.08).catch(playRoar)
+  playSfx(BEAR_ROAR, v, 0.08).catch(() => {})
 }
 
 /** Bear growl on attack — distance-scaled, synth fallback. */
 export function playBearGrowl(dist = 0): void {
   const v = volForDist(dist, 0.55)
   if (v <= 0) return
-  playSfx(BEAR_GROWL, v, 0.12).catch(playRoar)
+  playSfx(BEAR_GROWL, v, 0.12).catch(() => {})
 }
 
 // Sampled dog/cat voices (CC0 — rubberduck barks + IgnasD/AntumDeluge meows,
@@ -362,36 +332,12 @@ const CAT_MEOWS = [
   '/audio/cat-meow-4.mp3',
 ]
 
-/** Dog bark — synth fallback (two short "ruff" bursts). */
-function dogBarkSynth(): void {
-  const c = ctx()
-  if (!c) return
-  const t = c.currentTime
-  const ruff = (t0: number) => {
-    const osc = c.createOscillator()
-    osc.type = 'sawtooth'
-    const f = 280 + Math.random() * 90
-    osc.frequency.setValueAtTime(f, t0)
-    osc.frequency.exponentialRampToValueAtTime(f * 0.5, t0 + 0.12)
-    const g = c.createGain()
-    g.gain.setValueAtTime(0.0001, t0)
-    g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.01)
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14)
-    osc.connect(g).connect(master(c))
-    osc.start(t0)
-    osc.stop(t0 + 0.16)
-    noise(c, t0, 0.08, 0.2, 'bandpass', 1200, 600)
-  }
-  ruff(t)
-  if (Math.random() < 0.6) ruff(t + 0.16 + Math.random() * 0.08)
-}
-
 /** Dog bark — sampled clip, distance-scaled. */
 export function playDogBark(dist = 0): void {
   const v = volForDist(dist, 0.16)
   if (v <= 0) return
   const f = DOG_BARKS[(Math.random() * DOG_BARKS.length) | 0]
-  playSfx(f, v, 0.12).catch(dogBarkSynth)
+  playSfx(f, v, 0.12).catch(() => {})
 }
 
 /** Cat meow — sampled clip, distance-scaled. */
@@ -452,6 +398,6 @@ export function playMenuClick(): void {
 
 /** A wave begins — distant horde call. */
 export function playWaveStart(): void {
-  playSfx('/audio/wave-start-roar.ogg', 0.5, 0.08).catch(playRoar)
+  playSfx('/audio/wave-start-roar.ogg', 0.5, 0.08).catch(() => {})
 }
 

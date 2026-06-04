@@ -53,6 +53,10 @@ const ARMOR_STEEL = new THREE.MeshStandardMaterial({ color: '#c6ccd6', roughness
 // Guard's sword (shown on armoured castle villagers).
 const SWORD_BLADE = new THREE.MeshStandardMaterial({ color: '#d8dde6', roughness: 0.3, metalness: 0.8, flatShading: true })
 const SWORD_GUARD = new THREE.MeshStandardMaterial({ color: '#caa23a', roughness: 0.5, metalness: 0.6 })
+// Recruited mercenaries wear a green heraldic tabard so the player can pick out
+// the warriors they hired (from traders) among the native townsfolk.
+const TABARD_MAT = new THREE.MeshStandardMaterial({ color: '#2f7a44', roughness: 0.9, flatShading: true })
+const TABARD_TRIM = new THREE.MeshStandardMaterial({ color: '#e8d27a', roughness: 0.6, metalness: 0.3, flatShading: true })
 
 const SPEED = 1.6
 const WANDER_RADIUS = 3.0
@@ -414,6 +418,21 @@ export function VillagerView({ state }: Props) {
           <mesh castShadow material={armorMat}>
             <boxGeometry args={[0.46, 0.4, 0.3]} />
           </mesh>
+        )}
+        {/* Recruited mercenary's tabard — front + back panel with gold trim,
+            worn over whatever tunic/armour they have. */}
+        {state.recruited && (
+          <>
+            <mesh position={[0, -0.02, 0.15]} castShadow material={TABARD_MAT}>
+              <boxGeometry args={[0.34, 0.5, 0.04]} />
+            </mesh>
+            <mesh position={[0, -0.02, -0.15]} castShadow material={TABARD_MAT}>
+              <boxGeometry args={[0.34, 0.5, 0.04]} />
+            </mesh>
+            <mesh position={[0, -0.26, 0.16]} material={TABARD_TRIM}>
+              <boxGeometry args={[0.34, 0.05, 0.03]} />
+            </mesh>
+          </>
         )}
       </group>
 
