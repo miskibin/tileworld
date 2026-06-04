@@ -52,7 +52,7 @@ describe('wave phase — spawning', () => {
   it('spawns one ork when the interval is up', () => {
     const r = step('wave', wave({ index: 0, spawned: 0 }), timers(), 0, 0)
     expect(r.actions).toEqual([
-      { type: 'spawn', variant: 'grunt', hp: 279, spawnIndex: 0, waveIndex: 0 }, // grunt 254 × wave-0 hpScale 1.1
+      { type: 'spawn', variant: 'grunt', hp: 254, spawnIndex: 0, waveIndex: 0 }, // grunt 254 × wave-0 hpScale 1.0
     ])
     expect(r.timers.spawnIndex).toBe(1)
     expect(r.timers.nextSpawnAt).toBe(WAVES[0].spawnInterval)

@@ -51,8 +51,8 @@ export interface CampSlot {
 }
 export const ORK_CAMPS: readonly CampSlot[] = [
   { x: 74, z: 26, biome: 'snow' }, // N — snow/desert frontier (flat grass apron)
-  { x: 92, z: 44, biome: 'desert' }, // E — desert dunes at the rock-range foot
-  { x: 42, z: 64, biome: 'forest' }, // W — clearing deep in the SW wood
+  { x: 104, z: 32, biome: 'desert' }, // NE — deep in the dunes, well out from spawn
+  { x: 34, z: 72, biome: 'forest' }, // SW — clearing deep in the wood (clear of the river)
 ] as const
 
 // Hand-placed structure footprints to keep clear of scatter (camps + hamlet +

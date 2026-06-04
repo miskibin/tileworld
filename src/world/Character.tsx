@@ -75,9 +75,9 @@ const SPEED = 3.5 // grid units per second
 const SPRINT_MULT = 1.75 // shift-held speed multiplier
 // Swamp hazard: the bog drags at your boots and its vapours bite. The stake that
 // makes foraging marsh herbs (HerbPlants) a real risk/reward trip.
-const SWAMP_SLOW = 0.55 // movement multiplier while standing on a swamp tile
-const SWAMP_POISON = 4 // HP lost per poison tick in the swamp
-const SWAMP_POISON_INTERVAL = 1.8 // seconds between poison ticks
+const SWAMP_SLOW = 0.75 // movement multiplier while standing on a swamp tile
+const SWAMP_POISON = 2 // HP lost per poison tick in the swamp
+const SWAMP_POISON_INTERVAL = 2.5 // seconds between poison ticks
 const TURN_RATE = 12 // higher = snappier rotation
 const STEP_FREQ = 7 // walk-cycle radians per second
 const GRAVITY = 20 // y units / sec^2

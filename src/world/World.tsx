@@ -308,11 +308,11 @@ export function World() {
             out and clear. Orks here guard their camp (home anchor) instead of
             marching on the keep; blue warband so they read apart from the red
             night-horde (and brawl any wave ork that strays near). */}
-        <Cullable x={42} z={64}>
-          <OrkCamp position={[42, tileTopY(42, 64), 64]} rotation={1.4} seed={1.2} faction="blue" />
+        <Cullable x={34} z={72}>
+          <OrkCamp position={[34, tileTopY(34, 72), 72]} rotation={1.4} seed={1.2} faction="blue" />
         </Cullable>
-        <Cullable x={92} z={44}>
-          <OrkCamp position={[92, tileTopY(92, 44), 44]} rotation={-1.6} seed={2.7} faction="blue" />
+        <Cullable x={104} z={32}>
+          <OrkCamp position={[104, tileTopY(104, 32), 32]} rotation={-1.6} seed={2.7} faction="blue" />
         </Cullable>
         <Cullable x={74} z={26}>
           <OrkCamp position={[74, tileTopY(74, 26), 26]} rotation={0.1} seed={4.1} faction="blue" />
@@ -321,8 +321,8 @@ export function World() {
         {/* Captive cages at each camp — clear the camp's guards and the freed
             villagers join the militia as heirs (rescue.ts). Kept OUTSIDE Cullable
             so the cage never unmounts and re-spawns its captives. */}
-        <CampCage camp={{ x: 42, z: 64 }} offset={[-2, -1]} captives={2} seed={0.2} />
-        <CampCage camp={{ x: 92, z: 44 }} offset={[-2, -1]} captives={2} seed={0.6} />
+        <CampCage camp={{ x: 34, z: 72 }} offset={[-2, -1]} captives={2} seed={0.2} />
+        <CampCage camp={{ x: 104, z: 32 }} offset={[2, 2]} captives={2} seed={0.6} />
         <CampCage camp={{ x: 74, z: 26 }} offset={[-2, -1]} captives={2} seed={0.9} />
 
         {/* War bell in the courtyard — ring it (E) during the day to summon the
