@@ -15,6 +15,8 @@ import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, knockbackOrk, getAliveOrks, orkCollidesAt } from './orkStore'
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
 import { damageAnimal, getAliveAnimals, animalCollidesAt } from './animalStore'
+import { damageOre, getAliveOre, oreCollidesAt } from './oreStore'
+import { addStone } from './resourceStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { bridgeAt } from './bridges'
 import { houseBlocksAt } from './houseBlockers'
@@ -24,6 +26,7 @@ import {
   getPlayer,
   respawnPlayerAt,
   setPlayerPos,
+  consumeTeleport,
   XP_PER_ORK,
   getCritChance,
   getLifesteal,
@@ -70,6 +73,11 @@ const BLACK = new THREE.Color('#000000')
 
 const SPEED = 3.5 // grid units per second
 const SPRINT_MULT = 1.75 // shift-held speed multiplier
+// Swamp hazard: the bog drags at your boots and its vapours bite. The stake that
+// makes foraging marsh herbs (HerbPlants) a real risk/reward trip.
+const SWAMP_SLOW = 0.55 // movement multiplier while standing on a swamp tile
+const SWAMP_POISON = 4 // HP lost per poison tick in the swamp
+const SWAMP_POISON_INTERVAL = 1.8 // seconds between poison ticks
 const TURN_RATE = 12 // higher = snappier rotation
 const STEP_FREQ = 7 // walk-cycle radians per second
 const GRAVITY = 20 // y units / sec^2
@@ -143,6 +151,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // World-Y the player last left the ground at — drives fall-damage on landing.
   const airTakeoffY = useRef(initial[1])
   const lastStepHalfCycle = useRef(0)
+  // Next R3F-clock time the swamp's poison may bite again.
+  const swampPoisonAt = useRef(0)
 
   // Attack state — left-click triggers a single swing.
   const attackProcessed = useRef(0)
@@ -235,6 +245,15 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     attackClock.current += dt
     const tNow = performance.now() * 0.001
     const player = getPlayer()
+
+    // Teleport request (dev jump / future fast-travel): snap the authoritative
+    // pos ref to the queued tile, then let the rest of the frame run normally.
+    const tp = consumeTeleport()
+    if (tp) {
+      pos.current.x = tp.x
+      pos.current.z = tp.z
+      pos.current.y = tileTopY(Math.floor(tp.x), Math.floor(tp.z))
+    }
 
     // ─── Death handling: "The Blade Passes" ─────────────────────────────────
     // The hero never simply respawns. On death his body stays as a grave and
@@ -340,8 +359,21 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
 
     // ─── Apply motion with axis-separated collision (tile + props) ──
     const sprinting = moving && k.sprint
+    // Swamp drag — read the tile under the player; the bog cuts move speed.
+    const onSwamp = tileAt(Math.floor(pos.current.x), Math.floor(pos.current.z))?.biome === 'swamp'
+    // Swamp vapours — a periodic poison tick while in the bog (resist buff from a
+    // Marsh Herb cuts it via damagePlayer's mitigation). Applies even when still.
+    if (onSwamp && player.hp > 0) {
+      const tn = rfState.clock.getElapsedTime()
+      if (tn >= swampPoisonAt.current) {
+        swampPoisonAt.current = tn + SWAMP_POISON_INTERVAL
+        damagePlayer(SWAMP_POISON, tn)
+        spawnFloat('☠', '#9be38a', pos.current.x, pos.current.y + 2.2, pos.current.z, 1.0)
+      }
+    }
     if (moving) {
-      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * getMoveSpeedMult() * dt
+      const swampFactor = onSwamp ? SWAMP_SLOW : 1
+      const step = SPEED * (sprinting ? SPRINT_MULT : 1) * getSpeedMult() * getMoveSpeedMult() * swampFactor * dt
       const nx = pos.current.x + moveDir.x * step
       const nz = pos.current.z + moveDir.z * step
       const cxFloor = Math.floor(pos.current.x)
@@ -355,6 +387,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         !orkCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !animalCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
+        !oreCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
         canStepOrDrop(cxFloor, czFloor, cxFloor, Math.floor(nz)) &&
@@ -362,6 +395,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         !orkCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !animalCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
+        !oreCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !houseBlocksAt(pos.current.x, nz)
       if (canMoveX) pos.current.x = nx
       if (canMoveZ) pos.current.z = nz
@@ -715,6 +749,29 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               spawnOrbs('xp', animal.x, animal.y + 0.8, animal.z, 4, c.bountyXp)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', animal.x, animal.y + 2.0, animal.z)
+            }
+          }
+          // ─── Mining: ore boulders shatter for stone (rock highlands) ──
+          for (const o of getAliveOre()) {
+            const vx = o.x - pos.current.x
+            const vz = o.z - pos.current.z
+            const dist = Math.hypot(vx, vz)
+            if (dist > ATTACK_RANGE || dist < 0.001) continue
+            const dot = (vx / dist) * fx + (vz / dist) * fz
+            if (dot < ATTACK_CONE_DOT) continue
+            const broke = damageOre(o, dmg, hitT)
+            hitAny = true
+            spawnImpact(o.x, o.y + 0.5, o.z, {
+              color: broke ? '#cdd3da' : '#9aa0a6',
+              count: broke ? 16 : 7,
+              spread: broke ? 3.2 : 2.2,
+              up: broke ? 1.6 : 1.1,
+            })
+            if (broke) {
+              addStone(o.stoneReward)
+              spawnFloat(`+${o.stoneReward} 🪨`, '#cdd3da', o.x, o.y + 1.6, o.z, 1.4)
+            } else {
+              spawnFloat(`${dmg}`, '#c0c6cc', o.x, o.y + 1.6, o.z)
             }
           }
           // Combat juice: impact SFX + camera shake + hit-stop scaled to the

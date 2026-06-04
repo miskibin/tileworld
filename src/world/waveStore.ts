@@ -27,7 +27,10 @@ export const WAVES: WaveDef[] = [
   { count: 1, hpScale: 14.0, variants: ['berserker'], spawnInterval: 0.5 }, // boss
 ]
 
-export const PREP_DURATION = 120 // seconds between waves — a full "day" to rebuild
+// The day is a free-roam window: long enough to ride out to a biome (mine stone,
+// clear a camp for heirs, hunt, forage) AND get back before the siege. Ring the
+// war bell (WarBell) to summon the night early when you're ready.
+export const PREP_DURATION = 180 // seconds — a full "day" to explore + rebuild
 
 /** Gold paid by the Tax Office (Economy upgrade) each time a wave is cleared. */
 export const TAX_STIPEND = 25

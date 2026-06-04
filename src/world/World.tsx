@@ -28,6 +28,10 @@ import { WaveDirector } from './WaveDirector'
 import { Towers } from './Towers'
 import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
+import { OreNodes } from './OreNodes'
+import { HerbPlants } from './HerbPlants'
+import { CampCage } from './CampCage'
+import { WarBell } from './WarBell'
 import { Projectiles } from './Projectiles'
 import { Impacts } from './Impacts'
 import { Dust } from './Dust'
@@ -294,8 +298,11 @@ export function World() {
         <Mobs />
 
         {/* Pre-compile ork/grave shaders behind the StartScreen so the first
-            real spawn doesn't hitch the frame mid-combat. Self-removes on start. */}
-        <ShaderWarmup />
+            real spawn doesn't hitch the frame mid-combat. Self-removes on start.
+            Skipped in capture mode: it compiles the post stack that capture drops,
+            and (in a headless StrictMode mount) it can keep the camera pinned to
+            the warm-up path, so a screenshot never follows the player. */}
+        {!CAPTURE_MODE && <ShaderWarmup />}
 
         {/* Ork war-camps out in the wilds — daytime targets the player can ride
             out and clear. Orks here guard their camp (home anchor) instead of
@@ -311,8 +318,25 @@ export function World() {
           <OrkCamp position={[74, tileTopY(74, 26), 26]} rotation={0.1} seed={4.1} faction="blue" />
         </Cullable>
 
+        {/* Captive cages at each camp — clear the camp's guards and the freed
+            villagers join the militia as heirs (rescue.ts). Kept OUTSIDE Cullable
+            so the cage never unmounts and re-spawns its captives. */}
+        <CampCage camp={{ x: 42, z: 64 }} offset={[-2, -1]} captives={2} seed={0.2} />
+        <CampCage camp={{ x: 92, z: 44 }} offset={[-2, -1]} captives={2} seed={0.6} />
+        <CampCage camp={{ x: 74, z: 26 }} offset={[-2, -1]} captives={2} seed={0.9} />
+
+        {/* War bell in the courtyard — ring it (E) during the day to summon the
+            night early, once you're done preparing. */}
+        <WarBell position={[72, tileTopY(72, 60), 60]} />
+
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
+
+        {/* Ore boulders — mine for stone (defense upgrades) in the rock highlands */}
+        <OreNodes />
+
+        {/* Marsh herbs — forage in the swamp (slow + poison hazard) for heal/resist potions */}
+        <HerbPlants />
 
         {/* Wild animals: wolves hunt deer + rabbits; boars charge when provoked */}
         <WildAnimals />

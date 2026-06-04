@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getGold, subscribeGold } from '../world/playerStore'
+import { getStone, subscribeResources } from '../world/resourceStore'
 import {
   getInventory,
   subscribeInventory,
@@ -24,6 +25,7 @@ function statLine(def: ItemDef): string {
 
 export function Inventory() {
   const [gold, setGold] = useState(getGold())
+  const [stone, setStone] = useState(getStone())
   const [, force] = useState(0)
   // Stats popup: shows the selected item's stats for a couple seconds whenever
   // the selection actually changes (scroll wheel / number key / click), then
@@ -32,6 +34,7 @@ export function Inventory() {
   const [popupOpen, setPopupOpen] = useState(false)
   const selRef = useRef(getInventory().selected)
   useEffect(() => subscribeGold(setGold), [])
+  useEffect(() => subscribeResources((r) => setStone(r.stone)), [])
   // Mouse wheel cycles the selected hotbar slot (down → next, up → previous,
   // wrap-around). Listening on the window catches scrolls over the canvas, which
   // is most of the screen. ctrl+wheel is camera zoom (owned by MouseLookCamera).
@@ -81,7 +84,9 @@ export function Inventory() {
           <span className="hotbar-popup-stat">{statLine(selDef)}</span>
         </div>
       )}
-      <div className="hotbar-gold">{gold} ★</div>
+      <div className="hotbar-gold">
+        {gold} ★{stone > 0 && <span className="hotbar-stone"> · {stone} 🪨</span>}
+      </div>
       <div className="hotbar-slots">
         {Array.from({ length: HOTBAR_SIZE }).map((_, i) => {
           const slot = inv.slots[i]

@@ -55,6 +55,13 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   },
   croc_steak: { id: 'croc_steak', name: 'Croc Steak', icon: '🥩', kind: 'consumable', heal: 70, stackable: true },
   elk_jerky: { id: 'elk_jerky', name: 'Elk Jerky', icon: '🍖', kind: 'consumable', heal: 35, stackable: true },
+  // Foraged in the swamp (see HerbPlants) — a heal + damage-resist poultice to
+  // stockpile for a hard night. The forager's reward for braving the bog hazard.
+  marsh_herb: {
+    id: 'marsh_herb', name: 'Marsh Herb', icon: '🌿', kind: 'consumable', stackable: true,
+    heal: 30,
+    buff: { kind: 'resist', durationMs: 14000, mag: 0.6 },
+  },
   stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 26, stackable: false },
   // ─── Wearable armor (equip → re-skins the knight + cuts incoming damage) ──
   leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },

@@ -82,6 +82,34 @@ Combat is store-mediated, no collision events: the player's swing in [Character.
 
 Input: WASD/arrows + space/shift in [useKeyboard.ts](src/world/useKeyboard.ts) (returns a ref, read in `useFrame`); number keys + right-click hotbar in [HotbarInput.tsx](src/world/HotbarInput.tsx); mouse-look in [MouseLookCamera.tsx](src/world/MouseLookCamera.tsx).
 
+## Biome mechanics — the day is a free-roam window
+
+Each of the five wilderness biomes answers a different player need that feeds the night,
+via a distinct **verb**, so the day (prep phase, `PREP_DURATION` in [waveStore.ts](src/world/waveStore.ts))
+is a real "where do I go today?" choice rather than a defend-breather. Ring the courtyard
+**war bell** ([WarBell.tsx](src/world/WarBell.tsx), E in range during prep → `requestPrepSkip`)
+to start the night early; otherwise the day runs its timer. The snow/rock mountain blobs in
+`REGIONS` ([tileMap.ts](src/world/tileMap.ts)) were enlarged (r 18→26/22, taller peaks); the
+map-reachability test is the gate for that.
+
+- **Rock E — mine stone.** Ore boulders ([oreStore.ts](src/world/oreStore.ts) +
+  [OreNodes.tsx](src/world/OreNodes.tsx)) take hits like a creature in the Character swing scan;
+  on break they grant `stone` ([resourceStore.ts](src/world/resourceStore.ts)). Structural defense
+  upgrades (`def_walls/gate/towers/reinforce`) now cost gold **+ stone** (`payCosts`/`stoneCost` in
+  [upgradeStore.ts](src/world/upgradeStore.ts)).
+- **Camps (forest/desert/snow) — rescue captives.** A [CampCage.tsx](src/world/CampCage.tsx) at each
+  camp polls the camp's home-anchored guard orks; clear them all and `freeCaptive`
+  ([rescue.ts](src/world/rescue.ts)) spawns castle-bound militia villagers (heirs) — the **primary**
+  heir source (the `eco_district` houses still add townsfolk). Reuses `createVillager` + the
+  recruit muster.
+- **Swamp S — forage herbs.** [herbStore.ts](src/world/herbStore.ts) + [HerbPlants.tsx](src/world/HerbPlants.tsx):
+  walk up to a plant to gather a `marsh_herb` (heal + resist, [inventoryStore.ts](src/world/inventoryStore.ts)).
+  The swamp tile applies a move slow + periodic poison tick (in [Character.tsx](src/world/Character.tsx)) — the stake.
+- **Hunting (all biomes) + biome-tuned chests** already existed (animalConfig / World CHESTS loot).
+
+Dev: `window.tp(x,z)` (main.tsx, dev-only) queues a teleport consumed at the top of Character's
+frame — used by `scripts/shot-world.mjs <out.png> <x> <z>` to frame far biome features for a shot.
+
 ## HUD
 
 [Hud.tsx](src/hud/Hud.tsx) mounts all DOM panels; each subscribes to the relevant store and re-renders only on `notify`. Panels: StartScreen, PlayerHud (HP/XP — drives flashes via `requestAnimationFrame`, not React state, to avoid re-render churn), Objective (orks killed), Inventory (5-slot hotbar), ShopPanel, UpgradeTree, PauseMenu, and three toggles (audio, debug paths, debug money). Styling is one file: [hud.css](src/hud/hud.css). HUD ↔ world communication is **only** through stores — no props, no context, no direct three.js queries.

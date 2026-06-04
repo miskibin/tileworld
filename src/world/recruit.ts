@@ -16,7 +16,7 @@ export const RECRUIT_ITEM = 'mercenary_contract'
 // A muster point just inside the north wall, clear of the central keep. Recruited
 // guards path here from wherever they stood and then defend like any castle
 // villager. Small per-trader jitter so successive recruits don't stack exactly.
-function musterAnchor(seed: number): { x: number; z: number } {
+export function musterAnchor(seed: number): { x: number; z: number } {
   const jx = (Math.sin(seed * 53.17) * 0.5 + 0.5) * 10 // 0..10
   return { x: CASTLE_BOUNDS.minX + 7 + jx, z: CASTLE_BOUNDS.minZ + 5 } // ~66..76, z=50
 }

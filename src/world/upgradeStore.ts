@@ -15,6 +15,7 @@ import {
   setBountyMult,
 } from './playerStore'
 import { isUnlimitedMoney } from './debugStore'
+import { getStone, spendStone } from './resourceStore'
 import { playMenuClick } from '../audio/sfx'
 import {
   getCity,
@@ -45,10 +46,24 @@ export interface UpgradeNode {
   desc: string
   icon: string
   cost: number
+  /** stone (resourceStore) required alongside gold — mined in the rock highlands.
+   *  Defense structures need it; other branches leave it unset (gold only). */
+  stoneCost?: number
   /** must be purchased before this node unlocks */
   prereqId?: string
   /** spends gold + applies the effect; returns false if it couldn't be applied */
   apply: () => boolean
+}
+
+/** Spend a node's full cost (gold + any stone) atomically. Checks both up front
+ *  so a node never deducts gold then fails on stone. Unlimited-money debug grants
+ *  stone too. Defense nodes call this in place of a bare spendGold. */
+function payCosts(node: UpgradeNode): boolean {
+  const stone = node.stoneCost ?? 0
+  if (stone > 0 && !isUnlimitedMoney() && getStone() < stone) return false
+  if (!spendGold(node.cost)) return false
+  if (stone > 0 && !isUnlimitedMoney()) spendStone(stone)
+  return true
 }
 
 /** Spawn the next city house + its villager. Returns false if no slots remain. */
@@ -207,8 +222,9 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     desc: 'Raise a wall around the city perimeter.',
     icon: '🧱',
     cost: 50,
+    stoneCost: 20,
     apply() {
-      if (!spendGold(this.cost)) return false
+      if (!payCosts(this)) return false
       setWallsBuilt(true)
       return true
     },
@@ -220,9 +236,10 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     desc: 'Add fortified gates to all four walls.',
     icon: '🚪',
     cost: 35,
+    stoneCost: 10,
     prereqId: 'def_walls',
     apply() {
-      if (!spendGold(this.cost)) return false
+      if (!payCosts(this)) return false
       setGateBuilt(true)
       return true
     },
@@ -234,9 +251,10 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     desc: 'Erect watchtowers at the four corners.',
     icon: '🗼',
     cost: 80,
+    stoneCost: 25,
     prereqId: 'def_walls',
     apply() {
-      if (!spendGold(this.cost)) return false
+      if (!payCosts(this)) return false
       setTowersBuilt(true)
       return true
     },
@@ -276,8 +294,9 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     desc: 'Greatly raise keep HP; it slowly self-repairs between waves.',
     icon: '🏰',
     cost: 130,
+    stoneCost: 30,
     apply() {
-      if (!spendGold(this.cost)) return false
+      if (!payCosts(this)) return false
       reinforceCastle()
       return true
     },
@@ -506,7 +525,9 @@ export function isPurchased(id: string): boolean {
 export function canBuy(node: UpgradeNode): boolean {
   if (purchasedIds.has(node.id)) return false
   if (node.prereqId && !purchasedIds.has(node.prereqId)) return false
-  return isUnlimitedMoney() || getGold() >= node.cost
+  if (isUnlimitedMoney()) return true
+  if ((node.stoneCost ?? 0) > 0 && getStone() < node.stoneCost!) return false
+  return getGold() >= node.cost
 }
 
 /** Attempt to purchase a node. Returns true on success. */

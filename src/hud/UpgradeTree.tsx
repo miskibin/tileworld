@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getGold, subscribeGold } from '../world/playerStore'
+import { getStone, subscribeResources } from '../world/resourceStore'
 import { isUnlimitedMoney, subscribeUnlimitedMoney } from '../world/debugStore'
 import { isTreeOpen, closeTree, subscribeTree } from '../world/townHallStore'
 import {
@@ -22,11 +23,13 @@ const BRANCHES: { id: UpgradeBranch; label: string; icon: string }[] = [
 export function UpgradeTree() {
   const [open, setOpen] = useState(isTreeOpen())
   const [gold, setGold] = useState(getGold())
+  const [stone, setStone] = useState(getStone())
   const [unlimited, setUnlimited] = useState(isUnlimitedMoney())
   const [, force] = useState(0)
 
   useEffect(() => subscribeTree(setOpen), [])
   useEffect(() => subscribeGold(setGold), [])
+  useEffect(() => subscribeResources((r) => setStone(r.stone)), [])
   useEffect(() => subscribeUnlimitedMoney(setUnlimited), [])
   useEffect(() => subscribeUpgrades(() => force((n) => n + 1)), [])
 
@@ -56,7 +59,7 @@ export function UpgradeTree() {
       <div className="shop-card upgrade-card">
         <div className="shop-header">
           <div className="shop-title">Keep — Upgrades</div>
-          <div className="shop-gold">{unlimited ? '∞' : gold} ★</div>
+          <div className="shop-gold">{unlimited ? '∞' : gold} ★ · {unlimited ? '∞' : stone} 🪨</div>
         </div>
 
         <div className="upgrade-branches">
@@ -80,7 +83,11 @@ export function UpgradeTree() {
                       <span className="upgrade-node-desc">{node.desc}</span>
                     </span>
                     <span className="upgrade-node-cost">
-                      {st === 'owned' ? '✓' : st === 'locked' ? '🔒' : `${node.cost} ★`}
+                      {st === 'owned'
+                        ? '✓'
+                        : st === 'locked'
+                          ? '🔒'
+                          : `${node.cost} ★${node.stoneCost ? ` + ${node.stoneCost} 🪨` : ''}`}
                     </span>
                   </button>
                 )

@@ -11,6 +11,7 @@ import { addGradePulse, resetGrade } from './gradeStore'
 import { getDamageTakenMult, resetBuffs } from './buffStore'
 import { getArmorDamageMult } from './inventoryStore'
 import { resetPickups } from './pickupStore'
+import { resetResources } from './resourceStore'
 import { isUnlimitedMoney } from './debugStore'
 import {
   absorbBlockedHit,
@@ -126,6 +127,20 @@ export function isPlayerAlive(): boolean {
   return state.hp > 0
 }
 
+// Teleport request: the hero's live position is owned by Character's pos ref, so
+// external callers (a dev jump hook now; fast-travel later) can't move it
+// directly. They queue a target here and Character consumes it at the top of its
+// next frame, snapping pos.current. One-shot: read clears it.
+let pendingTeleport: { x: number; z: number } | null = null
+export function requestTeleport(x: number, z: number): void {
+  pendingTeleport = { x, z }
+}
+export function consumeTeleport(): { x: number; z: number } | null {
+  const t = pendingTeleport
+  pendingTeleport = null
+  return t
+}
+
 /**
  * Deal damage to the player. If `fromX/fromZ` are given and the player is
  * blocking with the attacker inside the shield's front cone, most of the hit is
@@ -202,6 +217,7 @@ export function resetPlayer(): void {
   resetBlock()
   resetBuffs()
   resetPickups() // clear any ground loot so it doesn't carry into a fresh run
+  resetResources() // banked stone resets with the run (gold does, above)
   resetGrade() // drop any lingering screen wince from the prior run
   notifyHp()
   notifyGold()

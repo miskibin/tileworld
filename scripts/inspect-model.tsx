@@ -53,6 +53,10 @@ import { SunkenPyramid } from '../src/world/SunkenPyramid'
 import { GiantDeadTree } from '../src/world/GiantDeadTree'
 import { StandingStones } from '../src/world/StandingStones'
 import { RuinedShrine } from '../src/world/RuinedShrine'
+import { OreBoulder, makeMats } from '../src/world/OreNodes'
+import { Cage } from '../src/world/CampCage'
+import { WarBellModel } from '../src/world/WarBell'
+import { HerbModel } from '../src/world/HerbPlants'
 
 // Character is loaded lazily/tolerantly: it transitively imports a number of
 // gameplay stores, and if any of those is mid-refactor (a dangling import) a
@@ -111,6 +115,10 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   GiantDeadTree: () => <GiantDeadTree position={[0, 0, 0]} />,
   StandingStones: () => <StandingStones position={[0, 0, 0]} />,
   RuinedShrine: () => <RuinedShrine position={[0, 0, 0]} />,
+  Ore: () => <OreBoulder materials={makeMats(0)} />,
+  Cage: () => <Cage openAmount={0} captives={2} />,
+  WarBell: () => <WarBellModel />,
+  Herb: () => <HerbModel />,
   Villager: () => (
     <VillagerView
       state={createVillager({

@@ -98,14 +98,14 @@ export function Objective() {
       <div className={`objective-banner${underAttack ? ' is-alarm' : ''}`}>
       <span className="objective-label">
         {phase === 'prep'
-          ? `Wave ${wave.index + 2} incoming…`
+          ? `Day ${wave.index + 2} — ride out & prepare`
           : `Wave ${wave.index + 1} / ${wave.total}`}
       </span>
       {phase === 'prep' && (
         <div className="prep-timer">
           <span className="prep-clock">☀ {mmss}</span>
-          <button className="prep-skip" onClick={() => requestPrepSkip()}>
-            Skip ▶
+          <button className="prep-skip" onClick={() => requestPrepSkip()} title="Or ring the courtyard bell">
+            Begin night ▶
           </button>
         </div>
       )}

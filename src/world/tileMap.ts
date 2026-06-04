@@ -187,21 +187,24 @@ interface Region {
 }
 // Mountain (peak,r) pairs satisfy the ramp-feasibility rule r/(peak-2) ≥ ~1.6
 // so the strict one-class staircase ramp always reaches the summit:
-//   SNOW : peak 13, r 18 → stepLen 18/11 = 1.64 ✓
-//   ROCK : peak 13, r 18 → stepLen 18/11 = 1.64 ✓
-// The mountains are deliberately small + short now (r 18, much less map than the
-// old r 36–38 massifs) and ASYMMETRIC: the rampClass corridor carves the one
-// guaranteed climbable path while the quadratic core fractures into Δ≥2 cliff
-// faces on every other side. The flat biomes keep their big radii (32–34) so
-// they fill their quadrant. Some organic edge overlap between neighbours is
-// intentional.
+//   SNOW : peak 16, r 26 → stepLen 26/14 = 1.86 ✓
+//   ROCK : peak 15, r 22 → stepLen 22/13 = 1.69 ✓
+// The snow/rock massifs were bumped up from the first pass's tiny r18 blobs (they
+// read as too small next to the r32–34 flat biomes) to proper r22–26 ranges with
+// taller peaks. Centres are unchanged so the summit (= region centre) stays on the
+// guaranteed ramp; rock is held to r22 so its eastern reach clears the NE trader
+// village footprint (box 90–102 × 28–38). They stay ASYMMETRIC: the rampClass
+// corridor carves the one guaranteed climbable path while the quadratic core
+// fractures into Δ≥2 cliff faces on every other side. The flat biomes keep their
+// big radii (32–34) so they fill their quadrant. Some organic edge overlap between
+// neighbours is intentional.
 const REGIONS: Region[] = [
-  // NW — compact snow peak (white from foot to summit; see Terrain SNOW_CAP_HEIGHT).
-  { x: 26, z: 24, r: 18, biome: 'snow', peak: 13 },
+  // NW — snow massif (white from foot to summit; see Terrain SNOW_CAP_HEIGHT).
+  { x: 26, z: 24, r: 26, biome: 'snow', peak: 16 },
   // NE — vast flat dunes.
   { x: 112, z: 28, r: 34, biome: 'desert' },
-  // E — compact jagged rock peak (snow-capped summit).
-  { x: 122, z: 58, r: 18, biome: 'rock', peak: 13 },
+  // E — jagged rock range (snow-capped summit), held to r22 to clear the NE village.
+  { x: 122, z: 58, r: 22, biome: 'rock', peak: 15 },
   // SW — dense low wood.
   { x: 32, z: 80, r: 34, biome: 'forest' },
   // S — murky marsh.
