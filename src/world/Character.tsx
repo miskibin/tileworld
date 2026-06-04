@@ -4,8 +4,8 @@ import * as THREE from 'three'
 import { tileAt, tileTopY, canStepOrDrop, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
-import { playSfx } from '../audio/audio'
-import { playSwing, playHit, playKill, playPlayerAttack } from '../audio/sfx'
+import { playSfx, playVoice, stopVoice } from '../audio/audio'
+import { playSwing, playHit, playKill, playPlayerAttack, playPlayerJump } from '../audio/sfx'
 import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
 import { spawnDust, dustForBiome } from './dustStore'
@@ -105,6 +105,20 @@ if (typeof window !== 'undefined') {
   })
 }
 
+// Hero biome-entry voice lines — the muttered "oh, a forest…" thoughts. Played
+// once per biome per run; `spokenBiomes` is module-level so it survives React
+// strict-mode remounts and is cleared on Character unmount (new game). 'grass'
+// is the castle safe-zone → the "home" intro line.
+const BIOME_VO: Record<string, string> = {
+  grass: '/audio/vo/home.mp3',
+  forest: '/audio/vo/forest.mp3',
+  desert: '/audio/vo/desert.mp3',
+  snow: '/audio/vo/snow.mp3',
+  rock: '/audio/vo/rock.mp3',
+  swamp: '/audio/vo/swamp.mp3',
+}
+const spokenBiomes = new Set<string>()
+
 export interface PlayerStateRef {
   x: number
   z: number
@@ -151,6 +165,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // World-Y the player last left the ground at — drives fall-damage on landing.
   const airTakeoffY = useRef(initial[1])
   const lastStepHalfCycle = useRef(0)
+  // Last biome the player stood on — change drives the once-per-biome voice line.
+  const lastBiome = useRef<string | null>(null)
   // Next R3F-clock time the swamp's poison may bite again.
   const swampPoisonAt = useRef(0)
 
@@ -173,7 +189,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Clear any lingering hit-stop when the world unmounts (new game / restart) so
   // a freeze triggered on the last frame can't carry getTimeScale()=0 into the
   // next run's first frames. Matches the unmount-reset pattern of Orbs/Projectiles.
-  useEffect(() => () => { resetHitStop(); resetFovKick() }, [])
+  useEffect(() => () => { resetHitStop(); resetFovKick(); stopVoice(); spokenBiomes.clear() }, [])
 
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
@@ -409,10 +425,22 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     const onBridge = bridgeAt(pos.current.x, pos.current.z)
     const tileBelow = tileAt(Math.floor(pos.current.x), Math.floor(pos.current.z))
     const groundY = onBridge ? onBridge.y : tileBelow ? tileTopY(Math.floor(pos.current.x), Math.floor(pos.current.z)) : 0
+
+    // ─── Biome voice: mutter a thought the first time we enter each biome ──
+    const curBiome = tileBelow?.biome
+    if (curBiome && curBiome !== lastBiome.current) {
+      lastBiome.current = curBiome
+      const line = BIOME_VO[curBiome]
+      if (line && !spokenBiomes.has(curBiome)) {
+        spokenBiomes.add(curBiome)
+        void playVoice(line)
+      }
+    }
     const wasOnGround = onGround.current
     if (k.jump && onGround.current) {
       velY.current = JUMP_SPEED
       onGround.current = false
+      if (Math.random() < 0.4) playPlayerJump()
     }
     velY.current -= GRAVITY * dt
     pos.current.y += velY.current * dt

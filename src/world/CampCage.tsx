@@ -157,10 +157,18 @@ export function CampCage({ camp, offset = [-2, 2], captives = 2, seed = 0 }: Cam
     }
     // Free only once we've actually seen the camp populated AND it's now empty.
     if (sawOrks.current) {
-      for (let i = 0; i < captives; i++) {
-        freeCaptive(cageX + (i - 0.5) * 0.8, cageZ + 1.2, (seed + i * 0.37) % 1, i % 3)
-      }
-      spawnFloat(`${captives} freed!`, '#9be38a', cageX, cageY + 2.2, cageZ, 1.8)
+      // Only ONE captive leaves with you as militia — the rest bolt for the wilds
+      // the instant the bars open. A camp is a single hard-won heir, not a crowd.
+      freeCaptive(cageX, cageZ + 1.2, seed % 1, 0)
+      const fled = Math.max(0, captives - 1)
+      spawnFloat(
+        fled > 0 ? `1 rescued · ${fled} fled` : '1 rescued',
+        '#9be38a',
+        cageX,
+        cageY + 2.2,
+        cageZ,
+        1.8,
+      )
       playLevelUp()
       playVillagerGrunt()
       addShake(0.3)

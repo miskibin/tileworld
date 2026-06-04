@@ -1,4 +1,4 @@
-import { getListener, isEnabled, playSfx, audioMix } from './audio'
+import { getListener, isEnabled, playSfx, playVoice, audioMix } from './audio'
 
 // Procedurally-synthesized SFX via WebAudio — no asset files needed. All sounds
 // reuse the THREE.AudioListener's AudioContext so they share the same enabled/
@@ -353,21 +353,34 @@ export function playCatMeow(dist = 0): void {
 // Listener (OpenGameArt). Level-up fanfare is CC-BY 3.0 (Bart Kelsey) — see
 // docs/audio-candidates.md. All non-spatial, kept quiet so they sit under combat.
 
+// Sully (ElevenLabs) hero grunt pools — a random take per event so repeated
+// swings/hits don't reuse the same grunt. Low pitch jitter keeps the voice intact.
+const HERO_SWINGS = ['/audio/player-swing-1.mp3', '/audio/player-swing-2.mp3']
+const HERO_HURTS = ['/audio/player-hurt-1.mp3', '/audio/player-hurt-2.mp3', '/audio/player-hurt-3.mp3']
+const HERO_DEATHS = ['/audio/player-death-1.mp3', '/audio/player-death-2.mp3']
+const pick = <T,>(a: readonly T[]): T => a[(Math.random() * a.length) | 0]
+
 /** Hero exertion grunt on a melee swing — only ~1 in 3 swings, so it punctuates
  *  rather than nags. Layered over the procedural whoosh (playSwing). */
 export function playPlayerAttack(): void {
   if (Math.random() > 0.34) return
-  playSfx('/audio/player-attack-grunt.ogg', 0.3, 0.12).catch(() => {})
+  playSfx(pick(HERO_SWINGS), 0.5, 0.05).catch(() => {})
 }
 
-/** Hero pain cry when taking a (non-fatal) hit — quiet voice over playHurt's thud. */
+/** Hero pain cry on a (non-fatal) hit — random grunt over playHurt's thud. */
 export function playPlayerHurtVoice(): void {
-  playSfx('/audio/player-hurt.mp3', 0.32, 0.1).catch(() => {})
+  playSfx(pick(HERO_HURTS), 0.6, 0.05).catch(() => {})
 }
 
-/** Hero death scream — fires once on the killing blow. */
+/** Hero effort grunt on a jump — quiet, occasional (caller gates the rate). */
+export function playPlayerJump(): void {
+  playSfx('/audio/player-jump-1.mp3', 0.35, 0.06).catch(() => {})
+}
+
+/** Hero death scream — fires once on the killing blow. Routed through the
+ *  narration node so it interrupts any in-progress biome line and stands alone. */
 export function playPlayerDeath(): void {
-  playSfx('/audio/player-death-scream.ogg', 0.5, 0.06).catch(() => {})
+  void playVoice(pick(HERO_DEATHS), 1)
 }
 
 /** Coin pickup — sampled jingle, falls back to the procedural blips. */

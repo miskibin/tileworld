@@ -106,55 +106,55 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'eco_district_1',
     branch: 'economy',
     name: "Settlers' District",
-    desc: 'Raise two cottages and welcome two villagers.',
+    desc: 'Raise a cottage and welcome one villager.',
     icon: '🏠',
     cost: 20,
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildHouses(2)
+      return buildHouses(1)
     },
   },
   {
     id: 'eco_district_2',
     branch: 'economy',
     name: 'Market Row',
-    desc: 'Two more cottages and villagers.',
+    desc: 'One more cottage and villager.',
     icon: '🏠',
     cost: 45,
     prereqId: 'eco_district_1',
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildHouses(2)
+      return buildHouses(1)
     },
   },
   {
     id: 'eco_district_3',
     branch: 'economy',
     name: 'Craftsmen Quarter',
-    desc: 'Two more cottages and villagers.',
+    desc: 'One more cottage and villager.',
     icon: '🏡',
     cost: 80,
     prereqId: 'eco_district_2',
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildHouses(2)
+      return buildHouses(1)
     },
   },
   {
     id: 'eco_district_4',
     branch: 'economy',
     name: 'Thriving Town',
-    desc: 'Two final cottages and villagers.',
+    desc: 'One final cottage and villager.',
     icon: '🏘️',
     cost: 120,
     prereqId: 'eco_district_3',
     apply() {
       if (getCity().housesBuilt >= HOUSE_SLOTS.length) return false
       if (!spendGold(this.cost)) return false
-      return buildHouses(2)
+      return buildHouses(1)
     },
   },
   {

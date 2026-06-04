@@ -16,6 +16,7 @@ export const audioMix = {
   range: 18, // tiles — creature-voice audible radius around the player
   music: 0.22, // background music loop
   ambient: 0.32, // forest ambient loop
+  narration: 0.95, // hero's spoken thoughts (biome lines) — sits above the mix
 }
 
 let musicNode: THREE.Audio | null = null
@@ -94,4 +95,27 @@ export async function playSfx(url: string, volume = 0.6, pitchJitter = 0.15): Pr
   inst.setVolume(volume * audioMix.voice * (0.9 + Math.random() * 0.2))
   inst.setPlaybackRate(1 + (Math.random() * 2 - 1) * pitchJitter)
   inst.play()
+}
+
+// ── Hero narration (spoken biome thoughts) ───────────────────────────────────
+// One shared voice node so the hero never talks over himself: a new line stops
+// the previous. No pitch jitter (that would warp the voice) and no spatialisation.
+let voiceNode: THREE.Audio | null = null
+
+export async function playVoice(url: string, volume = 1): Promise<void> {
+  if (!listener || !enabled) return
+  const buf = await loadBuffer(url)
+  // Re-check after the await — the listener/enable state may have changed.
+  if (!listener || !enabled) return
+  if (!voiceNode) voiceNode = new THREE.Audio(listener)
+  if (voiceNode.isPlaying) voiceNode.stop()
+  voiceNode.setBuffer(buf)
+  voiceNode.setLoop(false)
+  voiceNode.setVolume(volume * audioMix.narration)
+  voiceNode.play()
+}
+
+/** Stop any in-progress hero line (called on world unmount / new game). */
+export function stopVoice(): void {
+  if (voiceNode?.isPlaying) voiceNode.stop()
 }
