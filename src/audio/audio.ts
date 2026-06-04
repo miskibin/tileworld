@@ -16,7 +16,7 @@ export const audioMix = {
   range: 18, // tiles — creature-voice audible radius around the player
   music: 0.22, // background music loop
   ambient: 0.32, // forest ambient loop
-  narration: 0.95, // hero's spoken thoughts (biome lines) — sits above the mix
+  narration: 0.57, // hero's spoken thoughts (biome lines) — kept low under the mix
 }
 
 let musicNode: THREE.Audio | null = null
@@ -101,21 +101,50 @@ export async function playSfx(url: string, volume = 0.6, pitchJitter = 0.15): Pr
 // One shared voice node so the hero never talks over himself: a new line stops
 // the previous. No pitch jitter (that would warp the voice) and no spatialisation.
 let voiceNode: THREE.Audio | null = null
+// Bumped on every playVoice; lets a scheduled fade-stop bail if a newer line
+// has already taken over the node.
+let voiceGen = 0
 
-export async function playVoice(url: string, volume = 1): Promise<void> {
-  if (!listener || !enabled) return
-  const buf = await loadBuffer(url)
+export async function playVoice(url: string, volume = 1): Promise<boolean> {
+  if (!listener || !enabled) return false
+  let buf: AudioBuffer
+  try {
+    buf = await loadBuffer(url)
+  } catch {
+    return false // clip missing (e.g. line not recorded yet) — caller can retry
+  }
   // Re-check after the await — the listener/enable state may have changed.
-  if (!listener || !enabled) return
+  if (!listener || !enabled) return false
   if (!voiceNode) voiceNode = new THREE.Audio(listener)
+  const gen = ++voiceGen
   if (voiceNode.isPlaying) voiceNode.stop()
+  if (gen !== voiceGen) return false // superseded while stopping
+  voiceNode.gain.gain.cancelScheduledValues(listener.context.currentTime)
   voiceNode.setBuffer(buf)
   voiceNode.setLoop(false)
   voiceNode.setVolume(volume * audioMix.narration)
   voiceNode.play()
+  return true
 }
 
-/** Stop any in-progress hero line (called on world unmount / new game). */
+/** True while the hero is speaking a line — used to gate mouth grunts so he
+ *  never grunts and talks at once. */
+export function isVoicePlaying(): boolean {
+  return voiceNode?.isPlaying ?? false
+}
+
+/** Fade the current hero line out over ~180ms and stop — used when the player
+ *  leaves the biome mid-sentence (soft fade, not a hard mid-word cut), and on
+ *  world unmount / new game. */
 export function stopVoice(): void {
-  if (voiceNode?.isPlaying) voiceNode.stop()
+  if (!voiceNode || !voiceNode.isPlaying) return
+  const c = listener?.context
+  if (!c) { voiceNode.stop(); return }
+  const node = voiceNode
+  const gen = voiceGen
+  const g = node.gain.gain
+  g.cancelScheduledValues(c.currentTime)
+  g.setValueAtTime(g.value, c.currentTime)
+  g.linearRampToValueAtTime(0.0001, c.currentTime + 0.18)
+  window.setTimeout(() => { if (voiceGen === gen && node.isPlaying) node.stop() }, 230)
 }

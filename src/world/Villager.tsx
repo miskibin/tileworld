@@ -6,7 +6,7 @@ import { isFrozen } from './pauseStore'
 import { getCity, subscribeCity } from './cityStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { isInsideCastle } from './cityPlan'
 import { getAliveOrks, damageOrk } from './orkStore'
 import { getAliveBears, damageBear } from './bearStore'
@@ -205,11 +205,14 @@ export function VillagerView({ state }: Props) {
     if (isFrozen()) return
     const tNow = clock.getElapsedTime()
 
-    // Distance cull: far villagers are fog-hidden — hide + skip update work.
+    // Distance cull: far villagers are fog-hidden — hide AND freeze their matrix
+    // (cullVisible flips matrixWorldAutoUpdate off so three skips the subtree),
+    // then skip update work.
     if (ref.current && isCulled(state.x, state.z)) {
-      if (ref.current.visible) ref.current.visible = false
+      cullVisible(ref.current, true)
       return
     }
+    if (ref.current) cullVisible(ref.current, false)
 
     // Downed by orks → lie still on the spot until revived at the next prep.
     if (state.downed) {

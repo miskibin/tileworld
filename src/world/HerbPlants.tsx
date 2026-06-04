@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { findSpawnNear } from './obstacles'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { getPlayer } from './playerStore'
 import { addItem } from './inventoryStore'
 import { spawnFloat } from './fxStore'
@@ -61,11 +61,11 @@ function HerbView({ state }: { state: HerbState }) {
     const g = groupRef.current
     if (!g) return
     if (taken) return
-    if (isCulled(state.x, state.z)) {
-      g.visible = false
-      return
-    }
-    g.visible = true
+    // Freeze the (static) plant's matrix while far (cullVisible flips
+    // matrixWorldAutoUpdate off), not just hide it.
+    const culled = isCulled(state.x, state.z)
+    cullVisible(g, culled)
+    if (culled) return
     // Gentle sway.
     g.rotation.z = Math.sin(clock.getElapsedTime() * 1.3 + state.seed * 6) * 0.08
 

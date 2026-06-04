@@ -224,12 +224,32 @@ function inMountain(x: number, z: number): boolean {
   return false
 }
 
+// Higher-frequency boundary fray, ADDED to the blob distance for FLAT biomes
+// only. The low-frequency `wob` alone leaves a near-smooth arc that, at the RTS
+// camera angle, reads as hard tile stair-steps wherever a flat biome meets grass
+// — overwhelmingly the high-contrast desert↔grass seam (forest shares grass's
+// surface class so its seam is invisible, swamp is green-on-green, and the
+// snow/rock mountains hide their edge behind vertical cliff faces). Three
+// octaves (≈11 / ≈6 / ≈3.5-tile periods) break that edge into organic interlock
+// fingers that the seam-overlay shader then feathers. Mountains are EXCLUDED so
+// their footprint stays crisp and keeps matching inMountain()/rampClass() and
+// the map-reachability guarantee; flat biomes are all walkable height-1 like
+// grass, so fraying their boundary can't change pathing.
+function edgeFray(x: number, z: number): number {
+  return (
+    Math.sin(x * 0.55 + z * 0.38 + 1.3) * 1.6 +
+    Math.sin(x * 1.1 - z * 0.9 + 4.0) * 0.9 +
+    Math.sin(x * 1.9 + z * 1.7 + 2.2) * 0.5
+  )
+}
+
 function regionAt(x: number, z: number): Region | null {
   const wob = 2.4 * Math.sin(x * 0.4 + 1.1) + 2.4 * Math.cos(z * 0.36 - 0.7)
   let best: Region | null = null
   let bestEdge = Infinity
   for (const reg of REGIONS) {
-    const d = Math.hypot(x - reg.x, z - reg.z) + wob
+    const fray = reg.peak === undefined ? edgeFray(x, z) : 0
+    const d = Math.hypot(x - reg.x, z - reg.z) + wob + fray
     const edge = d - reg.r // negative = inside the blob
     if (edge < 0 && edge < bestEdge) {
       bestEdge = edge

@@ -8,6 +8,7 @@ import { getPlayer, addGold } from './playerStore'
 import { addItem } from './inventoryStore'
 import { spawnFloat } from './fxStore'
 import { playChestOpen } from '../audio/sfx'
+import { sayHeroLine } from './voiceStore'
 import { findSpawnNear } from './obstacles'
 import { tileAt, tileTopY } from './tileMap'
 
@@ -127,6 +128,7 @@ export function Chest({
       if (e.code !== 'KeyF' || opened || !inRange.current || isShopOpen() || isPaused()) return
       setOpened(true)
       playChestOpen()
+      sayHeroLine('chest', '/audio/vo/chest.mp3', { once: false })
       if (gold > 0) {
         addGold(gold)
         spawnFloat(`+${gold} ★`, '#ffd58c', pos[0], pos[1] + 1.6, pos[2])

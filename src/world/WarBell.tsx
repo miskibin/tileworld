@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import * as THREE from 'three'
-import { isPaused } from './pauseStore'
+import { isFrozen } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { getPhase } from './gameStore'
 import { requestPrepSkip } from './waveStore'
@@ -82,7 +82,7 @@ export function WarBell({ position, rotation = 0, inspect = false }: Props) {
   const swingUntil = useRef(0)
 
   useFrame(({ clock }) => {
-    if (isPaused()) return
+    if (isFrozen()) return
     const now = clock.getElapsedTime()
     const isDay = getPhase() === 'prep'
 
@@ -108,6 +108,7 @@ export function WarBell({ position, rotation = 0, inspect = false }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'KeyE') return
+      if (isFrozen()) return // never ring from behind a modal / hard pause
       if (!inRangeRef.current) return
       if (getPhase() !== 'prep') return
       requestPrepSkip() // summon the night

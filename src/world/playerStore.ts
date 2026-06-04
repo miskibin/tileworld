@@ -7,6 +7,7 @@ import {
   playPlayerDeath,
 } from '../audio/sfx'
 import { addShake, spawnFloat } from './fxStore'
+import { sayHeroLine } from './voiceStore'
 import { addGradePulse, resetGrade } from './gradeStore'
 import { getDamageTakenMult, resetBuffs } from './buffStore'
 import { getArmorDamageMult } from './inventoryStore'
@@ -171,6 +172,7 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
     return
   }
 
+  const prevHp = state.hp
   state.hp = Math.max(0, state.hp - dmg)
   // Red floating damage on the player — distinct from the yellow/white numbers
   // shown over enemies the player hits.
@@ -182,6 +184,12 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
     playPlayerDeath()
   } else {
     playPlayerHurtVoice()
+    // Crossed into the danger zone (first drop under 30% HP) — mutter the low-
+    // health line, which also nudges the player toward marsh herbs.
+    const lowThresh = state.maxHp * 0.3
+    if (prevHp > lowThresh && state.hp <= lowThresh) {
+      sayHeroLine('low-hp', '/audio/vo/hurt.mp3', { once: false })
+    }
   }
   addShake(state.hp <= 0 ? 0.5 : 0.22)
   // Screen wince: edge-darken + brief desaturation through the passes already

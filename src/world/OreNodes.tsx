@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { findSpawnNear } from './obstacles'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { createOre, resetOre, type OreState } from './oreStore'
 
 // Ore boulders — destructible stone nodes in the rock highlands. Mine them with
@@ -92,11 +92,11 @@ function OreView({ state }: { state: OreState }) {
       if (visible) setVisible(false)
       return
     }
-    if (isCulled(state.x, state.z)) {
-      if (g.visible) g.visible = false
-      return
-    }
-    g.visible = true
+    // Freeze the (static) boulder's matrix while far — cullVisible flips
+    // matrixWorldAutoUpdate off so three skips its subtree entirely, not just hide.
+    const culled = isCulled(state.x, state.z)
+    cullVisible(g, culled)
+    if (culled) return
     g.position.set(state.x, state.y, state.z)
     // Hurt flash: brighten the veins for a beat when struck.
     const now = rf.clock.getElapsedTime()

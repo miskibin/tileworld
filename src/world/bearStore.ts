@@ -69,6 +69,13 @@ export function resetBears(): void {
   nextId = 0
 }
 
+/** Remove a dead bear from the array (called once its death-fade is done) so a
+ *  fresh one can respawn in its slot without the array growing unbounded. */
+export function reapBear(id: number): void {
+  const i = bears.findIndex((b) => b.id === id)
+  if (i !== -1) bears.splice(i, 1)
+}
+
 export function getBears(): BearState[] {
   return bears
 }

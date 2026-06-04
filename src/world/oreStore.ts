@@ -23,8 +23,12 @@ export interface OreState {
   stoneReward: number
 }
 
-const ORE_HP = 60
-const ORE_STONE = 4
+// Ore is the ONE renewable exception: it does not respawn. Instead each node is a
+// long dig (high HP) so building up the stone for defense is a real time sink
+// rather than a quick vacuum. Reward bumped to match the effort so the finite 12
+// nodes still cover the defense tree.
+const ORE_HP = 500
+const ORE_STONE = 8
 
 const ore: OreState[] = []
 let nextId = 0

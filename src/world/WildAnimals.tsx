@@ -47,6 +47,15 @@ const ANIMAL_SPAWNS: Spawn[] = [
   { species: 'bog_croc', pos: [72, 86], seed: 8.2 },
   { species: 'elk', pos: [40, 72], seed: 8.5 },
   { species: 'elk', pos: [110, 80], seed: 8.8 },
+  // Forest (SW ~[32,80]) — a real hunting ground so the woods feel alive and the
+  // hero's "looks like good hunting" line pays off: an elk herd + deer + a boar.
+  { species: 'elk', pos: [28, 78], seed: 8.61 },
+  { species: 'elk', pos: [36, 84], seed: 8.62 },
+  { species: 'elk', pos: [24, 86], seed: 8.63 },
+  { species: 'deer', pos: [40, 76], seed: 8.64 },
+  { species: 'deer', pos: [30, 90], seed: 8.65 },
+  { species: 'boar', pos: [26, 72], seed: 8.66 },
+  { species: 'rabbit', pos: [34, 82], seed: 8.67 },
   { species: 'goat', pos: [30, 50], seed: 9.1 },
   { species: 'goat', pos: [118, 60], seed: 9.3 },
   { species: 'golem', pos: [22, 58], seed: 9.6 },

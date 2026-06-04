@@ -7,7 +7,7 @@ import { nearestTrader, subscribeTraders } from './traderStore'
 import { isFrozen, isPaused } from './pauseStore'
 import { findPath } from './pathfinding'
 import { getPlayer } from './playerStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
 import { openShop, closeShop, isShopOpen } from './shopStore'
 import { buildShopItems } from './shopCatalog'
 import { hasItem } from './inventoryStore'
@@ -116,12 +116,13 @@ export function TraderView({ state, inspect = false }: Props) {
     if (isFrozen()) return
     const tNow = clock.getElapsedTime()
 
-    // Distance cull: far traders are fog-hidden — hide + skip update work.
+    // Distance cull: far traders are fog-hidden — hide AND freeze their matrix
+    // (cullVisible flips matrixWorldAutoUpdate off so three skips the subtree).
     if (ref.current && isCulled(state.x, state.z)) {
-      if (ref.current.visible) ref.current.visible = false
+      cullVisible(ref.current, true)
       return
     }
-    if (ref.current && !ref.current.visible) ref.current.visible = true
+    if (ref.current) cullVisible(ref.current, false)
 
     tickStateMachine(state, tNow)
 

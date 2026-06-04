@@ -4,6 +4,7 @@
 // hand-rolled module store like playerStore's gold: discrete changes notify the
 // HUD; there is no per-frame channel here (stone only ever changes on a mine /
 // purchase event, never every frame).
+import { sayHeroLine } from './voiceStore'
 
 export interface Resources {
   stone: number
@@ -24,6 +25,8 @@ export function addStone(n: number): void {
   if (n <= 0) return
   state.stone += n
   notify()
+  // First ore broken this run — explain stone goes into the castle's defenses.
+  sayHeroLine('first-stone', '/audio/vo/stone.mp3')
 }
 
 /** Spend stone if affordable. Returns false and changes nothing when short. */

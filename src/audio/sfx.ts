@@ -1,4 +1,4 @@
-import { getListener, isEnabled, playSfx, playVoice, audioMix } from './audio'
+import { getListener, isEnabled, playSfx, playVoice, isVoicePlaying, audioMix } from './audio'
 
 // Procedurally-synthesized SFX via WebAudio — no asset files needed. All sounds
 // reuse the THREE.AudioListener's AudioContext so they share the same enabled/
@@ -360,21 +360,36 @@ const HERO_HURTS = ['/audio/player-hurt-1.mp3', '/audio/player-hurt-2.mp3', '/au
 const HERO_DEATHS = ['/audio/player-death-1.mp3', '/audio/player-death-2.mp3']
 const pick = <T,>(a: readonly T[]): T => a[(Math.random() * a.length) | 0]
 
-/** Hero exertion grunt on a melee swing — only ~1 in 3 swings, so it punctuates
+// One mouth at a time: a grunt never fires while the hero is speaking a line,
+// and grunts are rate-limited so combat doesn't spam them.
+let lastGruntAt = 0
+const GRUNT_MIN_GAP = 1.6 // seconds between any mouth grunts
+function canGrunt(): boolean {
+  if (isVoicePlaying()) return false
+  const now = (typeof performance !== 'undefined' ? performance.now() : 0) * 0.001
+  if (now - lastGruntAt < GRUNT_MIN_GAP) return false
+  lastGruntAt = now
+  return true
+}
+
+/** Hero exertion grunt on a melee swing — gated by canGrunt so it punctuates
  *  rather than nags. Layered over the procedural whoosh (playSwing). */
 export function playPlayerAttack(): void {
   if (Math.random() > 0.34) return
-  playSfx(pick(HERO_SWINGS), 0.5, 0.05).catch(() => {})
+  if (!canGrunt()) return
+  playSfx(pick(HERO_SWINGS), 0.4, 0.05).catch(() => {})
 }
 
 /** Hero pain cry on a (non-fatal) hit — random grunt over playHurt's thud. */
 export function playPlayerHurtVoice(): void {
-  playSfx(pick(HERO_HURTS), 0.6, 0.05).catch(() => {})
+  if (!canGrunt()) return
+  playSfx(pick(HERO_HURTS), 0.45, 0.05).catch(() => {})
 }
 
 /** Hero effort grunt on a jump — quiet, occasional (caller gates the rate). */
 export function playPlayerJump(): void {
-  playSfx('/audio/player-jump-1.mp3', 0.35, 0.06).catch(() => {})
+  if (!canGrunt()) return
+  playSfx('/audio/player-jump-1.mp3', 0.28, 0.06).catch(() => {})
 }
 
 /** Hero death scream — fires once on the killing blow. Routed through the

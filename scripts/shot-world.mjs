@@ -48,6 +48,10 @@ try {
   }
 
   await page.waitForTimeout(4000)
+  // Hide the leva debug panel + r3f-perf overlay so they don't cover edge biomes
+  // in the framed shot (dev-only chrome, never part of what we're capturing).
+  await page.addStyleTag({ content: '#leva__root,.leva-c-kWgxhW,#r3f-perf{display:none!important}' })
+  await page.waitForTimeout(120)
   const buf = await page.screenshot({ timeout: 60000 })
   writeFileSync(out, buf)
   console.log(`✓ wrote ${out} (${(buf.length / 1024).toFixed(0)} KB)`)

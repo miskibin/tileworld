@@ -6,6 +6,7 @@ import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { openShop, closeShop, isShopOpen } from './shopStore'
 import { buildShopItems } from './shopCatalog'
+import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 
 interface ShopProps {
   /** village grid-space anchor */
@@ -70,6 +71,23 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
     inRangeRef.current = inRange
     if (promptRef.current) promptRef.current.visible = inRange && !isShopOpen()
   })
+
+  // Solid footprint so the hero and orks route around the stall instead of
+  // clipping through it. AABB ignores rotation (close enough at the fixed angles
+  // we place it). Scaled to match the group's 0.7 horizontal scale; counter is on
+  // the +Z face, so the box stays well within INTERACT_DIST of an approach.
+  useEffect(() => {
+    const halfW = (WALL_W * 0.7) / 2 + 0.15
+    const halfD = (WALL_D * 0.7) / 2 + 0.15
+    const owner = `shop:${position[0]},${position[2]}`
+    registerHouseBlocker(
+      { minX: position[0] - halfW, maxX: position[0] + halfW, minZ: position[2] - halfD, maxZ: position[2] + halfD },
+      owner,
+    )
+    return () => resetHouseBlockers(owner)
+    // primitive deps (not the array literal) so a World re-render doesn't churn
+    // the blocker registration — matches OrkCamp / CampCage.
+  }, [position[0], position[1], position[2]])
 
   // E to open / close.
   useEffect(() => {

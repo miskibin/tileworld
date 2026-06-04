@@ -4,7 +4,9 @@ import * as THREE from 'three'
 import { tileAt, tileTopY, canStepOrDrop, CENTER_X, CENTER_Z } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
-import { playSfx, playVoice, stopVoice } from '../audio/audio'
+import { playSfx, stopVoice } from '../audio/audio'
+import { sayHeroLine, wildernessSpoken, resetHeroVoice } from './voiceStore'
+import { getWave } from './waveStore'
 import { playSwing, playHit, playKill, playPlayerAttack, playPlayerJump } from '../audio/sfx'
 import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
@@ -117,7 +119,6 @@ const BIOME_VO: Record<string, string> = {
   rock: '/audio/vo/rock.mp3',
   swamp: '/audio/vo/swamp.mp3',
 }
-const spokenBiomes = new Set<string>()
 
 export interface PlayerStateRef {
   x: number
@@ -165,8 +166,9 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // World-Y the player last left the ground at — drives fall-damage on landing.
   const airTakeoffY = useRef(initial[1])
   const lastStepHalfCycle = useRef(0)
-  // Last biome the player stood on — change drives the once-per-biome voice line.
-  const lastBiome = useRef<string | null>(null)
+  // Biome whose voice line is currently playing (null if none) — drives the
+  // fade-stop when the player walks out before the line finishes.
+  const speakingBiome = useRef<string | null>(null)
   // Next R3F-clock time the swamp's poison may bite again.
   const swampPoisonAt = useRef(0)
 
@@ -189,7 +191,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Clear any lingering hit-stop when the world unmounts (new game / restart) so
   // a freeze triggered on the last frame can't carry getTimeScale()=0 into the
   // next run's first frames. Matches the unmount-reset pattern of Orbs/Projectiles.
-  useEffect(() => () => { resetHitStop(); resetFovKick(); stopVoice(); spokenBiomes.clear() }, [])
+  useEffect(() => () => { resetHitStop(); resetFovKick(); stopVoice(); resetHeroVoice() }, [])
 
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
@@ -426,15 +428,31 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     const tileBelow = tileAt(Math.floor(pos.current.x), Math.floor(pos.current.z))
     const groundY = onBridge ? onBridge.y : tileBelow ? tileTopY(Math.floor(pos.current.x), Math.floor(pos.current.z)) : 0
 
-    // ─── Biome voice: mutter a thought the first time we enter each biome ──
+    // ─── Biome voice: the hero mutters a thought the first time he enters each
+    // biome (sayHeroLine handles the once-per-run + min-gap + single-mouth gates).
+    // The line fades out if he walks out of that biome before it finishes.
     const curBiome = tileBelow?.biome
-    if (curBiome && curBiome !== lastBiome.current) {
-      lastBiome.current = curBiome
+    // Cut the line only when he actually enters a DIFFERENT named biome — not when
+    // curBiome is momentarily undefined over a bridge / water / map edge (else a
+    // musing gets clipped the instant he steps onto a river crossing).
+    if (speakingBiome.current && curBiome && curBiome !== speakingBiome.current) {
+      stopVoice()
+      speakingBiome.current = null
+    }
+    if (curBiome) {
       const line = BIOME_VO[curBiome]
-      if (line && !spokenBiomes.has(curBiome)) {
-        spokenBiomes.add(curBiome)
-        void playVoice(line)
+      // 'grass' is home — suppress it at spawn; only speak it once he's roamed.
+      const homeOk = curBiome !== 'grass' || wildernessSpoken()
+      if (line && homeOk && sayHeroLine('biome:' + curBiome, line, { minGap: 18 })) {
+        speakingBiome.current = curBiome
       }
+    }
+
+    // ─── Night warning: when ~15s of the prep day remain, nudge the player to
+    // head back (once per prep period). Uses the "getting dark, night soon" clip.
+    const wv = getWave()
+    if (wv.prepSecondsLeft > 0 && wv.prepSecondsLeft <= 15) {
+      sayHeroLine('night:' + wv.index, '/audio/vo/night.mp3')
     }
     const wasOnGround = onGround.current
     if (k.jump && onGround.current) {

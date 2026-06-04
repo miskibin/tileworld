@@ -120,6 +120,8 @@ The user dislikes placeholder/decorative UI chrome — build only HUD that's ask
 
 [sfx.ts](src/audio/sfx.ts) synthesizes all gameplay SFX procedurally via the Web Audio API (no files) — `playHit`, `playKill`, `playGold`, `playLevelUp`, etc., called straight from store mutators. [audio.ts](src/audio/audio.ts) handles file-based loops/voice (the `public/audio/*.mp3` ambience) and the listener. Spatial loops use R3F `<PositionalAudio>` placed in `World.tsx`, gated on `useAudioEnabled()`.
 
+Hero spoken VO (biome musings + event hints) routes through `sayHeroLine` ([voiceStore.ts](src/world/voiceStore.ts)) → the single `playVoice` node in audio.ts (one mouth at a time, global min-gap, once-per-run, fade-stop on biome exit). **All voice lyrics + their file/trigger mapping + the ElevenLabs voice settings live in [docs/voice-lines.md](docs/voice-lines.md) — update it whenever you add or re-record a line.**
+
 ## Debug
 
 `leva` provides a live tuning panel ([DebugBindings.tsx](src/world/DebugBindings.tsx)): fog color/density, light intensities (pushed up to `World` state since light JSX props can't be mutated externally), and the vision shader uniforms. [debugStore.ts](src/world/debugStore.ts) holds two cheats: `showPaths` (renders A* paths via [DebugPaths.tsx](src/world/DebugPaths.tsx)) and `unlimitedMoney` (makes `spendGold` always succeed without deducting). `r3f-perf`'s `<Perf>` shows FPS/draw calls top-left. `main.tsx` overrides `document.hidden` in dev so the rAF loop keeps running in backgrounded/preview windows.

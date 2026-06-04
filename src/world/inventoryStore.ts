@@ -62,6 +62,12 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
     heal: 30,
     buff: { kind: 'resist', durationMs: 14000, mag: 0.6 },
   },
+  // Foraged in the western forest (see AppleTrees) — a quick snack heal, the
+  // woods' easy reward alongside the hunt.
+  apple: {
+    id: 'apple', name: 'Forest Apple', icon: '🍎', kind: 'consumable', stackable: true,
+    heal: 18,
+  },
   stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 26, stackable: false },
   // ─── Wearable armor (equip → re-skins the knight + cuts incoming damage) ──
   leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },

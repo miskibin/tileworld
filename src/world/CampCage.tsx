@@ -1,11 +1,13 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { tileTopY } from './tileMap'
 import { isFrozen } from './pauseStore'
-import { isCulled } from './cull'
+import { cullVisible, isCulled } from './cull'
+import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 import { getAliveOrks } from './orkStore'
 import { freeCaptive } from './rescue'
+import { sayHeroLine } from './voiceStore'
 import { spawnFloat, addShake } from './fxStore'
 import { playLevelUp, playVillagerGrunt } from '../audio/sfx'
 
@@ -125,6 +127,19 @@ export function CampCage({ camp, offset = [-2, 2], captives = 2, seed = 0 }: Cam
   const cageZ = camp.z + offset[1]
   const cageY = useMemo(() => tileTopY(Math.floor(cageX), Math.floor(cageZ)), [cageX, cageZ])
 
+  // Solid footprint matching the plank floor (W+0.12 wide) so the hero and orks
+  // route around the cage instead of clipping through the bars. The cage sits ≥2
+  // tiles off the camp centre, so this box never traps the home-anchored guards.
+  useEffect(() => {
+    const half = (W + 0.12) / 2 + 0.1
+    const owner = `campcage:${cageX},${cageZ}`
+    registerHouseBlocker(
+      { minX: cageX - half, maxX: cageX + half, minZ: cageZ - half, maxZ: cageZ + half },
+      owner,
+    )
+    return () => resetHouseBlockers(owner)
+  }, [cageX, cageZ])
+
   const groupRef = useRef<THREE.Group>(null!)
   const sawOrks = useRef(false) // guard the startup race (orks spawn a frame late)
   const nextCheck = useRef(0)
@@ -143,8 +158,11 @@ export function CampCage({ camp, offset = [-2, 2], captives = 2, seed = 0 }: Cam
     if (isFrozen()) return
     const g = groupRef.current
     if (!g) return
-    g.visible = !isCulled(cageX, cageZ)
-    if (freed) return
+    // Freeze the (static) cage's matrix while far (cullVisible flips
+    // matrixWorldAutoUpdate off), not just hide it.
+    const culled = isCulled(cageX, cageZ)
+    cullVisible(g, culled)
+    if (culled || freed) return
 
     const t = rf.clock.getElapsedTime()
     if (t < nextCheck.current) return
@@ -171,6 +189,8 @@ export function CampCage({ camp, offset = [-2, 2], captives = 2, seed = 0 }: Cam
       )
       playLevelUp()
       playVillagerGrunt()
+      // First camp cleared this run — explain the rescued become castle militia.
+      sayHeroLine('first-rescue', '/audio/vo/rescue.mp3')
       addShake(0.3)
       setFreed(true)
     }

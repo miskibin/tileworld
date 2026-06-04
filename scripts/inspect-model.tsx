@@ -57,6 +57,7 @@ import { OreBoulder, makeMats } from '../src/world/OreNodes'
 import { Cage } from '../src/world/CampCage'
 import { WarBellModel } from '../src/world/WarBell'
 import { HerbModel } from '../src/world/HerbPlants'
+import { AppleModel } from '../src/world/AppleTrees'
 
 // Character is loaded lazily/tolerantly: it transitively imports a number of
 // gameplay stores, and if any of those is mid-refactor (a dangling import) a
@@ -119,6 +120,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Cage: () => <Cage openAmount={0} captives={2} />,
   WarBell: () => <WarBellModel />,
   Herb: () => <HerbModel />,
+  Apple: () => <AppleModel />,
   Villager: () => (
     <VillagerView
       state={createVillager({

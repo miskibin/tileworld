@@ -30,6 +30,7 @@ import { KeepArchers } from './KeepArchers'
 import { Bears } from './Bear'
 import { OreNodes } from './OreNodes'
 import { HerbPlants } from './HerbPlants'
+import { AppleTrees } from './AppleTrees'
 import { CampCage } from './CampCage'
 import { WarBell } from './WarBell'
 import { Projectiles } from './Projectiles'
@@ -337,6 +338,9 @@ export function World() {
 
         {/* Marsh herbs — forage in the swamp (slow + poison hazard) for heal/resist potions */}
         <HerbPlants />
+
+        {/* Forest apples — forage in the western wood for a quick heal (pairs with the hunt) */}
+        <AppleTrees />
 
         {/* Wild animals: wolves hunt deer + rabbits; boars charge when provoked */}
         <WildAnimals />

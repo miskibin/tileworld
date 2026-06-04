@@ -10,7 +10,7 @@ import { findPath } from './pathfinding'
 import { isFrozen } from './pauseStore'
 import { getTimeScale } from './hitStopStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
-import { createBear, getBears, resetBears, type BearState } from './bearStore'
+import { createBear, getBears, resetBears, reapBear, type BearState } from './bearStore'
 import { playBearRoar, playBearGrowl } from '../audio/sfx'
 import { cullVisible, isCulled } from './cull'
 
@@ -334,38 +334,80 @@ function BearView({ state }: { state: BearState }) {
   )
 }
 
+// Fewer bears than before (6, was 9) so the wilds aren't wall-to-wall predators —
+// part of thinning out "findables" so a day doesn't strip the whole map.
 const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
   { pos: [16, 18], seed: 1.3 },
   { pos: [82, 60], seed: 4.1 },
-  { pos: [70, 14], seed: 6.7 },
-  // Out in the newly expanded wilds (spawns auto-snap to valid land).
   { pos: [10, 56], seed: 8.2 },
   { pos: [90, 52], seed: 2.9 },
-  { pos: [38, 64], seed: 5.5 },
-  // Frontier bears roaming the new eastern / southern lands.
   { pos: [104, 58], seed: 9.4 },
   { pos: [70, 84], seed: 11.6 },
-  { pos: [108, 78], seed: 3.7 },
 ]
+
+// Seconds after a bear dies before a fresh one returns to that spot, and the
+// distance the player must be from the spot for it to respawn — so the wilds
+// re-populate over time but a bear never pops in while you're watching.
+const BEAR_RESPAWN_DELAY = 50
+const BEAR_RESPAWN_FAR = 40
+
+interface BearSlot {
+  pos: [number, number]
+  seed: number
+  id: number
+  respawnAt: number | null
+}
 
 export function Bears() {
   const [bears, setBears] = useState<BearState[]>([])
+  const slots = useRef<BearSlot[]>([])
   useEffect(() => {
     const handle = requestAnimationFrame(() => {
       resetBears()
-      setBears(
-        BEAR_SPAWNS.map((b) => {
-          const s = findSpawnNear(b.pos[0], b.pos[1])
-          return createBear(s.x, s.z, b.seed)
-        }),
-      )
+      const created = BEAR_SPAWNS.map((b) => {
+        const s = findSpawnNear(b.pos[0], b.pos[1])
+        return createBear(s.x, s.z, b.seed)
+      })
+      slots.current = BEAR_SPAWNS.map((b, i) => ({ ...b, id: created[i].id, respawnAt: null }))
+      setBears(created)
     })
     return () => {
       cancelAnimationFrame(handle)
       resetBears()
+      slots.current = []
     }
   }, [])
-  void getBears
+
+  // Respawn loop (mirrors WildAnimals): when a slot's bear is dead, wait out the
+  // delay, and once the spot is far from the player, reap the corpse and create a
+  // fresh bear there with a new id so its view remounts clean.
+  useFrame(({ clock }) => {
+    if (isFrozen()) return
+    const list = slots.current
+    if (list.length === 0) return
+    const now = clock.getElapsedTime()
+    const p = getPlayer()
+    let changed = false
+    for (const slot of list) {
+      const b = getBears().find((x) => x.id === slot.id)
+      if (!b || b.hp > 0) {
+        slot.respawnAt = null
+        continue
+      }
+      if (slot.respawnAt === null) {
+        slot.respawnAt = now + BEAR_RESPAWN_DELAY
+      } else if (now >= slot.respawnAt && Math.hypot(p.x - slot.pos[0], p.z - slot.pos[1]) > BEAR_RESPAWN_FAR) {
+        reapBear(slot.id)
+        const s = findSpawnNear(slot.pos[0], slot.pos[1])
+        const fresh = createBear(s.x, s.z, slot.seed)
+        slot.id = fresh.id
+        slot.respawnAt = null
+        changed = true
+      }
+    }
+    if (changed) setBears(getBears().slice())
+  })
+
   return (
     <group>
       {bears.map((b) => (
