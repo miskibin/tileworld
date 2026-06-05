@@ -8,7 +8,7 @@ import { playSfx, stopVoice } from '../audio/audio'
 import { sayHeroLine, wildernessSpoken, resetHeroVoice } from './voiceStore'
 import { getWave } from './waveStore'
 import { markCombat, resetCombat } from './combatStore'
-import { playSwing, playHit, playKill, playPlayerAttack, playPlayerJump } from '../audio/sfx'
+import { playSwing, playHit, playPick, playKill, playPlayerAttack, playPlayerJump } from '../audio/sfx'
 import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
 import { spawnDust, dustForBiome } from './dustStore'
@@ -715,6 +715,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           }
           let hitAny = false
           let killedAny = false
+          let hitOre = false
           for (const dog of getAliveDogs()) {
             if (!inCone(dog.x, dog.z)) continue
             const died = damageDog(dog, dmg, hitT)
@@ -857,11 +858,15 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               spawnFloat(`${dmg}`, '#ffffff', animal.x, animal.y + 2.0, animal.z)
             }
           }
+          // Snapshot before the ore loop: anything hit so far is a creature, so
+          // a swing that lands on both an ork and a boulder still plays the
+          // meaty flesh hit rather than the metallic chip.
+          const hitCreature = hitAny
           // ─── Mining: ore boulders shatter for stone (rock highlands) ──
           for (const o of getAliveOre()) {
             if (!inCone(o.x, o.z)) continue
             const broke = damageOre(o, dmg, hitT)
-            hitAny = true
+            hitOre = true
             spawnImpact(o.x, o.y + 0.5, o.z, {
               color: broke ? '#cdd3da' : '#9aa0a6',
               count: broke ? 16 : 7,
@@ -886,10 +891,16 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             addShake(0.55)
             addFovKick(fovTunables.kill) // takedown shoves the view out — extra oomph
             triggerHitStop(0.09)
-          } else if (hitAny) {
+          } else if (hitCreature) {
             playHit()
             addShake(0.3)
             addFovKick(fovTunables.hit) // a connecting blow lands with weight
+            triggerHitStop(0.05)
+          } else if (hitOre) {
+            // Only stone was struck — metallic chip instead of the flesh hit.
+            playPick()
+            addShake(0.3)
+            addFovKick(fovTunables.hit)
             triggerHitStop(0.05)
           } else {
             // Whiffed — only now the empty-swing whoosh, so a connecting hit

@@ -96,9 +96,11 @@ function vary(frac = 0.06): number {
   return 1 + (Math.random() * 2 - 1) * frac
 }
 
-const SWORD_HIT_VARIANTS = [
+// var-2 is the meaty blade-on-flesh impact (used for orks/creatures); var-1 and
+// var-3 are metallic clangs, better suited to chipping stone (ore mining).
+const FLESH_HIT_CLIP = '/audio/sword-hit-var-2.wav'
+const STONE_HIT_VARIANTS = [
   '/audio/sword-hit-var-1.wav',
-  '/audio/sword-hit-var-2.wav',
   '/audio/sword-hit-var-3.wav',
 ] as const
 
@@ -121,8 +123,15 @@ function swingSynth(vol = 1): void {
  *  (0..1) scales it for distance — the hero's own hit uses the default 1. */
 export function playHit(vol = 1): void {
   if (vol <= 0.02) return
-  const clip = SWORD_HIT_VARIANTS[(Math.random() * SWORD_HIT_VARIANTS.length) | 0]
-  playSfx(clip, 0.5 * vol, 0.08).catch(() => hitSynth(vol))
+  playSfx(FLESH_HIT_CLIP, 0.5 * vol, 0.08).catch(() => hitSynth(vol))
+}
+
+/** Metallic chip — blade/pick on stone, for mining ore boulders. Reuses the two
+ *  metallic sword-hit takes; synth fallback shares the flesh-hit crack. */
+export function playPick(vol = 1): void {
+  if (vol <= 0.02) return
+  const clip = STONE_HIT_VARIANTS[(Math.random() * STONE_HIT_VARIANTS.length) | 0]
+  playSfx(clip, 0.5 * vol, 0.1).catch(() => hitSynth(vol))
 }
 
 /** Synth fallback for playHit — noise crack + low thud. */
