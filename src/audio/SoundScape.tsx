@@ -10,6 +10,15 @@ import { combatActive } from '../world/combatStore'
 
 // Ease speed for the day↔night music crossfade (≈ a couple-second blend).
 const CROSSFADE_RATE = 0.9
+// Title-screen theme crossfade: the menu hymn fades out (and the gameplay loops
+// fade in underneath) over ~1.5s once the player leaves the menu.
+const MENU_FADE_RATE = 1.3
+// The menu theme is the foreground while on the title screen, so it sits louder
+// than the in-game background music (audioMix.music ≈ 0.22). Scaled relative to
+// that slider (so mute/tuning still works) and clamped so a cranked slider can't
+// distort.
+const MENU_GAIN = 2.3
+const MENU_MAX = 0.9
 // Day combat layer: a drum loop that swells over the calm hymn while the hero is
 // in a confirmed ork fight (debounced in combatStore), then fades back out.
 const COMBAT_FADE_RATE = 1.6 // snappier in/out than the day↔night blend
@@ -26,6 +35,10 @@ export function SoundScape() {
   const bossMusicRef = useRef<THREE.Audio | null>(null)
   // Day combat layer — tense loop that swells over the hymn while fighting a threat.
   const dayCombatRef = useRef<THREE.Audio | null>(null)
+  // Title-screen theme — owns the mix while on the menu, fades out on Play.
+  const menuMusicRef = useRef<THREE.Audio | null>(null)
+  // 1 = on the title screen, 0 = in game. Eased toward the phase.
+  const menuMix = useRef(1)
   // 0 = peaceful day theme, 1 = night/wave dread theme. Eased toward the phase.
   const nightMix = useRef(0)
   // 0 = calm day, 1 = mid day-fight. Eased toward combat recency.
@@ -41,6 +54,24 @@ export function SoundScape() {
       setListener(null)
     }
   }, [camera])
+
+  // Browsers boot the AudioContext suspended until a user gesture, so the menu
+  // theme (which plays before the Play click) would stay silent. Resume on the
+  // first pointer/key interaction anywhere — idempotent, also hardens gameplay
+  // audio against a context that never got kicked.
+  useEffect(() => {
+    if (!enabled) return
+    const resume = () => {
+      const l = getListener()
+      if (l && l.context.state === 'suspended') void l.context.resume()
+    }
+    window.addEventListener('pointerdown', resume)
+    window.addEventListener('keydown', resume)
+    return () => {
+      window.removeEventListener('pointerdown', resume)
+      window.removeEventListener('keydown', resume)
+    }
+  }, [enabled])
 
   // Pause/resume the AudioContext when game pause state flips.
   useEffect(() => {
@@ -107,6 +138,20 @@ export function SoundScape() {
       registerLoops(dayMusic, forest)
     })
 
+    // Menu theme loads on its own (same resilience as the combat layer): it
+    // starts at full menu level and is faded out by the useFrame on Play.
+    loadBuffer('/audio/menu-theme.mp3')
+      .then((buf) => {
+        if (cancelled) return
+        const menu = new THREE.Audio(l)
+        menu.setBuffer(buf)
+        menu.setLoop(true)
+        menu.setVolume(0)
+        menu.play()
+        menuMusicRef.current = menu
+      })
+      .catch(() => {})
+
     // Day combat layer loads on its own so a missing file (track not recorded
     // yet) can't take down the rest of the music — it just stays absent and the
     // useFrame combat block no-ops.
@@ -130,11 +175,13 @@ export function SoundScape() {
       if (nightMusicRef.current?.isPlaying) nightMusicRef.current.stop()
       if (bossMusicRef.current?.isPlaying) bossMusicRef.current.stop()
       if (dayCombatRef.current?.isPlaying) dayCombatRef.current.stop()
+      if (menuMusicRef.current?.isPlaying) menuMusicRef.current.stop()
       forestRef.current = null
       dayMusicRef.current = null
       nightMusicRef.current = null
       bossMusicRef.current = null
       dayCombatRef.current = null
+      menuMusicRef.current = null
     }
   }, [enabled])
 
@@ -147,6 +194,24 @@ export function SoundScape() {
     const night = nightMusicRef.current
     const boss = bossMusicRef.current
     if (!day || !night || !boss) return
+
+    // Title-screen theme: full while on the menu, crossfades out (gameplay loops
+    // fade in underneath via `gameGain`) once the player hits Play.
+    const inMenu = getPhase() === 'menu'
+    menuMix.current += ((inMenu ? 1 : 0) - menuMix.current) * Math.min(1, dt * MENU_FADE_RATE)
+    const menu = menuMusicRef.current
+    if (menu) menu.setVolume(Math.min(MENU_MAX, audioMix.music * MENU_GAIN) * menuMix.current)
+    // While fully on the menu, keep the gameplay loops silent and skip their mix.
+    if (menuMix.current > 0.999 && inMenu) {
+      day.setVolume(0)
+      night.setVolume(0)
+      boss.setVolume(0)
+      const dc0 = dayCombatRef.current
+      if (dc0) dc0.setVolume(0)
+      return
+    }
+    const gameGain = 1 - menuMix.current
+
     const target = getPhase() === 'wave' ? 1 : 0
     nightMix.current += (target - nightMix.current) * Math.min(1, dt * CROSSFADE_RATE)
     const m = nightMix.current
@@ -157,7 +222,8 @@ export function SoundScape() {
     const fighting = combatActive() ? 1 : 0
     combatMix.current += (fighting - combatMix.current) * Math.min(1, dt * COMBAT_FADE_RATE)
     const cm = combatMix.current
-    const dayLevel = audioMix.music * (1 - m)
+    // `gameGain` fades the whole gameplay bed in as the menu theme fades out.
+    const dayLevel = audioMix.music * (1 - m) * gameGain
     // Only duck the calm hymn when a combat track is actually loaded to swell in
     // its place — otherwise (file missing / failed to decode) ducking would leave
     // dead silence for the whole day fight.
@@ -168,8 +234,8 @@ export function SoundScape() {
     // The boss fight swaps the dread theme for the orc march — only one night
     // track is ever audible, so the other stays muted while `m` swells.
     const bossFight = isBossWave()
-    night.setVolume(audioMix.music * m * (bossFight ? 0 : 1))
-    boss.setVolume(audioMix.music * m * (bossFight ? 1 : 0))
+    night.setVolume(audioMix.music * m * gameGain * (bossFight ? 0 : 1))
+    boss.setVolume(audioMix.music * m * gameGain * (bossFight ? 1 : 0))
   })
 
   return null
