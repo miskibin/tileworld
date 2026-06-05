@@ -10,6 +10,8 @@ import {
   resetWaves,
   subscribeWave,
   payWaveClearStipend,
+  setPrepSecondsLeft,
+  getPrepProgress,
 } from './waveStore'
 import { setTaxOffice, resetCity } from './cityStore'
 import { resetPlayer, getGold } from './playerStore'
@@ -131,5 +133,29 @@ describe('Tax Office wave-clear stipend', () => {
     payWaveClearStipend()
     payWaveClearStipend()
     expect(getGold()).toBe(before + TAX_STIPEND * 2)
+  })
+})
+
+describe('prep progress (sky-as-countdown)', () => {
+  it('is 1 after reset (no prep time set yet)', () => {
+    resetWaves()
+    expect(getPrepProgress()).toBe(1)
+  })
+
+  it('is 0 when the full prep duration remains', () => {
+    setPrepSecondsLeft(PREP_DURATION)
+    expect(getPrepProgress()).toBe(0)
+  })
+
+  it('is 0.5 at the prep midpoint', () => {
+    setPrepSecondsLeft(PREP_DURATION / 2)
+    expect(getPrepProgress()).toBeCloseTo(0.5, 5)
+  })
+
+  it('clamps to [0,1] for out-of-range seconds', () => {
+    setPrepSecondsLeft(PREP_DURATION + 50)
+    expect(getPrepProgress()).toBe(0)
+    setPrepSecondsLeft(-10)
+    expect(getPrepProgress()).toBe(1)
   })
 })

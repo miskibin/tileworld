@@ -95,6 +95,18 @@ export function getWave(): WaveProgress {
   return state
 }
 
+/**
+ * Sky-as-countdown progress: 0 at the start of the prep "day" (full timer left)
+ * → 1 once the prep timer has run out (or the war bell skipped it). Read by the
+ * DayNight driver to sweep the sun across the sky during prep, so the sky tells
+ * the player how long until the night assault. Meaningful only while
+ * getPhase() === 'prep'; callers gate on that.
+ */
+export function getPrepProgress(): number {
+  const left = Math.min(PREP_DURATION, Math.max(0, state.prepSecondsLeft))
+  return 1 - left / PREP_DURATION
+}
+
 /** True while the final wave — the boss push — is the active one. */
 export function isBossWave(): boolean {
   return state.index === WAVES.length - 1
