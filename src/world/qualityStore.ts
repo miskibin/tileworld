@@ -1,19 +1,22 @@
-// Render quality tier. 'high' = the full cinematic look (post-processing stack +
-// sun shadows). 'low' drops both — the two biggest GPU costs — for weak /
-// integrated GPUs, roughly doubling fps. dpr is already pinned to 1 in both
-// tiers (see App.tsx), so the tier only gates post + shadows.
-//
-// Toggled at runtime with the 'G' key ([QualityToggle] in World) and persisted to
-// localStorage so it survives reloads. Module-level external store, same shape as
-// the rest of src/world/*Store.ts (live getter + notify on discrete change).
+// Render quality tier. Three tiers gate the heaviest GPU work for a low→max ladder:
+//   'low'    — no post-processing stack, no sun shadows (weakest / integrated GPUs)
+//   'medium' — full post stack (incl. god rays) + sun shadows; the prior 'high' look
+//   'high'   — medium + heavy content extras (reflective water, dense grass, fuller
+//              tree canopies) layered on by their own components (gated on === 'high')
+// dpr is pinned to 1 in all tiers (see App.tsx). Toggled with 'G' (cycles
+// low→medium→high) and from the pause menu; persisted to localStorage. Module-level
+// external store, same shape as the rest of src/world/*Store.ts.
 
-export type Quality = 'high' | 'low'
+export type Quality = 'low' | 'medium' | 'high'
 
 const STORAGE_KEY = 'tileworld.quality'
+const TIERS: Quality[] = ['low', 'medium', 'high']
 
 function load(): Quality {
   try {
-    return localStorage.getItem(STORAGE_KEY) === 'low' ? 'low' : 'high'
+    const v = localStorage.getItem(STORAGE_KEY)
+    if (v === 'low' || v === 'medium' || v === 'high') return v
+    return 'high'
   } catch {
     return 'high'
   }
@@ -32,13 +35,15 @@ export function setQuality(q: Quality): void {
   try {
     localStorage.setItem(STORAGE_KEY, q)
   } catch {
-    /* private mode / no storage — runtime toggle still works, just not persisted */
+    /* private mode / no storage — runtime switch still works, just not persisted */
   }
   subs.forEach((fn) => fn(q))
 }
 
-export function toggleQuality(): void {
-  setQuality(quality === 'high' ? 'low' : 'high')
+/** Cycle low → medium → high → low. Bound to the 'G' key. */
+export function cycleQuality(): void {
+  const next = TIERS[(TIERS.indexOf(quality) + 1) % TIERS.length]
+  setQuality(next)
 }
 
 export function subscribeQuality(fn: (q: Quality) => void): () => void {

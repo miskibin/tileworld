@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { toggleQuality } from './qualityStore'
+import { cycleQuality } from './qualityStore'
 
-// Press 'G' to flip render quality (High ↔ Low). No on-screen chrome — the
+// Press 'G' to cycle render quality (Low → Medium → High). No on-screen chrome — the
 // StartScreen controls list documents the key. Ignores the keypress while typing
 // in an input (there are none today, but it keeps the listener well-behaved).
 export function QualityToggle() {
@@ -11,7 +11,7 @@ export function QualityToggle() {
       if (e.repeat) return
       const el = document.activeElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
-      toggleQuality()
+      cycleQuality()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

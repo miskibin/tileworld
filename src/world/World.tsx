@@ -489,7 +489,7 @@ export function World() {
           GodRays always has a valid origin — react-postprocessing's child
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
-      {sunMesh && !CAPTURE_MODE && quality === 'high' && (
+      {sunMesh && !CAPTURE_MODE && quality !== 'low' && (
         <>
         <EffectComposer multisampling={0} enableNormalPass={false}>
           {/* Ambient occlusion grounds props/buildings into the terrain so

@@ -102,7 +102,7 @@ export function SunShadow({ intensity }: Props) {
   // recompile across the live scene; that's fine for a manual, rare keypress.
   useEffect(() => {
     return subscribeQuality((q) => {
-      const high = q === 'high'
+      const high = q !== 'low'
       gl.shadowMap.enabled = high
       if (lightRef.current) lightRef.current.castShadow = high
       scene.traverse((o) => {
@@ -137,7 +137,7 @@ export function SunShadow({ intensity }: Props) {
     // Shadow map only re-renders when the world is live (held still behind any
     // pause/modal) AND shadows are on (Low quality disables them). The light
     // transform below still updates so shading is right.
-    if (!isFrozen() && getQuality() === 'high') {
+    if (!isFrozen() && getQuality() !== 'low') {
       frame.current++
       // Sun below the horizon (night, e.g. during a wave) → the directional
       // light is dark and its shadow is invisible, so don't spend a whole

@@ -19,15 +19,18 @@ import {
   setShowPaths,
   subscribeShowPaths,
 } from '../world/debugStore'
+import { getQuality, subscribeQuality, cycleQuality, type Quality } from '../world/qualityStore'
 
 export function PauseMenu() {
   const [paused, setPausedState] = useState<boolean>(isPaused())
   const [audio, setAudioState] = useState<boolean>(isAudioEnabled())
   const [paths, setPathsState] = useState<boolean>(isShowPaths())
+  const [quality, setQualityState] = useState<Quality>(getQuality())
 
   useEffect(() => subscribePaused(setPausedState), [])
   useEffect(() => subscribeAudio(setAudioState), [])
   useEffect(() => subscribeShowPaths(setPathsState), [])
+  useEffect(() => subscribeQuality(setQualityState), [])
 
   // Esc toggles pause — but defer to the shop panel / upgrade tree if open.
   useEffect(() => {
@@ -58,6 +61,9 @@ export function PauseMenu() {
         </button>
         <button className="pause-btn" onClick={() => setShowPaths(!paths)}>
           AI paths: {paths ? 'On' : 'Off'}
+        </button>
+        <button className="pause-btn" onClick={cycleQuality}>
+          Quality: {quality[0].toUpperCase() + quality.slice(1)}
         </button>
         <div className="pause-hint">Esc to resume</div>
       </div>
