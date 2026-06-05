@@ -100,10 +100,10 @@ const CHESTS: {
   { pos: [18, 1, 54], rot: 0.6, gold: 30, loot: ['gold_armor'] },
   // Deep-biome reward chests beside each biome's signature landmark (one-shot).
   { pos: [33, 1, 30], rot: 0.7, gold: 18, loot: ['feast', 'gold_armor'] }, // snow spire
-  { pos: [112, 1, 31], rot: -0.8, gold: 16, loot: ['venom', 'iron_armor'] }, // desert pyramid
+  { pos: [122, 1, 25], rot: -0.8, gold: 16, loot: ['venom', 'iron_armor'] }, // desert pyramid (far NE)
   { pos: [116, 1, 82], rot: 1.5, gold: 16, loot: ['stone_maul'] }, // stone circle (SE frontier)
-  { pos: [73, 1, 90], rot: 2.1, gold: 14, loot: ['croc_steak', 'potion'] }, // swamp tree
-  { pos: [33, 1, 82], rot: -1.1, gold: 14, loot: ['elk_jerky', 'goat_charm'] }, // forest shrine
+  { pos: [73, 1, 98], rot: 2.1, gold: 14, loot: ['croc_steak', 'potion'] }, // swamp tree (far S)
+  { pos: [23, 1, 86], rot: -1.1, gold: 14, loot: ['elk_jerky', 'goat_charm'] }, // forest shrine (far SW)
 
   // ---- Caches (respawning): gold + food, rung around the map edge ----
   { pos: [50, 1, 22], rot: -0.5, gold: 8, loot: ['potion'], cache: true }, // N gap (snow↔desert)

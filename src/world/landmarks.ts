@@ -16,12 +16,18 @@ export interface LandmarkSlot {
   r: number
 }
 
+// Beacons for the frontier gradient: each flat biome's signature landmark is
+// pushed OUT toward its far edge (away from the castle centre 72,54) so it reads
+// as a "treasure lives out here" marker for the rim's best loot. The two MOUNTAIN
+// landmarks (snow spire / rock stones) stay put — a mountain's far side is cliff
+// face (only one climbable ramp), so a far-edge spire would strand on a cliff.
+// Pushes are kept inside each region's flat interior (clear of the coast).
 export const LANDMARKS: readonly LandmarkSlot[] = [
-  { x: 26, z: 24, r: 2 }, // FrozenSpire — snow massif
-  { x: 112, z: 28, r: 3 }, // SunkenPyramid — desert (broad base)
-  { x: 118, z: 82, r: 2 }, // StandingStones — SE rock frontier
-  { x: 72, z: 92, r: 1 }, // GiantDeadTree — swamp (slim trunk)
-  { x: 32, z: 80, r: 2 }, // RuinedShrine — SW forest
+  { x: 26, z: 24, r: 2 }, // FrozenSpire — snow massif summit (mountain: unmoved)
+  { x: 122, z: 22, r: 3 }, // SunkenPyramid — desert far NE edge
+  { x: 118, z: 82, r: 2 }, // StandingStones — SE rock frontier (mountain-side: unmoved)
+  { x: 72, z: 100, r: 1 }, // GiantDeadTree — swamp far S edge
+  { x: 22, z: 88, r: 2 }, // RuinedShrine — forest far SW edge
 ] as const
 
 const OWNER = 'landmarks'
