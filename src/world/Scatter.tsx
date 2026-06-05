@@ -97,6 +97,7 @@ interface Part {
   geo: THREE.BufferGeometry
   mat: THREE.Material
   castShadow?: boolean
+  tint?: boolean
 }
 
 function bake(
@@ -116,10 +117,10 @@ function bake(
 
 function bushParts(mat: THREE.Material): Part[] {
   return [
-    { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 0), [0, 0.18, 0]), mat, castShadow: true },
-    { geo: bake(() => new THREE.IcosahedronGeometry(0.2, 0), [0.2, 0.15, 0.05]), mat, castShadow: true },
-    { geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [-0.17, 0.13, 0.1]), mat, castShadow: true },
-    { geo: bake(() => new THREE.IcosahedronGeometry(0.19, 0), [0.05, 0.22, -0.16]), mat, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 0), [0, 0.18, 0]), mat, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.2, 0), [0.2, 0.15, 0.05]), mat, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.18, 0), [-0.17, 0.13, 0.1]), mat, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.19, 0), [0.05, 0.22, -0.16]), mat, castShadow: true, tint: true },
   ]
 }
 
@@ -159,10 +160,13 @@ function flowerParts(petalMat: THREE.Material): Part[] {
 
 const PARTS: Record<string, Part[]> = {
   tree: [
-    { geo: bake(() => new THREE.CylinderGeometry(0.08, 0.1, 0.36, 6), [0, 0.18, 0]), mat: TRUNK_MAT, castShadow: true },
-    { geo: bake(() => new THREE.ConeGeometry(0.5, 0.45, 7), [0, 0.48, 0]), mat: FOLIAGE_DARK_MAT, castShadow: true },
-    { geo: bake(() => new THREE.ConeGeometry(0.38, 0.42, 7), [0, 0.78, 0]), mat: FOLIAGE_MID_MAT, castShadow: true },
-    { geo: bake(() => new THREE.ConeGeometry(0.26, 0.4, 7), [0, 1.06, 0]), mat: FOLIAGE_LIGHT_MAT, castShadow: true },
+    { geo: bake(() => new THREE.CylinderGeometry(0.09, 0.12, 0.5, 6), [0, 0.25, 0]), mat: TRUNK_MAT, castShadow: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.46, 1), [0, 0.64, 0]), mat: FOLIAGE_DARK_MAT, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.26, 1), [0.24, 0.6, 0.06]), mat: FOLIAGE_DARK_MAT, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.4, 1), [0, 0.86, 0]), mat: FOLIAGE_MID_MAT, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.24, 1), [-0.22, 0.82, -0.08]), mat: FOLIAGE_MID_MAT, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.33, 1), [0, 1.06, 0]), mat: FOLIAGE_LIGHT_MAT, castShadow: true, tint: true },
+    { geo: bake(() => new THREE.IcosahedronGeometry(0.22, 1), [0, 1.24, 0]), mat: FOLIAGE_LIGHT_MAT, castShadow: true, tint: true },
   ],
   birch: [
     { geo: bake(() => new THREE.CylinderGeometry(0.06, 0.075, 0.8, 6), [0, 0.4, 0]), mat: BIRCH_TRUNK_MAT, castShadow: true },
@@ -290,17 +294,19 @@ function mergedParts(key: string): Part[] {
   const cached = mergedPartCache.get(key)
   if (cached) return cached
   const raw = PARTS[key]
-  const buckets = new Map<string, { geos: THREE.BufferGeometry[]; mat: THREE.Material; castShadow: boolean }>()
+  const buckets = new Map<string, { geos: THREE.BufferGeometry[]; mat: THREE.Material; castShadow: boolean; tint: boolean }>()
   // Preserve first-seen order so any draw ordering stays stable.
   const order: string[] = []
   for (const part of raw) {
     const cast = part.castShadow ?? false
-    // Bucket by material identity (module singletons) + shadow flag.
+    const tint = part.tint ?? false
+    // Bucket by material identity (module singletons) + shadow flag + tint flag.
+    // Tinted parts must stay separate so per-instance color can be set independently.
     const matId = (part.mat as THREE.Material).uuid
-    const bk = `${matId}|${cast ? 1 : 0}`
+    const bk = `${matId}|${cast ? 1 : 0}|${tint ? 1 : 0}`
     let b = buckets.get(bk)
     if (!b) {
-      b = { geos: [], mat: part.mat, castShadow: cast }
+      b = { geos: [], mat: part.mat, castShadow: cast, tint }
       buckets.set(bk, b)
       order.push(bk)
     }
@@ -309,7 +315,7 @@ function mergedParts(key: string): Part[] {
   const out: Part[] = order.map((bk) => {
     const b = buckets.get(bk)!
     const geo = b.geos.length === 1 ? b.geos[0] : (mergeGeometries(b.geos, false) as THREE.BufferGeometry)
-    return { geo, mat: b.mat, castShadow: b.castShadow }
+    return { geo, mat: b.mat, castShadow: b.castShadow, tint: b.tint }
   })
   mergedPartCache.set(key, out)
   return out
@@ -338,7 +344,23 @@ function InstancedPart({ part, obstacles }: { part: Part; obstacles: Obstacle[] 
     })
     m.instanceMatrix.needsUpdate = true
     m.computeBoundingSphere()
-  }, [obstacles])
+
+    if (part.tint) {
+      const col = new THREE.Color()
+      const base = (part.mat as THREE.MeshStandardMaterial).color
+      obstacles.forEach((o, i) => {
+        // deterministic hash from position (no Math.random — world is deterministic)
+        const h = Math.abs(Math.sin((o.x * 12.9898 + o.z * 78.233) * 43758.5453))
+        const hh = h - Math.floor(h)
+        // ±value + slight warm/cool green shift, multiplied onto the base foliage color
+        const v = 0.86 + hh * 0.28 // 0.86..1.14 brightness
+        col.copy(base).multiplyScalar(v)
+        col.offsetHSL((hh - 0.5) * 0.04, (hh - 0.5) * 0.10, 0) // tiny hue/sat drift
+        m.setColorAt(i, col)
+      })
+      if (m.instanceColor) m.instanceColor.needsUpdate = true
+    }
+  }, [obstacles, part.tint, part.mat])
 
   return (
     <instancedMesh
