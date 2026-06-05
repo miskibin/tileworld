@@ -102,16 +102,16 @@ export function SunShadow({ intensity }: Props) {
   // recompile across the live scene; that's fine for a manual, rare keypress.
   useEffect(() => {
     return subscribeQuality((q) => {
-      const high = q !== 'low'
-      gl.shadowMap.enabled = high
-      if (lightRef.current) lightRef.current.castShadow = high
+      const shadowsEnabled = q !== 'low' // sun shadows on for medium + high
+      gl.shadowMap.enabled = shadowsEnabled
+      if (lightRef.current) lightRef.current.castShadow = shadowsEnabled
       scene.traverse((o) => {
         const m = (o as THREE.Mesh).material
         if (!m) return
         if (Array.isArray(m)) m.forEach((mm) => (mm.needsUpdate = true))
         else m.needsUpdate = true
       })
-      if (high) gl.shadowMap.needsUpdate = true
+      if (shadowsEnabled) gl.shadowMap.needsUpdate = true
     })
   }, [gl, scene])
 

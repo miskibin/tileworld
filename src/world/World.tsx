@@ -142,7 +142,7 @@ import { getGradePulse, gradeTunables } from './gradeStore'
 // the edges with a slow heartbeat throb, and a fresh hit punches a brief "wince".
 // Lives outside the EffectComposer so its useFrame is a plain scene tick; it only
 // mutates plain uniform setters (no shader recompile). Refs are null until the
-// composer mounts (high quality only), so it no-ops safely otherwise. All factors
+// composer mounts (medium or high quality), so it no-ops safely otherwise. All factors
 // are live-tunable via gradeTunables (the leva "Reactive grade" folder).
 function ReactiveGrade({
   vignette,
@@ -230,7 +230,7 @@ export function World() {
   // GodRays needs the rendered sun mesh; capture it via callback ref.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
   // Effect handles the ReactiveGrade driver mutates each frame (low-HP grade +
-  // hit wince). Null until the composer mounts on high quality.
+  // hit wince). Null until the composer mounts on medium or high quality.
   const vignetteRef = useRef<VignetteEffect>(null)
   const hueRef = useRef<HueSaturationEffect>(null)
   // Render-quality tier (G key). 'low' drops the post stack below + the sun
