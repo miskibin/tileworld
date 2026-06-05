@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
 import { woodTexture } from './textures'
-import { tileAt, CENTER_X, CENTER_Z } from './tileMap'
+import { tileAt, CENTER_X, CENTER_Z, MAP_SCALE } from './tileMap'
 
 // A small sailing ship — hull, deck, stern cabin, mast + billowing sail. Built
 // around the local origin with the hull bottom on y=0 (the waterline), so the
@@ -80,11 +80,16 @@ interface Orbit {
 // Orbits sit well outside the island at every angle (the island is a
 // superellipse that bulges into the corners, so an ellipse that's only clear on
 // the axes still clips the corners). These radii clear it all the way round.
-const ORBITS: Orbit[] = [
-  { rx: 88, rz: 66, speed: 0.05, phase: 0.0, seed: 0.3 },
-  { rx: 95, rz: 72, speed: -0.04, phase: 2.3, seed: 1.7 },
-  { rx: 84, rz: 80, speed: 0.045, phase: 4.1, seed: 2.9 },
-]
+// Radii scale with the map (MAP_SCALE) so the orbits still clear the enlarged
+// island — the old fixed radii now sit INSIDE the bigger coast and sailed boats
+// over land.
+const ORBITS: Orbit[] = (
+  [
+    { rx: 88, rz: 66, speed: 0.05, phase: 0.0, seed: 0.3 },
+    { rx: 95, rz: 72, speed: -0.04, phase: 2.3, seed: 1.7 },
+    { rx: 84, rz: 80, speed: 0.045, phase: 4.1, seed: 2.9 },
+  ] as Orbit[]
+).map((o) => ({ ...o, rx: o.rx * MAP_SCALE, rz: o.rz * MAP_SCALE }))
 
 export function Ships() {
   const refs = useRef<(THREE.Group | null)[]>([])

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { tileAt, tileTopY } from './tileMap'
+import { tileAt, tileTopY, fromBase } from './tileMap'
 import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { houseBlocksAt } from './houseBlockers'
 import { bridgeAt } from './bridges'
@@ -338,14 +338,20 @@ function BearView({ state }: { state: BearState }) {
 
 // Fewer bears than before (6, was 9) so the wilds aren't wall-to-wall predators —
 // part of thinning out "findables" so a day doesn't strip the whole map.
-const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
-  { pos: [16, 18], seed: 1.3 },
-  { pos: [82, 60], seed: 4.1 },
-  { pos: [10, 56], seed: 8.2 },
-  { pos: [90, 52], seed: 2.9 },
-  { pos: [104, 58], seed: 9.4 },
-  { pos: [70, 84], seed: 11.6 },
-]
+// Authored in base-map coords; scaled onto the enlarged map via fromBase.
+const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = (
+  [
+    { pos: [16, 18], seed: 1.3 },
+    { pos: [82, 60], seed: 4.1 },
+    { pos: [10, 56], seed: 8.2 },
+    { pos: [90, 52], seed: 2.9 },
+    { pos: [104, 58], seed: 9.4 },
+    { pos: [70, 84], seed: 11.6 },
+  ] as Array<{ pos: [number, number]; seed: number }>
+).map((b) => {
+  const [x, z] = fromBase(b.pos[0], b.pos[1])
+  return { pos: [Math.round(x), Math.round(z)] as [number, number], seed: b.seed }
+})
 
 // Seconds after a bear dies before a fresh one returns to that spot, and the
 // distance the player must be from the spot for it to respawn — so the wilds

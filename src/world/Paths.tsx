@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { tileAt, tileTopY } from './tileMap'
+import { tileAt, tileTopY, fromBase } from './tileMap'
 import { getRoadDirt, getRoadBridges, isRoadTile } from './roads'
 import { Bridge } from './Bridge'
 import { applyVisionShader } from './vision'
@@ -95,16 +95,39 @@ function buildRoadGeometry(): THREE.BufferGeometry {
 // crossings: each <Bridge> registers a walkable span (bridgeAt → standable) and
 // renders the plank deck. Endpoints sit on height-1 banks, the deck spans the
 // water at y=1. Verified land-water-land at each crossing.
-const RIVER_BRIDGES: { from: [number, number]; to: [number, number] }[] = [
-  { from: [40, 40], to: [44, 40] },
-  { from: [37, 50], to: [41, 50] },
-  { from: [33, 64], to: [37, 64] },
-  { from: [39, 70], to: [43, 70] },
-  { from: [60, 22], to: [60, 26] },
-  { from: [80, 15], to: [80, 19] },
-  { from: [100, 22], to: [100, 26] },
-  { from: [118, 17], to: [118, 21] },
-]
+// Authored in base-map coords on the original rivers; scaled onto the enlarged
+// map via fromBase so each plank deck lands on the resampled river crossing.
+// fromBase is separable, so an axis-aligned base span stays axis-aligned.
+const fb = (p: [number, number]): [number, number] => {
+  const [x, z] = fromBase(p[0], p[1])
+  return [Math.round(x), Math.round(z)]
+}
+const RIVER_BRIDGES: { from: [number, number]; to: [number, number] }[] = (
+  [
+    { from: [40, 40], to: [44, 40] },
+    { from: [37, 50], to: [41, 50] },
+    { from: [33, 64], to: [37, 64] },
+    { from: [39, 70], to: [43, 70] },
+    { from: [60, 22], to: [60, 26] },
+    { from: [80, 15], to: [80, 19] },
+    { from: [100, 22], to: [100, 26] },
+    { from: [118, 17], to: [118, 21] },
+  ] as { from: [number, number]; to: [number, number] }[]
+)
+  .map((b) => ({ from: fb(b.from), to: fb(b.to) }))
+  // Only keep a crossing whose span actually has water somewhere under it — near
+  // the snow massif the river is suppressed (inMountain), which would otherwise
+  // strand a plank deck on dry ground. Scan the whole span (a narrow river can
+  // sit off the exact midpoint).
+  .filter((b) => {
+    const steps = Math.max(Math.abs(b.to[0] - b.from[0]), Math.abs(b.to[1] - b.from[1]), 1)
+    for (let i = 0; i <= steps; i++) {
+      const x = Math.round(b.from[0] + ((b.to[0] - b.from[0]) * i) / steps)
+      const z = Math.round(b.from[1] + ((b.to[1] - b.from[1]) * i) / steps)
+      if (tileAt(x, z) === null) return true
+    }
+    return false
+  })
 
 export function Paths() {
   const geo = useMemo(() => buildRoadGeometry(), [])

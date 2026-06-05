@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { findSpawnNear } from './obstacles'
+import { fromBase } from './tileMap'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
 import { createOre, resetOre, type OreState } from './oreStore'
@@ -139,7 +140,9 @@ export function OreNodes() {
       resetOre()
       setNodes(
         ORE_SPAWNS.map((o) => {
-          const s = findSpawnNear(o.pos[0], o.pos[1])
+          // ORE_SPAWNS are base-map rock-apron coords; scale onto the enlarged map.
+          const [bx, bz] = fromBase(o.pos[0], o.pos[1])
+          const s = findSpawnNear(bx, bz)
           return createOre(s.x, s.z, o.seed)
         }),
       )

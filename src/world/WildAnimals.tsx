@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { findSpawnNear } from './obstacles'
+import { fromBase } from './tileMap'
 import { createAnimal, getAnimals, reapAnimal, resetAnimals, type AnimalState } from './animalStore'
 import type { AnimalSpecies } from './animalConfig'
 import { isFrozen } from './pauseStore'
@@ -28,7 +29,9 @@ type Spawn = { species: AnimalSpecies; pos: [number, number]; seed: number }
 // (each creature is a deep mesh tree, the top per-frame scene-graph cost). Keeps
 // every biome's signature creature + a thin generic spread + a small forest herd
 // for the hunting ground, without wall-to-wall animals stripping the frame budget.
-const ANIMAL_SPAWNS: Spawn[] = [
+// Authored in base-map coords; scaled onto the enlarged map so each creature
+// tracks its (bigger, farther) biome — esp. the golem in the rock highlands.
+const BASE_ANIMAL_SPAWNS: Spawn[] = [
   // Deer — grazing the grass belt + the forest herd
   { species: 'deer', pos: [60, 38], seed: 1.5 },
   { species: 'deer', pos: [40, 76], seed: 8.64 },
@@ -45,12 +48,16 @@ const ANIMAL_SPAWNS: Spawn[] = [
   { species: 'scorpion', pos: [104, 30], seed: 7.4 },
   { species: 'bog_croc', pos: [72, 86], seed: 8.2 },
   { species: 'goat', pos: [30, 50], seed: 9.1 },
-  { species: 'golem', pos: [22, 58], seed: 9.6 },
+  { species: 'golem', pos: [108, 62], seed: 9.6 }, // rock highlands foot (was mis-placed in the west)
   // Forest (SW ~[32,80]) — a small elk herd keeps the woods a real hunting ground.
   { species: 'elk', pos: [40, 72], seed: 8.5 },
   { species: 'elk', pos: [28, 78], seed: 8.61 },
   { species: 'elk', pos: [36, 84], seed: 8.62 },
 ]
+const ANIMAL_SPAWNS: Spawn[] = BASE_ANIMAL_SPAWNS.map((s) => {
+  const [x, z] = fromBase(s.pos[0], s.pos[1])
+  return { ...s, pos: [Math.round(x), Math.round(z)] }
+})
 
 // Seconds after an animal dies before a fresh one of the same species returns to
 // that spawn — keeps the wilds re-populated so the map never empties out.

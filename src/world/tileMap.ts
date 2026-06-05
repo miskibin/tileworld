@@ -176,12 +176,14 @@ function isRiverAt(x: number, z: number): boolean {
   if (inMountain(x, z)) return false
   {
     const cx = riverX(z)
-    const w = 1.3 + Math.sin(z * 0.5) * 0.3
+    // Narrower channel — the resample widens it ~MAP_SCALE×, so a slim base river
+    // reads as a tidy stream rather than a moat on the enlarged map.
+    const w = 0.75 + Math.sin(z * 0.5) * 0.2
     if (Math.abs(x - cx) < w) return true
   }
   if (x > 46 && x < BASE_COLS - 10) {
     const cz = riverZ(x)
-    if (Math.abs(z - cz) < 1.0) return true
+    if (Math.abs(z - cz) < 0.7) return true
   }
   return false
 }
@@ -229,7 +231,7 @@ interface Region {
 }
 // Mountain (peak,r) pairs satisfy the ramp-feasibility rule r/(peak-2) ≥ ~1.6
 // so the strict one-class staircase ramp always reaches the summit:
-//   SNOW : peak 16, r 26 → stepLen 26/14 = 1.86 ✓
+//   SNOW : peak 9,  r 26 → stepLen 26/7  = 3.71 ✓ (low, flat snowfields)
 //   ROCK : peak 15, r 22 → stepLen 22/13 = 1.69 ✓
 // The snow/rock massifs were bumped up from the first pass's tiny r18 blobs (they
 // read as too small next to the r32–34 flat biomes) to proper r22–26 ranges with
@@ -241,8 +243,10 @@ interface Region {
 // big radii (32–34) so they fill their quadrant. Some organic edge overlap between
 // neighbours is intentional.
 const REGIONS: Region[] = [
-  // NW — snow massif (white from foot to summit; see Terrain SNOW_CAP_HEIGHT).
-  { x: 26, z: 24, r: 26, biome: 'snow', peak: 16 },
+  // NW — snow massif: a LOW, gentle peak over broad flat snowfields (peak
+  // dropped 16→9 so most of the blob stays near height-1 flat, with a small
+  // summit). r/(peak-2) = 26/7 = 3.7 → ramp stays climbable.
+  { x: 26, z: 24, r: 26, biome: 'snow', peak: 9 },
   // NE — vast flat dunes.
   { x: 112, z: 28, r: 34, biome: 'desert' },
   // E — jagged rock range (snow-capped summit), held to r22 to clear the NE village.
