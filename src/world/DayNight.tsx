@@ -145,6 +145,10 @@ export function DayNight({ lights, onSunMesh }: Props) {
       // During the prep day the sun tracks how much prep time is left
       // (sky-as-countdown). Wave/menu/end targets are set on phase change by the
       // subscribePhase effect below; only prep needs a live per-frame target.
+      // NB: prepSecondsLeft is 0 for ~1 frame at prep start until WaveDirector
+      // arms the timer (it may run after DayNight that frame), so progress briefly
+      // reads 1 → target jumps toward T_DUSK; the DAY_LERP_RATE ease (~1%/frame)
+      // absorbs it invisibly.
       if (getPhase() === 'prep') {
         dayTarget.current = T_DAWN + (T_DUSK - T_DAWN) * getPrepProgress()
       }
