@@ -81,8 +81,17 @@ export function OrkCamp({ position, rotation = 0, seed = 0, faction = 'red' }: P
   // a fresh array literal each World re-render would re-run this (no cleanup) and
   // stack the camp's orks (the "16 / 8 remaining" bug).
   useEffect(() => {
-    spawnOrks()
-    spawnedOnce.current = true
+    // Defer one microtask so sibling mount effects have run first — notably the
+    // CampCage, which registers its footprint blocker in its own effect. Sibling
+    // useEffects fire in tree order (OrkCamp before CampCage here), so spawning
+    // synchronously would call findSpawnNear before the cage's blocker exists and
+    // a guard could land inside the cage and get walled in. The microtask runs
+    // after the whole effect flush, by which point every footprint is registered.
+    queueMicrotask(() => {
+      if (spawnedOnce.current) return
+      spawnOrks()
+      spawnedOnce.current = true
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [position[0], position[1], position[2], rotation, seed, faction])
 

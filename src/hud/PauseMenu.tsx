@@ -7,6 +7,7 @@ import {
 } from '../world/pauseStore'
 import { isShopOpen } from '../world/shopStore'
 import { isTreeOpen } from '../world/townHallStore'
+import { isInventoryOpen } from '../world/inventoryStore'
 import { isStarted } from '../world/gameStore'
 import {
   isEnabled as isAudioEnabled,
@@ -32,7 +33,8 @@ export function PauseMenu() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'Escape') {
-        if (isShopOpen() || isTreeOpen() || !isStarted()) return
+        // Defer to any open modal (shop / tree / inventory owns its own Esc).
+        if (isShopOpen() || isTreeOpen() || isInventoryOpen() || !isStarted()) return
         e.preventDefault()
         togglePaused()
       }

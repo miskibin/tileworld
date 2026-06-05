@@ -45,6 +45,12 @@ export interface TerrainShaderOpts {
    *  noisy cut — softens the hard road/grass seam (needs an `aCoverage` vertex
    *  attribute, 1 = solid interior, →0 at the open edge) */
   edgeAlpha?: boolean
+  /** with `edgeAlpha`: fade the border via smooth ALPHA instead of a binary
+   *  discard, so the overlay blends gradually into the base below (no dither
+   *  holes). Used for the sand↔grass seam, where a discard fray shows green
+   *  between the sand bits and reads as a different, mottled "texture". The
+   *  material must be set `transparent` + `depthWrite:false` by the caller. */
+  alphaFray?: boolean
 }
 
 /**
@@ -61,6 +67,7 @@ export function applyVisionShader(
 
   const hasDetail = !!opts.detail
   const edgeAlpha = !!opts.edgeAlpha
+  const alphaFray = !!opts.alphaFray
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uPlayerPos = playerPosUniform
@@ -125,11 +132,23 @@ export function applyVisionShader(
          vec2 terWp = vTerrainWorldPos.xz;
 
          ${edgeAlpha ? `
-         // (0) noisy border feather: ragged-discard the open edge so dirt frays
-         //     into grass instead of stopping on a clean tile line. The solid
-         //     interior (vCoverage ≈ 1) is never touched.
+         // (0) noisy border feather. The solid interior (vCoverage ≈ 1) is never
+         //     touched; only the open edge frays.
          float terCovN = terNoise(terWp * 3.0) * 0.6 + terNoise(terWp * 9.0) * 0.4;
+         ${alphaFray ? `
+         // Smooth ALPHA fade (sand↔grass): the overlay blends gradually into the
+         //     grass base over the seam tile instead of a binary discard, so no
+         //     green shows BETWEEN sand bits — the edge stays one solid sand
+         //     texture that just fades out. A faint noise keeps the fade line
+         //     irregular, not a clean contour.
+         float terFade = smoothstep(0.30, 0.82, vCoverage + (terCovN - 0.5) * 0.34);
+         gl_FragColor.a *= terFade;
+         if (gl_FragColor.a < 0.02) discard;
+         ` : `
+         // Binary ragged-discard (roads + other seams): dirt frays into grass on
+         //     a clean tile line.
          if (vCoverage + (terCovN - 0.5) * 0.5 < 0.62) discard;
+         `}
          ` : ''}
 
          // (1) fine value mottle — three octaves break the flat per-tile colour.

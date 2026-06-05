@@ -7,6 +7,7 @@ import { useKeyboard } from './useKeyboard'
 import { playSfx, stopVoice } from '../audio/audio'
 import { sayHeroLine, wildernessSpoken, resetHeroVoice } from './voiceStore'
 import { getWave } from './waveStore'
+import { markCombat, resetCombat } from './combatStore'
 import { playSwing, playHit, playKill, playPlayerAttack, playPlayerJump } from '../audio/sfx'
 import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './fxStore'
 import { spawnImpact } from './impactStore'
@@ -67,6 +68,14 @@ const GRIP = '#5a3a22'
 const SHIELD_FACE = '#a8b8d0'
 const SHIELD_RIM = '#6a3a22'
 const SHIELD_EMBLEM = '#d3b14c'
+// Shield poses (own pivot, decoupled from the left arm). Rest: slung on the
+// left flank, decorated face out (−X). Block: swung across the front, face +Z.
+const SHIELD_REST_POS = new THREE.Vector3(-0.3, 0.62, 0.06)
+const SHIELD_REST_ROT = new THREE.Euler(0.04, -1.3, 0.05)
+// Block shield is thrust out front (z far enough that the bracing forearm tip,
+// which reaches ~0.47, tucks BEHIND the plate instead of poking through it).
+const SHIELD_BLOCK_POS = new THREE.Vector3(-0.12, 0.82, 0.5)
+const SHIELD_BLOCK_ROT = new THREE.Euler(-0.12, 0.05, -0.05)
 const GOLD = '#e8b84b' // Golden Blade gilding
 const AXE_STEEL = '#aab0bc' // Battle Axe head
 // Endpoints for deriving light/dark plate shades from an armor tint.
@@ -145,6 +154,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const bodyRef = useRef<THREE.Group>(null!)
   const rightArmRef = useRef<THREE.Group>(null!)
   const leftArmRef = useRef<THREE.Group>(null!)
+  const shieldRef = useRef<THREE.Group>(null!)
   const rightLegRef = useRef<THREE.Group>(null!)
   const leftLegRef = useRef<THREE.Group>(null!)
   const headRef = useRef<THREE.Group>(null!)
@@ -191,7 +201,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Clear any lingering hit-stop when the world unmounts (new game / restart) so
   // a freeze triggered on the last frame can't carry getTimeScale()=0 into the
   // next run's first frames. Matches the unmount-reset pattern of Orbs/Projectiles.
-  useEffect(() => () => { resetHitStop(); resetFovKick(); stopVoice(); resetHeroVoice() }, [])
+  useEffect(() => () => { resetHitStop(); resetFovKick(); stopVoice(); resetHeroVoice(); resetCombat() }, [])
 
   const keys = useKeyboard()
   const camera = useThree((s) => s.camera)
@@ -637,15 +647,23 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           const dmg = Math.round(critDmg)
           const fx = Math.sin(facing.current)
           const fz = Math.cos(facing.current)
+          const px = pos.current.x
+          const pz = pos.current.z
+          // Shared swing-cone test: returns the offset vector to a target inside
+          // the arc (for knockback), or null. One predicate for every hittable —
+          // dogs, orks, bears, animals, ore — so the cone math lives in one place.
+          const inCone = (tx: number, tz: number): { vx: number; vz: number } | null => {
+            const vx = tx - px
+            const vz = tz - pz
+            const dist = Math.hypot(vx, vz)
+            if (dist > ATTACK_RANGE || dist < 0.001) return null
+            if ((vx / dist) * fx + (vz / dist) * fz < ATTACK_CONE_DOT) return null
+            return { vx, vz }
+          }
           let hitAny = false
           let killedAny = false
           for (const dog of getAliveDogs()) {
-            const vx = dog.x - pos.current.x
-            const vz = dog.z - pos.current.z
-            const dist = Math.hypot(vx, vz)
-            if (dist > ATTACK_RANGE || dist < 0.001) continue
-            const dot = (vx / dist) * fx + (vz / dist) * fz
-            if (dot < ATTACK_CONE_DOT) continue
+            if (!inCone(dog.x, dog.z)) continue
             const died = damageDog(dog, dmg, hitT)
             hitAny = true
             if (died) killedAny = true
@@ -657,16 +675,13 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           const orkList = getAliveOrks()
           const directHits: typeof orkList = []
           for (const ork of orkList) {
-            const vx = ork.x - pos.current.x
-            const vz = ork.z - pos.current.z
-            const dist = Math.hypot(vx, vz)
-            if (dist > ATTACK_RANGE || dist < 0.001) continue
-            const dot = (vx / dist) * fx + (vz / dist) * fz
-            if (dot < ATTACK_CONE_DOT) continue
+            const hit = inCone(ork.x, ork.z)
+            if (!hit) continue
             const died = damageOrk(ork, dmg, hitT)
             hitAny = true
+            markCombat() // trading blows with a threat → day combat music
             directHits.push(ork)
-            if (!died) knockbackOrk(ork, vx, vz, didCrit ? 6 : 4)
+            if (!died) knockbackOrk(ork, hit.vx, hit.vz, didCrit ? 6 : 4)
             spawnImpact(ork.x, ork.y + 1.0, ork.z, {
               color: died ? '#fff0b0' : '#ffcf6a',
               count: died ? 16 : 8,
@@ -735,12 +750,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             }
           }
           for (const bear of getAliveBears()) {
-            const vx = bear.x - pos.current.x
-            const vz = bear.z - pos.current.z
-            const dist = Math.hypot(vx, vz)
-            if (dist > ATTACK_RANGE || dist < 0.001) continue
-            const dot = (vx / dist) * fx + (vz / dist) * fz
-            if (dot < ATTACK_CONE_DOT) continue
+            if (!inCone(bear.x, bear.z)) continue
             const died = damageBear(bear, dmg, hitT)
             hitAny = true
             spawnImpact(bear.x, bear.y + 1.1, bear.z, {
@@ -759,12 +769,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             }
           }
           for (const animal of getAliveAnimals()) {
-            const vx = animal.x - pos.current.x
-            const vz = animal.z - pos.current.z
-            const dist = Math.hypot(vx, vz)
-            if (dist > ATTACK_RANGE || dist < 0.001) continue
-            const dot = (vx / dist) * fx + (vz / dist) * fz
-            if (dot < ATTACK_CONE_DOT) continue
+            if (!inCone(animal.x, animal.z)) continue
             const died = damageAnimal(animal, dmg, hitT)
             hitAny = true
             spawnImpact(animal.x, animal.y + 0.8, animal.z, {
@@ -799,12 +804,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           }
           // ─── Mining: ore boulders shatter for stone (rock highlands) ──
           for (const o of getAliveOre()) {
-            const vx = o.x - pos.current.x
-            const vz = o.z - pos.current.z
-            const dist = Math.hypot(vx, vz)
-            if (dist > ATTACK_RANGE || dist < 0.001) continue
-            const dot = (vx / dist) * fx + (vz / dist) * fz
-            if (dot < ATTACK_CONE_DOT) continue
+            if (!inCone(o.x, o.z)) continue
             const broke = damageOre(o, dmg, hitT)
             hitAny = true
             spawnImpact(o.x, o.y + 0.5, o.z, {
@@ -815,6 +815,10 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             })
             if (broke) {
               addStone(o.stoneReward)
+              // First ore broken this run — the hero explains stone → defenses.
+              // (Kept at the mine site, not inside addStone, so the resource
+              // store stays a pure data layer.)
+              sayHeroLine('first-stone', '/audio/vo/stone.mp3')
               spawnFloat(`+${o.stoneReward} 🪨`, '#cdd3da', o.x, o.y + 1.6, o.z, 1.4)
             } else {
               spawnFloat(`${dmg}`, '#c0c6cc', o.x, o.y + 1.6, o.z)
@@ -848,13 +852,25 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     }
     if (leftArmRef.current) {
       if (blk.blocking) {
-        // Raise the shield arm across the front.
+        // Raise the shield arm across the front to brace behind the shield.
         leftArmRef.current.rotation.x = -1.25
         leftArmRef.current.rotation.z = 0.4
       } else {
         leftArmRef.current.rotation.x = -armSwing - idleSway
         leftArmRef.current.rotation.z = 0
       }
+    }
+    // Shield rides its own pivot (decoupled from the arm): slung on the flank
+    // at rest, swung across the front when guarding. Lerp gives the raise weight.
+    if (shieldRef.current) {
+      const tgtPos = blk.blocking ? SHIELD_BLOCK_POS : SHIELD_REST_POS
+      const tgtRot = blk.blocking ? SHIELD_BLOCK_ROT : SHIELD_REST_ROT
+      const a = 1 - Math.pow(0.0015, dt) // frame-rate-independent damp (~0.3s)
+      shieldRef.current.position.lerp(tgtPos, a)
+      const r = shieldRef.current.rotation
+      r.x = THREE.MathUtils.lerp(r.x, tgtRot.x, a)
+      r.y = THREE.MathUtils.lerp(r.y, tgtRot.y, a)
+      r.z = THREE.MathUtils.lerp(r.z, tgtRot.z, a)
     }
 
     // Head — looks around when idle, stays forward when running
@@ -1048,29 +1064,32 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         <mesh position={[0, -0.45, 0]} castShadow material={armorDarkMat}>
           <boxGeometry args={[0.13, 0.08, 0.23]} />
         </mesh>
-        {/* Shield — kite plate strapped to forearm, faces forward (+Z) */}
-        <group position={[-0.04, -0.3, 0.16]}>
-          {/* Plate */}
-          <mesh castShadow material={shieldFaceMat}>
-            <boxGeometry args={[0.34, 0.46, 0.04]} />
-          </mesh>
-          {/* Rim border (thin frame in front of plate) */}
-          <mesh position={[0, 0, 0.022]} material={shieldRimMat}>
-            <boxGeometry args={[0.36, 0.48, 0.006]} />
-          </mesh>
-          {/* Front face inset (so emblem sits on a recessed field) */}
-          <mesh position={[0, 0, 0.027]} material={shieldFaceMat}>
-            <boxGeometry args={[0.28, 0.4, 0.006]} />
-          </mesh>
-          {/* Cross emblem vertical */}
-          <mesh position={[0, 0.02, 0.032]} material={shieldEmblemMat}>
-            <boxGeometry args={[0.05, 0.3, 0.006]} />
-          </mesh>
-          {/* Cross emblem horizontal */}
-          <mesh position={[0, 0.08, 0.032]} material={shieldEmblemMat}>
-            <boxGeometry args={[0.22, 0.05, 0.006]} />
-          </mesh>
-        </group>
+      </group>
+
+      {/* Shield — own pivot near the left shoulder. Animated between flank
+          (rest) and front (block) in useFrame; built centered on its origin,
+          decorated face on +Z. Bigger heater plate that reads at game scale. */}
+      <group ref={shieldRef} position={SHIELD_REST_POS} rotation={SHIELD_REST_ROT}>
+        {/* Plate */}
+        <mesh castShadow material={shieldFaceMat}>
+          <boxGeometry args={[0.42, 0.58, 0.05]} />
+        </mesh>
+        {/* Rim border (raised frame around the front face) */}
+        <mesh position={[0, 0, 0.028]} material={shieldRimMat}>
+          <boxGeometry args={[0.46, 0.62, 0.014]} />
+        </mesh>
+        {/* Front face inset (recessed field for the emblem) */}
+        <mesh position={[0, 0, 0.034]} material={shieldFaceMat}>
+          <boxGeometry args={[0.34, 0.5, 0.014]} />
+        </mesh>
+        {/* Cross emblem vertical */}
+        <mesh position={[0, 0.03, 0.04]} material={shieldEmblemMat}>
+          <boxGeometry args={[0.07, 0.4, 0.014]} />
+        </mesh>
+        {/* Cross emblem horizontal */}
+        <mesh position={[0, 0.1, 0.04]} material={shieldEmblemMat}>
+          <boxGeometry args={[0.3, 0.07, 0.014]} />
+        </mesh>
       </group>
 
       {/* Head */}

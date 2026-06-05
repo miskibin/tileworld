@@ -2,6 +2,7 @@ import { tileAt, tileTopY, standable, isMountainRampTile, COLS, ROWS, type Biome
 import { isInsideCastle, snapToCardinal } from './cityPlan'
 import { isRoadTile } from './roads'
 import { LANDMARKS } from './landmarks'
+import { houseBlocksAt } from './houseBlockers'
 
 export type ObstacleKind =
   | 'tree'
@@ -359,8 +360,10 @@ export function findSpawnNear(x: number, z: number, maxR = 8): { x: number; z: n
         const cx = ox + dx
         const cz = oz + dz
         // Any standable tile (incl. climbable mountain shelves where ork camps
-        // sit) that isn't holding a prop. Shared rule with pathfinding/movement.
-        if (standable(cx, cz) && !isObstacleTile(cx, cz)) {
+        // sit) that isn't holding a prop AND isn't inside a structure footprint
+        // (cage / house / wall). The footprint check matches isWalkable — without
+        // it a spawn could land inside a cage's blocker and be walled in / stuck.
+        if (standable(cx, cz) && !isObstacleTile(cx, cz) && !houseBlocksAt(cx + 0.5, cz + 0.5)) {
           return { x: cx + 0.5, z: cz + 0.5 }
         }
       }

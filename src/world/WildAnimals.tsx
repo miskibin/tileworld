@@ -24,41 +24,32 @@ import { GolemView } from './Golem'
 // light, lived-in population: deer herds + rabbit clusters in the open, wolf
 // packs at the forest edges, lone boars rooting around.
 type Spawn = { species: AnimalSpecies; pos: [number, number]; seed: number }
+// Thinned to 15 (was 27) — wildlife is a big chunk of the scene's Object3D count
+// (each creature is a deep mesh tree, the top per-frame scene-graph cost). Keeps
+// every biome's signature creature + a thin generic spread + a small forest herd
+// for the hunting ground, without wall-to-wall animals stripping the frame budget.
 const ANIMAL_SPAWNS: Spawn[] = [
-  // Deer — grazing the grass belt around the castle
+  // Deer — grazing the grass belt + the forest herd
   { species: 'deer', pos: [60, 38], seed: 1.5 },
-  { species: 'deer', pos: [96, 62], seed: 3.9 },
-  { species: 'deer', pos: [54, 74], seed: 6.3 },
+  { species: 'deer', pos: [40, 76], seed: 8.64 },
   // Rabbits — loosely scattered
   { species: 'rabbit', pos: [52, 62], seed: 1.1 },
-  { species: 'rabbit', pos: [90, 46], seed: 3.3 },
-  { species: 'rabbit', pos: [66, 76], seed: 4.4 },
-  // Wolf packs prowling the southern forest edges (hunt roaming deer)
+  { species: 'rabbit', pos: [34, 82], seed: 8.67 },
+  // Wolves prowling the forest edges (hunt roaming deer)
   { species: 'wolf', pos: [40, 82], seed: 1.2 },
-  { species: 'wolf', pos: [104, 82], seed: 2.4 },
   { species: 'wolf', pos: [46, 46], seed: 3.6 },
-  // Lone boars rooting around the wilds
+  // A lone boar rooting around the wilds
   { species: 'boar', pos: [92, 72], seed: 1.3 },
-  { species: 'boar', pos: [48, 68], seed: 2.6 },
-  // ─── Biome signature creatures (Phase 2) ──────────────────────
+  // ─── Biome signature creatures (one per biome) ────────────────
   { species: 'polar_bear', pos: [40, 30], seed: 7.1 },
   { species: 'scorpion', pos: [104, 30], seed: 7.4 },
-  { species: 'scorpion', pos: [110, 36], seed: 7.6 },
   { species: 'bog_croc', pos: [72, 86], seed: 8.2 },
+  { species: 'goat', pos: [30, 50], seed: 9.1 },
+  { species: 'golem', pos: [22, 58], seed: 9.6 },
+  // Forest (SW ~[32,80]) — a small elk herd keeps the woods a real hunting ground.
   { species: 'elk', pos: [40, 72], seed: 8.5 },
-  { species: 'elk', pos: [110, 80], seed: 8.8 },
-  // Forest (SW ~[32,80]) — a real hunting ground so the woods feel alive and the
-  // hero's "looks like good hunting" line pays off: an elk herd + deer + a boar.
   { species: 'elk', pos: [28, 78], seed: 8.61 },
   { species: 'elk', pos: [36, 84], seed: 8.62 },
-  { species: 'elk', pos: [24, 86], seed: 8.63 },
-  { species: 'deer', pos: [40, 76], seed: 8.64 },
-  { species: 'deer', pos: [30, 90], seed: 8.65 },
-  { species: 'boar', pos: [26, 72], seed: 8.66 },
-  { species: 'rabbit', pos: [34, 82], seed: 8.67 },
-  { species: 'goat', pos: [30, 50], seed: 9.1 },
-  { species: 'goat', pos: [118, 60], seed: 9.3 },
-  { species: 'golem', pos: [22, 58], seed: 9.6 },
 ]
 
 // Seconds after an animal dies before a fresh one of the same species returns to

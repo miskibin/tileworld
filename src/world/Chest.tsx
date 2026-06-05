@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { isPaused } from './pauseStore'
 import { isShopOpen } from './shopStore'
 import { getPlayer, addGold } from './playerStore'
-import { addItem } from './inventoryStore'
+import { addItem, bagHasRoomFor } from './inventoryStore'
 import { spawnFloat } from './fxStore'
 import { playChestOpen } from '../audio/sfx'
 import { sayHeroLine } from './voiceStore'
@@ -102,7 +102,6 @@ export function Chest({
 
   const lidRef = useRef<THREE.Group>(null!)
   const promptRef = useRef<THREE.Group>(null!)
-  const glowRef = useRef<THREE.PointLight>(null!)
   const inRange = useRef(false)
   const [opened, setOpened] = useState(false)
   const lidAngle = useRef(0)
@@ -119,13 +118,18 @@ export function Chest({
     const target = opened ? -Math.PI * 0.6 : 0
     lidAngle.current += (target - lidAngle.current) * 0.15
     if (lidRef.current) lidRef.current.rotation.x = lidAngle.current
-    if (glowRef.current) glowRef.current.intensity = opened ? 0.6 : 0
   })
 
   // F to open when in range.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'KeyF' || opened || !inRange.current || isShopOpen() || isPaused()) return
+      // Don't open (and lose the loot) if the bag can't hold it all — leave the
+      // chest closed + retryable and tell the player to make room first.
+      if (!bagHasRoomFor(loot)) {
+        spawnFloat('Bag full!', '#ff9a9a', pos[0], pos[1] + 1.6, pos[2])
+        return
+      }
       setOpened(true)
       playChestOpen()
       sayHeroLine('chest', '/audio/vo/chest.mp3', { once: false })
@@ -134,8 +138,8 @@ export function Chest({
         spawnFloat(`+${gold} ★`, '#ffd58c', pos[0], pos[1] + 1.6, pos[2])
       }
       loot.forEach((id, i) => {
-        const ok = addItem(id)
-        if (ok) spawnFloat('+1 item', '#9be88a', pos[0] + (i - loot.length / 2) * 0.4, pos[1] + 1.2 + i * 0.3, pos[2])
+        addItem(id)
+        spawnFloat('+1 item', '#9be88a', pos[0] + (i - loot.length / 2) * 0.4, pos[1] + 1.2 + i * 0.3, pos[2])
       })
     }
     window.addEventListener('keydown', onKey)
@@ -234,8 +238,9 @@ export function Chest({
         )}
       </group>
 
-      {/* Treasure glow once opened — single static light, animated 0→0.6 only */}
-      <pointLight ref={glowRef} position={[0, 0.4, 0]} color="#ffd58c" intensity={0} distance={3} />
+      {/* No per-chest point light: ~23 chests each carried one, and any change to
+          the gathered NUM_POINT_LIGHTS relinks EVERY lit material (the travel-
+          stutter root cause). The lid-open + loot floaters + SFX sell the open. */}
 
       {/* "Press F" prompt — omitted under the headless inspector (troika <Text>) */}
       {!inspect && (

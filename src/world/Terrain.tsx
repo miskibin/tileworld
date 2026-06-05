@@ -53,6 +53,11 @@ function classOf(biome: Biome, h: number): TopClass {
   // are all near-identical greens, so unifying them avoids "off grass" seams.
   // Forest still reads as forest from its dense trees, not the ground colour.
   if (biome === 'grass' || biome === 'forest' || biome === 'plains') return 'grass'
+  // Sandy biomes likewise share ONE look: the coastal beach ring ('sand') and
+  // the desert interior are the same pale dune, so unifying them kills the
+  // sand-on-sand colour seam where a beach meets the dunes. The desert still
+  // reads as desert from its cacti / dead trees, not the ground colour.
+  if (biome === 'sand' || biome === 'desert') return 'sand'
   return biome as TopClass
 }
 
@@ -74,7 +79,10 @@ const TOP_SPECS: Record<TopClass, TopSpec> = {
   grass_dark: { color: '#52923a', rough: 0.92, flat: false, tex: detail.grass, detailScale: 0.18, detailStrength: 0.72, variation: 1.0, side: SIDE_DIRT, sideDark: SIDE_DIRT_DARK },
   forest: { color: '#3f8a3a', rough: 0.95, flat: false, tex: detail.grass, detailScale: 0.18, detailStrength: 0.65, variation: 0.85, side: SIDE_DIRT, sideDark: SIDE_DIRT_DARK },
   plains: { color: '#a8c45a', rough: 0.92, flat: false, tex: detail.grass, detailScale: 0.18, detailStrength: 0.65, variation: 1.0, side: SIDE_DIRT, sideDark: SIDE_DIRT_DARK },
-  sand: { color: '#e6cf94', rough: 0.95, flat: false, tex: detail.sand, detailScale: 0.3, detailStrength: 0.5, variation: 0.6, side: SIDE_SAND, sideDark: SIDE_SAND_DARK },
+  // Beach + desert both classify to 'sand' now (see classOf) — one shared dune
+  // colour so there is no sand-on-sand seam. 'desert' spec is kept (dead) only so
+  // the TopClass record stays exhaustive.
+  sand: { color: '#e8c585', rough: 0.95, flat: false, tex: detail.sand, detailScale: 0.3, detailStrength: 0.5, variation: 0.6, side: SIDE_SAND, sideDark: SIDE_SAND_DARK },
   desert: { color: '#e8c585', rough: 0.95, flat: false, tex: detail.sand, detailScale: 0.3, detailStrength: 0.5, variation: 0.6, side: SIDE_SAND, sideDark: SIDE_SAND_DARK },
   rock: { color: '#a8a8b0', rough: 0.95, flat: true, tex: detail.rock, detailScale: 0.3, detailStrength: 0.6, variation: 0.7, side: SIDE_ROCK, sideDark: SIDE_ROCK_DARK },
   snow: { color: '#eef3f8', rough: 0.85, flat: true, tex: detail.snow, detailScale: 0.3, detailStrength: 0.4, variation: 0.45, side: SIDE_SNOW, sideDark: SIDE_SNOW_DARK },
@@ -83,7 +91,7 @@ const TOP_SPECS: Record<TopClass, TopSpec> = {
 
 const CLASSES = Object.keys(TOP_SPECS) as TopClass[]
 
-function makeTopMat(s: TopSpec, edgeAlpha: boolean): THREE.MeshStandardMaterial {
+function makeTopMat(s: TopSpec, edgeAlpha: boolean, alphaFray = false): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: s.color, roughness: s.rough, flatShading: s.flat })
   applyVisionShader(m, {
     detail: s.tex,
@@ -92,7 +100,15 @@ function makeTopMat(s: TopSpec, edgeAlpha: boolean): THREE.MeshStandardMaterial 
     detailStrength: s.detailStrength,
     variation: s.variation,
     edgeAlpha,
+    alphaFray,
   })
+  if (alphaFray) {
+    // Smooth alpha fade needs real blending: render after the opaque base and
+    // don't write depth (the polygonOffset below still wins the depth TEST so it
+    // sits on top of the grass it blends into).
+    m.transparent = true
+    m.depthWrite = false
+  }
   return m
 }
 
@@ -102,7 +118,9 @@ const BASE_TOP = {} as Record<TopClass, THREE.MeshStandardMaterial>
 const OVERLAY_TOP = {} as Record<TopClass, THREE.MeshStandardMaterial>
 CLASSES.forEach((c) => {
   BASE_TOP[c] = makeTopMat(TOP_SPECS[c], false)
-  OVERLAY_TOP[c] = makeTopMat(TOP_SPECS[c], true)
+  // Sand's overlay fades via smooth alpha (gradient sand→grass, no mottle); every
+  // other seam keeps the cheaper binary discard fray.
+  OVERLAY_TOP[c] = makeTopMat(TOP_SPECS[c], true, c === 'sand')
   // Decal-style depth bias: the seam overlay sits COPLANAR with the base tile
   // top (OVERLAY_EPS = 0) and wins the depth test via polygonOffset instead of a
   // physical Y gap. A positive Y gap (the old 0.03) z-fought at distance/grazing

@@ -25,11 +25,12 @@ export function StartScreen() {
           <span><b>Shift</b> sprint</span>
           <span><b>Space</b> jump</span>
           <span><b>Mouse</b> look</span>
-          <span><b>Scroll</b> items</span>
           <span><b>Ctrl+Scroll</b> zoom</span>
           <span><b>L-Click</b> attack</span>
           <span><b>R-Click</b> block</span>
-          <span><b>Q</b> use item</span>
+          <span><b>Q</b> eat</span>
+          <span><b>Z/X/C</b> buffs</span>
+          <span><b>I</b> bag</span>
           <span><b>E</b> interact</span>
           <span><b>Esc</b> pause</span>
           <span><b>G</b> graphics</span>

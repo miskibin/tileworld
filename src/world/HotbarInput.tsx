@@ -1,27 +1,36 @@
 import { useEffect } from 'react'
-import { selectSlot, activateSelected, HOTBAR_SIZE } from './inventoryStore'
-import { isFrozen } from './pauseStore'
+import { eatFood, activateBuff, toggleInventory, isInventoryOpen } from './inventoryStore'
+import { isFrozen, isPaused } from './pauseStore'
+import { isShopOpen } from './shopStore'
+import { isTreeOpen } from './townHallStore'
 import { setWantBlock } from './blockStore'
 
-// Non-visual input glue:
-//  • number keys 1–8 select a hotbar slot
-//  • Q "uses" the selected slot (consume → heal, weapon/armor → equip). Unlike
-//    the old E binding, Q is dedicated to the hotbar — buildings own E for
-//    "interact", so the use key is never silently stolen while standing near one
+// Non-visual input glue for the quick-use bar + inventory:
+//  • Q eats the next food in the bag (heal + any bonus buff)
+//  • Z / X / C use the next Resist / Power / Haste item
+//  • I toggles the inventory panel (a modal that freezes the world)
 //  • right-mouse (hold) raises the shield (blockStore); release lowers it
-// Plain scroll wheel cycles the hotbar (see Inventory.tsx); ctrl+scroll zooms
-// the camera (see MouseLookCamera).
+// ctrl+scroll zooms the camera (see MouseLookCamera); plain scroll is now free.
 // Lives in the canvas tree so it mounts/unmounts with the world.
 export function HotbarInput() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code.startsWith('Digit')) {
-        const n = Number(e.code.slice(5))
-        if (n >= 1 && n <= HOTBAR_SIZE) selectSlot(n - 1)
-      } else if (e.code === 'KeyQ') {
-        if (isFrozen()) return
-        activateSelected()
+      // I toggles the bag. Opening is blocked while another modal/pause holds the
+      // world, but closing always works (it's the only thing freezing then).
+      if (e.code === 'KeyI') {
+        // Closing always works (the open bag is the only thing freezing then);
+        // opening is blocked while another modal/pause already holds the world.
+        if (isInventoryOpen() || (!isShopOpen() && !isTreeOpen() && !isPaused())) {
+          toggleInventory()
+        }
+        return
       }
+      // Quick-use keys only fire in live play (never behind a panel).
+      if (isFrozen()) return
+      if (e.code === 'KeyQ') eatFood()
+      else if (e.code === 'KeyZ') activateBuff('resist')
+      else if (e.code === 'KeyX') activateBuff('power')
+      else if (e.code === 'KeyC') activateBuff('haste')
     }
     // Right-mouse raises the shield. We listen on mousedown/up (button 2)
     // rather than the contextmenu event because the browser suppresses

@@ -1,5 +1,6 @@
 import './hud.css'
-import { Inventory } from './Inventory'
+import { QuickBar } from './QuickBar'
+import { InventoryPanel } from './InventoryPanel'
 import { AudioToggle } from './AudioToggle'
 import { DebugToggle } from './DebugToggle'
 import { DebugMoneyToggle } from './DebugMoneyToggle'
@@ -10,6 +11,7 @@ import { UpgradeTree } from './UpgradeTree'
 import { Objective } from './Objective'
 import { StartScreen } from './StartScreen'
 import { BuffBar } from './BuffBar'
+import { ItemToasts } from './ItemToasts'
 
 export function Hud() {
   return (
@@ -18,12 +20,14 @@ export function Hud() {
       <PlayerHud />
       <Objective />
       <BuffBar />
+      <ItemToasts />
       <AudioToggle />
       <DebugToggle />
       <DebugMoneyToggle />
-      <Inventory />
+      <QuickBar />
       <ShopPanel />
       <UpgradeTree />
+      <InventoryPanel />
       <PauseMenu />
     </div>
   )

@@ -25,6 +25,7 @@ import { bridgeAt } from './bridges'
 import { houseBlocksAt, wallBetween } from './houseBlockers'
 import { findPath } from './pathfinding'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
+import { markCombat } from './combatStore'
 import { isFrozen } from './pauseStore'
 import { getTimeScale } from './hitStopStore'
 import { cullVisible, isCulled } from './cull'
@@ -520,6 +521,7 @@ export function OrkView({ state }: OrkViewProps) {
             if (targetIsPlayer && isPlayerAlive()) {
               // Pass the ork's position so a raised shield can block the hit.
               damagePlayer(cfg.damage, tNow, state.x, state.z)
+              markCombat() // threat striking the hero → day combat music
             } else if (targetOrk && targetOrk.hp > 0) {
               damageOrk(targetOrk, cfg.damage, tNow)
             } else if (targetVillager && !targetVillager.downed) {

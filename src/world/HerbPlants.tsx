@@ -1,17 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { findSpawnNear } from './obstacles'
-import { isFrozen } from './pauseStore'
-import { cullVisible, isCulled } from './cull'
-import { getPlayer } from './playerStore'
-import { addItem } from './inventoryStore'
-import { spawnFloat } from './fxStore'
-import { playGold } from '../audio/sfx'
-import { createHerb, resetHerbs, collectHerb, type HerbState } from './herbStore'
+import { scatterInRegion } from './tileMap'
+import { ForageField, type ForageConfig } from './ForageField'
+import { herbStore } from './herbStore'
 
-// Marsh herbs in the swamp — walk up to one to FORAGE it (no swinging), yielding a
-// Marsh Herb (heal + resist) for hard nights. Pure hand-built mesh; base on y=0.
+// Marsh herbs in the swamp — walk up to one to FORAGE it (no swinging), yielding
+// a Marsh Herb (heal + resist) for hard nights. The forage loop, placement and
+// culling all live in ForageField; this module is just the model + config.
 // The glowing bud makes them readable in the dim, hazardous bog.
 
 const LEAF = new THREE.MeshStandardMaterial({ color: '#3f7a3a', roughness: 1, flatShading: true })
@@ -50,86 +44,18 @@ export function HerbModel() {
   )
 }
 
-const HARVEST_R2 = 0.85 * 0.85
-
-function HerbView({ state }: { state: HerbState }) {
-  const groupRef = useRef<THREE.Group>(null!)
-  const [taken, setTaken] = useState(false)
-
-  useFrame(({ clock }) => {
-    if (isFrozen()) return
-    const g = groupRef.current
-    if (!g) return
-    if (taken) return
-    // Freeze the (static) plant's matrix while far (cullVisible flips
-    // matrixWorldAutoUpdate off), not just hide it.
-    const culled = isCulled(state.x, state.z)
-    cullVisible(g, culled)
-    if (culled) return
-    // Gentle sway.
-    g.rotation.z = Math.sin(clock.getElapsedTime() * 1.3 + state.seed * 6) * 0.08
-
-    // Forage on proximity (no swing needed).
-    const p = getPlayer()
-    const dx = p.x - state.x
-    const dz = p.z - state.z
-    if (dx * dx + dz * dz < HARVEST_R2) {
-      if (addItem('marsh_herb', 1)) {
-        collectHerb(state)
-        spawnFloat('+🌿 Marsh Herb', '#aef0c4', state.x, state.y + 1.0, state.z, 1.3)
-        playGold()
-        setTaken(true)
-      }
-    }
-  })
-
-  if (taken) return null
-  return (
-    <group ref={groupRef} position={[state.x, state.y, state.z]}>
-      <HerbModel />
-    </group>
-  )
+// Scattered across the reachable swamp blob (REGIONS 'swamp'); findSpawnNear
+// snaps each onto a standable, prop-free tile.
+const HERB_CONFIG: ForageConfig = {
+  Model: HerbModel,
+  item: 'marsh_herb',
+  store: herbStore,
+  harvestR: 0.85,
+  float: { text: '+🌿 Marsh Herb', color: '#aef0c4', y: 1.0 },
+  sway: { freq: 1.3, amp: 0.08 },
+  spawns: () => scatterInRegion('swamp', 12),
 }
 
-// Hand-placed across the reachable swamp band (S of the castle). findSpawnNear
-// snaps each onto a standable, prop-free tile.
-const HERB_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
-  { pos: [72, 84], seed: 0.1 },
-  { pos: [66, 88], seed: 0.3 },
-  { pos: [78, 86], seed: 0.5 },
-  { pos: [60, 82], seed: 0.7 },
-  { pos: [84, 90], seed: 0.9 },
-  { pos: [70, 92], seed: 0.15 },
-  { pos: [76, 80], seed: 0.35 },
-  { pos: [64, 94], seed: 0.55 },
-  { pos: [82, 83], seed: 0.75 },
-  { pos: [58, 88], seed: 0.95 },
-  { pos: [88, 86], seed: 0.25 },
-  { pos: [72, 97], seed: 0.65 },
-]
-
 export function HerbPlants() {
-  const [herbs, setHerbs] = useState<HerbState[]>([])
-  useEffect(() => {
-    const handle = requestAnimationFrame(() => {
-      resetHerbs()
-      setHerbs(
-        HERB_SPAWNS.map((h) => {
-          const s = findSpawnNear(h.pos[0], h.pos[1])
-          return createHerb(s.x, s.z, h.seed)
-        }),
-      )
-    })
-    return () => {
-      cancelAnimationFrame(handle)
-      resetHerbs()
-    }
-  }, [])
-  return (
-    <group>
-      {herbs.map((h) => (
-        <HerbView key={h.id} state={h} />
-      ))}
-    </group>
-  )
+  return <ForageField config={HERB_CONFIG} />
 }

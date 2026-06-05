@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './styles.css'
 import App from './App.tsx'
 import { requestTeleport, getPlayer } from './world/playerStore'
+import { addItem } from './world/inventoryStore'
 
 // Dev-only: keep the rAF loop running in backgrounded preview windows so screenshots
 // don't capture an empty canvas.
@@ -16,6 +17,10 @@ if (import.meta.env.DEV) {
     const p = getPlayer()
     return { x: Math.round(p.x * 10) / 10, z: Math.round(p.z * 10) / 10 }
   }
+  // Dev affordance: drop items straight into the bag, for trying the inventory /
+  // quick-use bar without grinding chests (window.giveItem('bread', 3)).
+  ;(window as unknown as { giveItem?: (id: string, n?: number) => boolean }).giveItem = (id, n = 1) =>
+    addItem(id, n)
 }
 
 createRoot(document.getElementById('root')!).render(

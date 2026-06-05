@@ -1,19 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { findSpawnNear } from './obstacles'
-import { isFrozen } from './pauseStore'
-import { cullVisible, isCulled } from './cull'
-import { getPlayer } from './playerStore'
-import { addItem } from './inventoryStore'
-import { spawnFloat } from './fxStore'
-import { playGold } from '../audio/sfx'
-import { createApple, resetApples, collectApple, type AppleState } from './appleStore'
+import { scatterInRegion } from './tileMap'
+import { ForageField, type ForageConfig } from './ForageField'
+import { appleStore } from './appleStore'
 
 // Forest apples — walk up to a little apple sapling to FORAGE it (no swinging),
-// yielding a Forest Apple (small heal). Pure hand-built mesh; base on y=0. A low
-// fruiting bush, not a full canopy tree, so it reads as gatherable and doesn't
-// block the woods.
+// yielding a Forest Apple (small heal). The forage loop, placement and culling
+// all live in ForageField; this module is just the model + config. A low fruiting
+// bush, not a full canopy tree, so it reads as gatherable and doesn't block the
+// woods.
 
 const TRUNK = new THREE.MeshStandardMaterial({ color: '#6b4a2b', roughness: 1, flatShading: true })
 const LEAF = new THREE.MeshStandardMaterial({ color: '#3f7a3a', roughness: 1, flatShading: true })
@@ -63,84 +57,18 @@ export function AppleModel() {
   )
 }
 
-const HARVEST_R2 = 0.95 * 0.95
-
-function AppleView({ state }: { state: AppleState }) {
-  const groupRef = useRef<THREE.Group>(null!)
-  const [taken, setTaken] = useState(false)
-
-  useFrame(({ clock }) => {
-    if (isFrozen()) return
-    const g = groupRef.current
-    if (!g) return
-    if (taken) return
-    // Freeze the (static) tree's matrix while far (cullVisible flips
-    // matrixWorldAutoUpdate off), not just hide it.
-    const culled = isCulled(state.x, state.z)
-    cullVisible(g, culled)
-    if (culled) return
-    // Gentle sway.
-    g.rotation.z = Math.sin(clock.getElapsedTime() * 1.1 + state.seed * 6) * 0.05
-
-    // Forage on proximity (no swing needed).
-    const p = getPlayer()
-    const dx = p.x - state.x
-    const dz = p.z - state.z
-    if (dx * dx + dz * dz < HARVEST_R2) {
-      if (addItem('apple', 1)) {
-        collectApple(state)
-        spawnFloat('+🍎 Apple', '#ff8a78', state.x, state.y + 1.2, state.z, 1.3)
-        playGold()
-        setTaken(true)
-      }
-    }
-  })
-
-  if (taken) return null
-  return (
-    <group ref={groupRef} position={[state.x, state.y, state.z]}>
-      <AppleModel />
-    </group>
-  )
+// Scattered across the western forest blob (REGIONS 'forest'); findSpawnNear
+// snaps each onto a standable, prop-free tile.
+const APPLE_CONFIG: ForageConfig = {
+  Model: AppleModel,
+  item: 'apple',
+  store: appleStore,
+  harvestR: 0.95,
+  float: { text: '+🍎 Apple', color: '#ff8a78', y: 1.2 },
+  sway: { freq: 1.1, amp: 0.05 },
+  spawns: () => scatterInRegion('forest', 10),
 }
 
-// Hand-placed across the western forest blob (region centre ~[32,80], r34).
-// findSpawnNear snaps each onto a standable, prop-free tile.
-const APPLE_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
-  { pos: [30, 78], seed: 0.12 },
-  { pos: [36, 82], seed: 0.34 },
-  { pos: [26, 84], seed: 0.56 },
-  { pos: [40, 80], seed: 0.78 },
-  { pos: [32, 88], seed: 0.91 },
-  { pos: [22, 80], seed: 0.27 },
-  { pos: [38, 74], seed: 0.63 },
-  { pos: [28, 90], seed: 0.45 },
-  { pos: [44, 84], seed: 0.83 },
-  { pos: [34, 72], seed: 0.19 },
-]
-
 export function AppleTrees() {
-  const [apples, setApples] = useState<AppleState[]>([])
-  useEffect(() => {
-    const handle = requestAnimationFrame(() => {
-      resetApples()
-      setApples(
-        APPLE_SPAWNS.map((a) => {
-          const s = findSpawnNear(a.pos[0], a.pos[1])
-          return createApple(s.x, s.z, a.seed)
-        }),
-      )
-    })
-    return () => {
-      cancelAnimationFrame(handle)
-      resetApples()
-    }
-  }, [])
-  return (
-    <group>
-      {apples.map((a) => (
-        <AppleView key={a.id} state={a} />
-      ))}
-    </group>
-  )
+  return <ForageField config={APPLE_CONFIG} />
 }

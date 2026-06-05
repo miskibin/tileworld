@@ -1,10 +1,17 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { getOrks, resetOrks, subscribeOrks, type OrkState } from './orkStore'
 import { resetObjectiveTotal } from './objectiveStore'
 import { resetCastle } from './castleStore'
 import { resetWaves } from './waveStore'
 import { resetTowers } from './towerStore'
 import { OrkView } from './Ork'
+
+// Memoized: each spawn/death notifies the roster, which re-renders this whole
+// list. Without memo, all ~20 OrkViews (each a ~15-mesh tree) reconcile on every
+// spawn/death — a 50–130ms hitch mid-wave. Each ork's `state` object is a stable
+// reference (mutated in place), so memo lets unchanged orks skip the re-render;
+// only the one that spawned or was reaped reconciles.
+const MemoOrkView = memo(OrkView)
 
 export function Mobs() {
   // Subscribe to the roster so orks spawned over the course of a wave (and
@@ -28,7 +35,7 @@ export function Mobs() {
   return (
     <group>
       {orks.map((o) => (
-        <OrkView key={o.id} state={o} />
+        <MemoOrkView key={o.id} state={o} />
       ))}
     </group>
   )

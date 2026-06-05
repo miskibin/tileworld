@@ -1,5 +1,6 @@
 import { damageOrk, type OrkState } from './orkStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
+import { markCombat } from './combatStore'
 import { spawnFloat } from './fxStore'
 import { tileAt, tileTopY } from './tileMap'
 
@@ -105,6 +106,7 @@ export function stepProjectiles(dt: number, now: number): void {
       // Arrived — deal damage. The block cone faces the bolt's origin.
       if (b.target.kind === 'player') {
         damagePlayer(b.damage, now, b.originX, b.originZ)
+        markCombat() // shaman bolt on the hero → day combat music
       } else {
         const died = damageOrk(b.target.ref, b.damage, now)
         const o = b.target.ref

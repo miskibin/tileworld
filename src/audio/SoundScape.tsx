@@ -6,9 +6,14 @@ import { useAudioEnabled } from './useAudioEnabled'
 import { subscribePaused, isFrozen } from '../world/pauseStore'
 import { getPhase } from '../world/gameStore'
 import { isBossWave } from '../world/waveStore'
+import { combatActive } from '../world/combatStore'
 
 // Ease speed for the day↔night music crossfade (≈ a couple-second blend).
 const CROSSFADE_RATE = 0.9
+// Day combat layer: a drum loop that swells over the calm hymn while the hero is
+// in a confirmed ork fight (debounced in combatStore), then fades back out.
+const COMBAT_FADE_RATE = 1.6 // snappier in/out than the day↔night blend
+const COMBAT_DUCK = 1 // fully replace the calm hymn with the combat track while fighting
 
 export function SoundScape() {
   const camera = useThree((s) => s.camera)
@@ -19,8 +24,12 @@ export function SoundScape() {
   const nightMusicRef = useRef<THREE.Audio | null>(null)
   // Boss-fight theme — replaces the dread track for the final (boss) wave only.
   const bossMusicRef = useRef<THREE.Audio | null>(null)
+  // Day combat layer — tense loop that swells over the hymn while fighting a threat.
+  const dayCombatRef = useRef<THREE.Audio | null>(null)
   // 0 = peaceful day theme, 1 = night/wave dread theme. Eased toward the phase.
   const nightMix = useRef(0)
+  // 0 = calm day, 1 = mid day-fight. Eased toward combat recency.
+  const combatMix = useRef(0)
 
   // Mount listener once
   useEffect(() => {
@@ -98,6 +107,21 @@ export function SoundScape() {
       registerLoops(dayMusic, forest)
     })
 
+    // Day combat layer loads on its own so a missing file (track not recorded
+    // yet) can't take down the rest of the music — it just stays absent and the
+    // useFrame combat block no-ops.
+    loadBuffer('/audio/day-combat.mp3')
+      .then((buf) => {
+        if (cancelled) return
+        const dc = new THREE.Audio(l)
+        dc.setBuffer(buf)
+        dc.setLoop(true)
+        dc.setVolume(0)
+        dc.play()
+        dayCombatRef.current = dc
+      })
+      .catch(() => {})
+
     return () => {
       cancelled = true
       registerLoops(null, null)
@@ -105,10 +129,12 @@ export function SoundScape() {
       if (dayMusicRef.current?.isPlaying) dayMusicRef.current.stop()
       if (nightMusicRef.current?.isPlaying) nightMusicRef.current.stop()
       if (bossMusicRef.current?.isPlaying) bossMusicRef.current.stop()
+      if (dayCombatRef.current?.isPlaying) dayCombatRef.current.stop()
       forestRef.current = null
       dayMusicRef.current = null
       nightMusicRef.current = null
       bossMusicRef.current = null
+      dayCombatRef.current = null
     }
   }, [enabled])
 
@@ -124,7 +150,21 @@ export function SoundScape() {
     const target = getPhase() === 'wave' ? 1 : 0
     nightMix.current += (target - nightMix.current) * Math.min(1, dt * CROSSFADE_RATE)
     const m = nightMix.current
-    day.setVolume(audioMix.music * (1 - m))
+
+    // Day combat swell: ramp toward "fought a threat in the last COMBAT_WINDOW
+    // seconds". Audible only during the day (scaled by 1-m), and it ducks the
+    // calm hymn underneath. The combat track is optional — skip if not loaded.
+    const fighting = combatActive() ? 1 : 0
+    combatMix.current += (fighting - combatMix.current) * Math.min(1, dt * COMBAT_FADE_RATE)
+    const cm = combatMix.current
+    const dayLevel = audioMix.music * (1 - m)
+    // Only duck the calm hymn when a combat track is actually loaded to swell in
+    // its place — otherwise (file missing / failed to decode) ducking would leave
+    // dead silence for the whole day fight.
+    const dc = dayCombatRef.current
+    day.setVolume(dayLevel * (dc ? 1 - COMBAT_DUCK * cm : 1))
+    if (dc) dc.setVolume(dayLevel * cm)
+
     // The boss fight swaps the dread theme for the orc march — only one night
     // track is ever audible, so the other stays muted while `m` swells.
     const bossFight = isBossWave()

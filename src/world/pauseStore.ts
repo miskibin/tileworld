@@ -1,5 +1,6 @@
 import { isShopOpen } from './shopStore'
 import { isTreeOpen } from './townHallStore'
+import { isInventoryOpen } from './inventoryStore'
 
 // World runs live by default — the StartScreen is just an overlay, time keeps
 // ticking behind it. Only end screens + an explicit Esc pause freeze the sim
@@ -13,11 +14,11 @@ export function isPaused(): boolean {
 
 /**
  * True when the simulation should hold still: hard pause, or a modal panel
- * (shop / upgrade tree) is open. World useFrame loops gate on this so enemies
- * don't keep attacking and the player can't walk behind an open panel.
+ * (shop / upgrade tree / inventory) is open. World useFrame loops gate on this so
+ * enemies don't keep attacking and the player can't walk behind an open panel.
  */
 export function isFrozen(): boolean {
-  return paused || isShopOpen() || isTreeOpen()
+  return paused || isShopOpen() || isTreeOpen() || isInventoryOpen()
 }
 
 export function setPaused(v: boolean): void {

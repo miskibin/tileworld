@@ -7,8 +7,8 @@
   user-select: none;
 }
 
-/* ---- Minecraft-style hotbar (bottom center) ---- */
-.hotbar {
+/* ---- Quick-use bar (bottom center): food + buff fast-use slots ---- */
+.quickbar {
   position: absolute;
   bottom: 14px;
   left: 50%;
@@ -20,7 +20,7 @@
   pointer-events: auto;
 }
 
-.hotbar-gold {
+.quickbar-gold {
   font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -29,51 +29,20 @@
 }
 
 /* Stone count — a cooler grey to read distinct from the gold tally beside it. */
-.hotbar-stone {
+.quickbar-stone {
   color: #cdd3da;
 }
 
-/* Selected-item stats popup — appears on scroll/select, fades after ~2s. */
-.hotbar-popup {
+.quickbar-slots {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 11px;
-  background: rgba(20, 22, 28, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-  animation: fade-in 120ms ease;
-  white-space: nowrap;
-}
-
-.hotbar-popup-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-.hotbar-popup-name {
-  font-size: 12px;
-  font-weight: 800;
-  color: #f2f4fa;
-}
-
-.hotbar-popup-stat {
-  font-size: 11px;
-  font-weight: 700;
-  color: #9be88a;
-}
-
-.hotbar-slots {
-  display: flex;
-  gap: 4px;
+  gap: 6px;
   padding: 5px;
   background: rgba(20, 22, 28, 0.72);
   border: 2px solid rgba(0, 0, 0, 0.5);
   border-radius: 6px;
 }
 
-.hotbar-slot {
+.quick-slot {
   position: relative;
   width: 52px;
   height: 52px;
@@ -85,55 +54,40 @@
   border-radius: 3px;
   cursor: pointer;
   padding: 0;
-  transition: border-color 100ms ease, transform 100ms ease, box-shadow 100ms ease;
+  transition: border-color 100ms ease, transform 100ms ease;
 }
 
-.hotbar-slot:hover {
+.quick-slot:hover:not(.is-empty) {
   border-color: rgba(180, 184, 196, 0.95);
+  transform: translateY(-2px);
 }
 
-.hotbar-slot.is-selected {
-  border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55), 0 0 10px rgba(255, 255, 255, 0.35);
-  transform: translateY(-3px);
+.quick-slot.is-empty {
+  cursor: default;
 }
 
-.hotbar-slot.is-equipped {
-  background: rgba(72, 150, 100, 0.32);
-  border-color: #6fe09a;
-  box-shadow: inset 0 0 0 2px rgba(111, 224, 154, 0.65);
+.quick-slot.is-empty .quick-icon {
+  opacity: 0.28;
+  filter: grayscale(1);
 }
 
-/* Corner badge so an equipped item reads at a glance even when also selected. */
-.hotbar-slot.is-equipped::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #6fe09a;
-  box-shadow: 0 0 4px rgba(111, 224, 154, 0.9);
-}
-
-.hotbar-key {
+.quick-key {
   position: absolute;
   top: 1px;
-  left: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(230, 236, 246, 0.7);
+  left: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: rgba(230, 236, 246, 0.8);
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.9);
 }
 
-.hotbar-icon {
+.quick-icon {
   font-size: 26px;
   line-height: 1;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
-.hotbar-count {
+.quick-count {
   position: absolute;
   right: 3px;
   bottom: 1px;
@@ -143,11 +97,266 @@
   text-shadow: 0 1px 2px #000, 0 0 2px #000;
 }
 
-.hotbar-hint {
+.quickbar-hint {
   font-size: 10px;
   letter-spacing: 0.1em;
   color: #8a8e98;
   text-transform: uppercase;
+}
+
+/* ---- Inventory panel (modal, opened with I) — reuses the shop scrim feel ---- */
+.inv-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 14, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: auto;
+  z-index: 11;
+}
+
+.inv-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 480px;
+  padding: 22px 26px 18px;
+  background: rgba(22, 28, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+.inv-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.inv-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.inv-gold {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #ffd58c;
+}
+
+.inv-body {
+  display: flex;
+  gap: 18px;
+}
+
+.inv-equip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 160px;
+}
+
+.inv-bag-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inv-col-label {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8a8e98;
+}
+
+.inv-equip-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: #d8dae0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.inv-equip-slot:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.inv-equip-slot:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inv-equip-icon {
+  font-size: 22px;
+  width: 26px;
+  text-align: center;
+}
+
+.inv-equip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.inv-equip-kind {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8a8e98;
+}
+
+.inv-equip-name {
+  font-weight: 600;
+}
+
+.inv-bag {
+  display: grid;
+  grid-template-columns: repeat(6, 46px);
+  gap: 5px;
+  align-content: start;
+}
+
+.inv-cell {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(140, 140, 150, 0.14);
+  border: 1px solid rgba(80, 84, 92, 0.8);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+
+.inv-cell:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(180, 184, 196, 0.9);
+}
+
+.inv-cell:disabled {
+  cursor: default;
+}
+
+.inv-cell-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.inv-cell-count {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 1px 2px #000, 0 0 2px #000;
+}
+
+.inv-close {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  padding: 8px 10px;
+  margin-top: 4px;
+  align-self: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #c8cbd1;
+  cursor: pointer;
+}
+
+.inv-close:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+/* ---- Pickup toasts (upper-left stack) — clear of the top-right toggles/leva
+   panel and, in dev, below the top-left r3f-perf overlay. ---- */
+.item-toasts {
+  position: absolute;
+  top: 92px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 270px;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.item-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(20, 22, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 3px solid #9be88a;
+  border-radius: 7px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: toast-in 180ms ease;
+}
+
+.item-toast-icon {
+  font-size: 26px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.item-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.item-toast-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f2f4fa;
+}
+
+.item-toast-count {
+  color: #ffd58c;
+}
+
+.item-toast-stat {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9be88a;
+}
+
+.item-toast-note {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #9aa0ac;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* ---- Shared HUD animations ---- */

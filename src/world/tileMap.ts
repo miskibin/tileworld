@@ -211,6 +211,37 @@ const REGIONS: Region[] = [
   { x: 72, z: 92, r: 32, biome: 'swamp' },
 ]
 
+/** The biome blob for `biome` (its centre + radius), or undefined if none. Lets
+ *  spawn placement anchor to the live REGIONS table instead of re-hard-coding a
+ *  centre that silently desyncs when a biome is moved or resized. */
+export function regionByBiome(biome: Biome): { x: number; z: number; r: number } | undefined {
+  const r = REGIONS.find((reg) => reg.biome === biome)
+  return r ? { x: r.x, z: r.z, r: r.r } : undefined
+}
+
+/** `n` deterministic scatter points spread across a biome blob — a golden-angle
+ *  (sunflower) spiral kept inside 0.78·r so points stay off the frayed coast.
+ *  Callers snap each onto a standable, prop-free tile via findSpawnNear.
+ *  Meaningful only for FLAT biomes (forest/swamp); a mountain core is cliff, so
+ *  ore stays a hand-placed apron list (see OreNodes). Deterministic across
+ *  reloads (no Math.random) so the field is stable within a run. */
+export function scatterInRegion(biome: Biome, n: number): Array<{ x: number; z: number; seed: number }> {
+  const reg = regionByBiome(biome)
+  if (!reg) return []
+  const GOLDEN = 2.39996323 // golden angle (radians)
+  const pts: Array<{ x: number; z: number; seed: number }> = []
+  for (let i = 0; i < n; i++) {
+    const rad = Math.sqrt((i + 0.5) / n) * reg.r * 0.78
+    const ang = i * GOLDEN + reg.x // offset by centre so two regions don't align
+    pts.push({
+      x: reg.x + Math.cos(ang) * rad,
+      z: reg.z + Math.sin(ang) * rad,
+      seed: (i * 0.6180339 + 0.13) % 1,
+    })
+  }
+  return pts
+}
+
 /** True if (x,z) falls inside (or just outside) any mountain region blob
  *  (rock or snow — both are tall now) — used to keep rivers from carving a
  *  channel through the mountains. The +2 margin past the rendered footprint
@@ -224,22 +255,29 @@ function inMountain(x: number, z: number): boolean {
   return false
 }
 
-// Higher-frequency boundary fray, ADDED to the blob distance for FLAT biomes
-// only. The low-frequency `wob` alone leaves a near-smooth arc that, at the RTS
-// camera angle, reads as hard tile stair-steps wherever a flat biome meets grass
-// — overwhelmingly the high-contrast desert↔grass seam (forest shares grass's
-// surface class so its seam is invisible, swamp is green-on-green, and the
-// snow/rock mountains hide their edge behind vertical cliff faces). Three
-// octaves (≈11 / ≈6 / ≈3.5-tile periods) break that edge into organic interlock
-// fingers that the seam-overlay shader then feathers. Mountains are EXCLUDED so
-// their footprint stays crisp and keeps matching inMountain()/rampClass() and
-// the map-reachability guarantee; flat biomes are all walkable height-1 like
-// grass, so fraying their boundary can't change pathing.
+// Boundary fray, ADDED to a flat blob's distance (and to the castle safe-zone
+// radius) so a flat biome's edge against grass breaks into organic interlock
+// fingers instead of hard tile stair-steps — overwhelmingly the high-contrast
+// desert↔grass / sand↔grass seam (forest shares grass's surface class so its
+// seam is invisible, swamp is green-on-green, and the snow/rock mountains hide
+// their edge behind vertical cliff faces). Mountains are EXCLUDED (kept crisp so
+// their footprint still matches inMountain()/rampClass() and the map-reachability
+// guarantee); flat biomes are all walkable height-1 like grass, so fraying their
+// boundary can't change pathing.
+//
+// Amplitude sits on the MID (finger-scale ~5-7 tile) octaves rather than a coarse
+// drift that just slides the whole edge. NOTE: this is deliberately COHERENT (no
+// high-amplitude incoherent/hash octave) and moderate — a too-strong, too-jittery
+// fray flips isolated single tiles to sand far from the main mass, and those
+// detached freckles (plus the grass that shows through the frayed seam overlay)
+// read as a different, mottled "edge sand texture" next to the solid biome sand.
+// Keeping the edge wavy but CONTIGUOUS means the edge sand is just the dunes'
+// frayed shoreline — same solid texture, not speckle.
 function edgeFray(x: number, z: number): number {
   return (
-    Math.sin(x * 0.55 + z * 0.38 + 1.3) * 1.6 +
-    Math.sin(x * 1.1 - z * 0.9 + 4.0) * 0.9 +
-    Math.sin(x * 1.9 + z * 1.7 + 2.2) * 0.5
+    Math.sin(x * 0.5 + z * 0.35 + 1.3) * 1.1 + // coarse drift  (~12-tile period)
+    Math.sin(x * 0.9 - z * 0.82 + 4.0) * 1.6 + //  medium lobes (~7) — DOMINANT
+    Math.sin(x * 1.5 + z * 1.3 + 2.2) * 1.0 //     fine fingers (~4.5)
   )
 }
 
@@ -322,8 +360,18 @@ function classifyBiome(x: number, z: number): Tile | null {
   if (!isLandShape(x, z)) return null
 
   // Castle safe-zone: flat open grass, forced before anything else so no river,
-  // lake, mountain or biome blob can intrude on the keep's surroundings.
-  if (distFromCastle(x, z) < CASTLE_SAFE_R) return { biome: 'grass', height: 1 }
+  // lake, mountain or biome blob can intrude on the keep's surroundings. Its
+  // OUTER edge is frayed by the same edgeFray: the desert's SW lobe reaches
+  // INSIDE this radius, so an un-frayed circle here is exactly the "stair-stepped
+  // sand edge" — a clean r=CASTLE_SAFE_R arc clipping the dunes — that edgeFray on
+  // the blob alone could never touch (this check wins first). Fraying it lets the
+  // sand↔grass boundary interlock. The inner core (radius − |fray|max ≈ 14) stays
+  // pure grass so the keep is never crowded; the swamp guard below keeps the
+  // marsh's poison tiles out of the frayed band on the south side.
+  const dc = distFromCastle(x, z)
+  // Full-strength fray on the bulge OUT into the dunes; the shrink IN is clamped
+  // at −4 so the keep core (radius ≥ CASTLE_SAFE_R−4 ≈ 14) is always pure grass.
+  if (dc < CASTLE_SAFE_R + Math.max(-4, edgeFray(x, z))) return { biome: 'grass', height: 1 }
 
   if (isRiverAt(x, z)) return null
 
@@ -333,8 +381,15 @@ function classifyBiome(x: number, z: number): Tile | null {
   // deliberate lake lives in a basin instead (see DELIBERATE_LAKE).
   if (isDeliberateLake(x, z)) return null // carve the one hand-placed lake
 
-  // Beach ring around coastlines and lake edges.
-  if (d <= 1) return { biome: 'sand', height: 1 }
+  // Beach ring around the ocean coast. Its inland width is frayed 1→3 tiles by a
+  // two-octave noise — beachW ≥ 1, so the water-adjacent tile is ALWAYS sand (the
+  // sand↔water edge stays the clean coast shape); only the landward sand↔grass
+  // edge wanders, breaking the hard 1-tile stair-step that the integer
+  // distFromCoast otherwise leaves along the noisy coastline into organic
+  // fingers. Sand is walkable height-1 like grass, so a wider fringe never
+  // affects pathing/reachability.
+  const beachW = 1 + Math.max(0, 1 + Math.sin(x * 0.6 + z * 0.42 + 2.1) * 0.8 + Math.sin(x * 1.25 - z * 0.95 + 0.4) * 0.6)
+  if (d <= beachW) return { biome: 'sand', height: 1 }
 
   // Hand-placed grassy hills (climbable terraces) before regional biomes.
   const ph = plateauHeightAt(x, z)
@@ -343,6 +398,10 @@ function classifyBiome(x: number, z: number): Tile | null {
   // Regional biome placement.
   const reg = regionAt(x, z)
   if (reg) {
+    // Keep the poisonous marsh out of the keep's frayed safe-zone band: a swamp
+    // tile that the fray pulled inside the true safe radius reverts to grass, so
+    // sand may interlock toward the keep but the south-side marsh never does.
+    if (reg.biome === 'swamp' && dc < CASTLE_SAFE_R) return { biome: 'grass', height: 1 }
     if (reg.peak !== undefined) {
       // Mountain biome (rock / snow): tall climbable mass.
       return { biome: reg.biome, height: mountainHeight(x, z, reg) }

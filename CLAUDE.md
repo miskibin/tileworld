@@ -80,7 +80,7 @@ No central loop — each entity component owns a `useFrame`. The shared contract
 
 Combat is store-mediated, no collision events: the player's swing in [Character.tsx](src/world/Character.tsx) calls `damageOrk()` ([orkStore.ts](src/world/orkStore.ts)); on kill it calls `addXp()`/`addGold()` on playerStore (which notify → HUD updates). Orks call the `damagePlayer` callback. Damage/level numbers float up via [fxStore.ts](src/world/fxStore.ts) + [FloatingText.tsx](src/world/FloatingText.tsx); screen shake via `addShake`.
 
-Input: WASD/arrows + space/shift in [useKeyboard.ts](src/world/useKeyboard.ts) (returns a ref, read in `useFrame`); number keys + right-click hotbar in [HotbarInput.tsx](src/world/HotbarInput.tsx); mouse-look in [MouseLookCamera.tsx](src/world/MouseLookCamera.tsx).
+Input: WASD/arrows + space/shift in [useKeyboard.ts](src/world/useKeyboard.ts) (returns a ref, read in `useFrame`); quick-use + inventory keys (Q eat / Z·X·C buffs / I bag) + right-click block in [HotbarInput.tsx](src/world/HotbarInput.tsx); mouse-look in [MouseLookCamera.tsx](src/world/MouseLookCamera.tsx).
 
 ## Biome mechanics — the day is a free-roam window
 
@@ -112,7 +112,9 @@ frame — used by `scripts/shot-world.mjs <out.png> <x> <z>` to frame far biome 
 
 ## HUD
 
-[Hud.tsx](src/hud/Hud.tsx) mounts all DOM panels; each subscribes to the relevant store and re-renders only on `notify`. Panels: StartScreen, PlayerHud (HP/XP — drives flashes via `requestAnimationFrame`, not React state, to avoid re-render churn), Objective (orks killed), Inventory (5-slot hotbar), ShopPanel, UpgradeTree, PauseMenu, and three toggles (audio, debug paths, debug money). Styling is one file: [hud.css](src/hud/hud.css). HUD ↔ world communication is **only** through stores — no props, no context, no direct three.js queries.
+[Hud.tsx](src/hud/Hud.tsx) mounts all DOM panels; each subscribes to the relevant store and re-renders only on `notify`. Panels: StartScreen, PlayerHud (HP/XP — drives flashes via `requestAnimationFrame`, not React state, to avoid re-render churn), Objective (orks killed), QuickBar, ItemToasts, ShopPanel, UpgradeTree, InventoryPanel, PauseMenu, and three toggles (audio, debug paths, debug money). Styling is one file: [hud.css](src/hud/hud.css). HUD ↔ world communication is **only** through stores — no props, no context, no direct three.js queries.
+
+Inventory ([inventoryStore.ts](src/world/inventoryStore.ts)) is one general **bag** (`BAG_SIZE`) plus two equip slots (weapon + armor). There is no selectable hotbar; instead the persistent [QuickBar.tsx](src/hud/QuickBar.tsx) shows four *derived* quick-slots — Food (Q) and the three buff kinds Resist/Power/Haste (Z/X/C) — each surfacing the next matching bag item (use one, the next auto-fills). Each consumable is tagged to exactly one quick-slot via `ItemDef.quick` (default = its buff kind, else `'food'`; e.g. Marsh Herb is `food`, its resist a bonus on eating). The bag itself is managed in the modal [InventoryPanel.tsx](src/hud/InventoryPanel.tsx) (open with **I**, freezes the world like the shop — `isInventoryOpen()` is ORed into `isFrozen()`): click a bag item to eat/equip it, click an equip slot to take gear off. `addItem` (the single entry for genuine pickups — chest/forage/ground loot/shop buy) fires a pickup toast via [itemToastStore.ts](src/world/itemToastStore.ts) → [ItemToasts.tsx](src/hud/ItemToasts.tsx) (icon + name + `itemStatLine` + a type-dependent `pickupNote`); gear swaps/unequips return to the bag through the silent `placeInBag` so they don't false-toast. Dev: `window.giveItem(id, n)` drops items straight into the bag ([main.tsx](src/main.tsx)).
 
 The user dislikes placeholder/decorative UI chrome — build only HUD that's asked for, default to less.
 
