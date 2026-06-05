@@ -53,6 +53,24 @@ const BASE_ANIMAL_SPAWNS: Spawn[] = [
   { species: 'elk', pos: [40, 72], seed: 8.5 },
   { species: 'elk', pos: [28, 78], seed: 8.61 },
   { species: 'elk', pos: [36, 84], seed: 8.62 },
+  // ─── Extra density for the enlarged map (the big island felt empty) ───
+  // Grass belt — deer + rabbits you bump into on any day trip.
+  { species: 'deer', pos: [88, 44], seed: 2.2 },
+  { species: 'deer', pos: [58, 66], seed: 3.3 },
+  { species: 'deer', pos: [92, 62], seed: 4.4 },
+  { species: 'rabbit', pos: [60, 44], seed: 5.5 },
+  { species: 'rabbit', pos: [86, 50], seed: 6.6 },
+  { species: 'rabbit', pos: [50, 58], seed: 7.7 },
+  // Forest wood — wolves on the prowl + a bigger elk herd.
+  { species: 'wolf', pos: [26, 74], seed: 2.8 },
+  { species: 'elk', pos: [44, 88], seed: 8.71 },
+  { species: 'boar', pos: [44, 64], seed: 3.1 },
+  // Biome signature creatures — a second of each so the wilds aren't bare.
+  { species: 'polar_bear', pos: [30, 40], seed: 7.2 },
+  { species: 'scorpion', pos: [118, 38], seed: 7.5 },
+  { species: 'bog_croc', pos: [66, 86], seed: 8.3 },
+  { species: 'goat', pos: [44, 50], seed: 9.2 },
+  { species: 'golem', pos: [114, 64], seed: 9.7 }, // second golem, rock highlands
 ]
 const ANIMAL_SPAWNS: Spawn[] = BASE_ANIMAL_SPAWNS.map((s) => {
   const [x, z] = fromBase(s.pos[0], s.pos[1])

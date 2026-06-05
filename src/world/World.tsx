@@ -114,6 +114,22 @@ const CHESTS: {
   { pos: [60, 1, 94], rot: -0.9, gold: 12, loot: ['feast'], cache: true }, // S swamp rim
   { pos: [30, 1, 86], rot: 1.6, gold: 9, loot: ['bread'], cache: true }, // SW forest rim
   { pos: [20, 1, 62], rot: 2.0, gold: 8, loot: ['elk_jerky'], cache: true }, // W forest/coast rim
+
+  // ---- Extra density for the enlarged map: more caches in the grass belt +
+  //      biome approaches, plus a few deep-biome treasure chests. ----
+  { pos: [88, 1, 46], rot: 0.2, gold: 10, loot: ['bread'], cache: true }, // E grass belt
+  { pos: [56, 1, 64], rot: -0.7, gold: 10, loot: ['potion'], cache: true }, // SW grass belt
+  { pos: [92, 1, 58], rot: 1.1, gold: 9, loot: ['bread'], cache: true }, // E grass belt
+  { pos: [60, 1, 46], rot: 2.4, gold: 9, loot: ['potion'], cache: true }, // W grass belt
+  { pos: [36, 1, 40], rot: 0.5, gold: 11, loot: ['feast'], cache: true }, // snow approach
+  { pos: [106, 1, 42], rot: -1.1, gold: 10, loot: ['venom'], cache: true }, // desert approach
+  { pos: [108, 1, 64], rot: 0.9, gold: 12, loot: ['potion'], cache: true }, // rock approach
+  { pos: [42, 1, 84], rot: -0.4, gold: 9, loot: ['croc_steak'], cache: true }, // forest/swamp rim
+  // Deep-biome treasure (gear rolled by frontier distance — see chestLootFor).
+  { pos: [96, 1, 70], rot: 1.4, gold: 14, loot: ['stone_maul'] }, // deep rock
+  { pos: [28, 1, 74], rot: -1.3, gold: 12, loot: ['fur'] }, // deep forest
+  { pos: [116, 1, 32], rot: 0.7, gold: 14, loot: ['venom'] }, // deep desert
+  { pos: [78, 1, 96], rot: 2.0, gold: 12, loot: ['croc_steak'] }, // deep swamp
 ]
 import { CENTER_X, CENTER_Z, tileAt, tileTopY, fromBase, shiftToCentre, type Biome } from './tileMap'
 import { chestLootFor } from './frontier'

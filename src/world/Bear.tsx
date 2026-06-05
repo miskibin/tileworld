@@ -347,6 +347,11 @@ const BEAR_SPAWNS: Array<{ pos: [number, number]; seed: number }> = (
     { pos: [90, 52], seed: 2.9 },
     { pos: [104, 58], seed: 9.4 },
     { pos: [70, 84], seed: 11.6 },
+    // Extra density for the enlarged map.
+    { pos: [52, 34], seed: 13.1 },
+    { pos: [96, 42], seed: 14.7 },
+    { pos: [34, 66], seed: 16.2 },
+    { pos: [60, 88], seed: 17.9 },
   ] as Array<{ pos: [number, number]; seed: number }>
 ).map((b) => {
   const [x, z] = fromBase(b.pos[0], b.pos[1])

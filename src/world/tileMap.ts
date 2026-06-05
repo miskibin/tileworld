@@ -106,7 +106,16 @@ function distFromCastle(x: number, z: number): number {
 // SWAMP blobs (r 32–38) now crowd the frontier so tightly there is no clear
 // grass pocket outside the castle safe-zone wide enough for a hill — any plateau
 // would poke out of a biome. Re-add entries here if the layout opens up.
-const PLATEAUS: ReadonlyArray<{ x: number; z: number; r: number; peak: number }> = []
+// A few small climbable grass hills dotted across the frontier for terrain
+// variety (concentric one-class terraces → always climbable; see plateauHeightAt).
+// Authored in BASE coords (generation runs in base space) and placed in the grass
+// gaps between biomes; the resample stretches them into broad gentle hills. The
+// plateau check sits after water/river/beach in classifyBiome, so a hill can
+// never punch through the coast or a river — worst case it no-ops.
+const PLATEAUS: ReadonlyArray<{ x: number; z: number; r: number; peak: number }> = [
+  { x: 98, z: 72, r: 9, peak: 5 }, // SE grass belt (rock↔swamp gap), clear of camps
+  { x: 52, z: 50, r: 7, peak: 4 }, // W grass belt, clear of camps
+]
 /** Plateau height class at (x,z): 0 = none, else 2..peak stepped by distance
  *  to the hill centre (concentric terraces, foot=2, core=peak). One class per
  *  ~one tile of distance keeps every neighbour within Δ1 → climbable. */

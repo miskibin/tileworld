@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
-import { tileAt, tileTopY } from './tileMap'
-import { obstacleCollidesAt } from './obstacles'
+import { tileAt, tileTopY, fromBase } from './tileMap'
+import { obstacleCollidesAt, findSpawnNear } from './obstacles'
 import { createDog, getDogs, resetDogs, type DogState } from './dogStore'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
@@ -309,7 +309,12 @@ export function Wildlife() {
 
   useEffect(() => {
     resetDogs()
-    const created = DOG_SPAWNS.map((d) => createDog(d.pos[0], d.pos[1], d.palette, d.seed))
+    const created = DOG_SPAWNS.map((d) => {
+      // DOG_SPAWNS are base-map coords; scale onto the enlarged map + snap to land.
+      const [bx, bz] = fromBase(d.pos[0], d.pos[1])
+      const s = findSpawnNear(bx, bz)
+      return createDog(s.x, s.z, d.palette, d.seed)
+    })
     setDogs(created)
     return () => {
       // Leave state alive on hot-reload; reset on next mount.

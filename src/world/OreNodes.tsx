@@ -131,6 +131,13 @@ const ORE_SPAWNS: Array<{ pos: [number, number]; seed: number }> = [
   { pos: [112, 48], seed: 0.56 },
   { pos: [100, 60], seed: 0.31 },
   { pos: [108, 56], seed: 0.67 },
+  // Extra nodes so the rock highlands actually read as a mining ground.
+  { pos: [102, 70], seed: 0.18 },
+  { pos: [114, 56], seed: 0.42 },
+  { pos: [98, 66], seed: 0.59 },
+  { pos: [116, 68], seed: 0.77 },
+  { pos: [106, 48], seed: 0.88 },
+  { pos: [104, 68], seed: 0.27 },
 ]
 
 export function OreNodes() {
