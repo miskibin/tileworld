@@ -13,6 +13,7 @@ import { addShake, spawnFloat, addFovKick, resetFovKick, fovTunables } from './f
 import { spawnImpact } from './impactStore'
 import { spawnDust, dustForBiome } from './dustStore'
 import { spawnPickup } from './pickupStore'
+import { frontierFactor, rollGear } from './frontier'
 import { getWeaponBonus, getInventory, subscribeInventory, ITEM_DEFS } from './inventoryStore'
 import { damageDog, getAliveDogs } from './dogStore'
 import { damageOrk, knockbackOrk, getAliveOrks, orkCollidesAt } from './orkStore'
@@ -147,6 +148,17 @@ function lerpAngle(a: number, b: number, t: number): number {
   while (d > Math.PI) d -= 2 * Math.PI
   while (d < -Math.PI) d += 2 * Math.PI
   return a + d * t
+}
+
+// Frontier loot drop on a slain DAY creature (wildlife/bears, never night-wave
+// orks): the farther from the castle, the better the odds and the higher the
+// gear tier — top gear only at the rim. Near the castle frontierFactor≈0 so the
+// chance is the 10% floor with low-tier loot, keeping early hunting unchanged.
+function maybeFrontierDrop(x: number, y: number, z: number): void {
+  const f = frontierFactor(x, z)
+  if (Math.random() < 0.1 + 0.35 * f) {
+    spawnPickup(rollGear(f, Math.random()), x - 0.4, y, z + 0.4)
+  }
 }
 
 export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
@@ -764,6 +776,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               // Bears are tougher — bigger bounty, so a fatter burst of orbs.
               spawnOrbs('gold', bear.x, bear.y + 1.0, bear.z, 5, 20)
               spawnOrbs('xp', bear.x, bear.y + 1.0, bear.z, 5, XP_PER_ORK * 2)
+              maybeFrontierDrop(bear.x, bear.y, bear.z)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', bear.x, bear.y + 2.4, bear.z)
             }
@@ -798,6 +811,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
                 spawnPickup(c.dropItemId2, animal.x + 0.5, animal.y, animal.z + 0.5)
               }
               spawnOrbs('xp', animal.x, animal.y + 0.8, animal.z, 4, c.bountyXp)
+              maybeFrontierDrop(animal.x, animal.y, animal.z)
             } else {
               spawnFloat(`${dmg}`, '#ffffff', animal.x, animal.y + 2.0, animal.z)
             }

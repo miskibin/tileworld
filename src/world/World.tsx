@@ -115,6 +115,7 @@ const CHESTS: {
   { pos: [20, 1, 62], rot: 2.0, gold: 8, loot: ['elk_jerky'], cache: true }, // W forest/coast rim
 ]
 import { CENTER_X, CENTER_Z, tileAt, tileTopY, type Biome } from './tileMap'
+import { chestLootFor } from './frontier'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
 import { getPlayer } from './playerStore'
 import { getGradePulse, gradeTunables } from './gradeStore'
@@ -376,18 +377,25 @@ export function World() {
             out in the biome ring, so each is distance-culled: fog hides them and
             <Cullable> stops three from processing their meshes until you're near
             (see CHESTS above + Cullable.tsx). */}
-        {CHESTS.map((c, i) => (
-          <Cullable key={i} x={c.pos[0]} z={c.pos[2]}>
-            <Chest
-              position={c.pos}
-              rotation={c.rot}
-              gold={c.gold}
-              loot={c.loot}
-              cache={c.cache}
-              variant={chestVariant(c.pos[0], c.pos[2])}
-            />
-          </Cullable>
-        ))}
+        {CHESTS.map((c, i) => {
+          // Treasure (one-shot gear) chests roll their gear by frontier distance
+          // — the best gear surfaces only at the rim. Caches (the food/gold
+          // trickle economy) and token/teaching chests keep hand-authored loot.
+          const isToken = c.loot.includes('mercenary_contract')
+          const r = c.cache || isToken ? { loot: c.loot, gold: c.gold } : chestLootFor(c.pos[0], c.pos[2])
+          return (
+            <Cullable key={i} x={c.pos[0]} z={c.pos[2]}>
+              <Chest
+                position={c.pos}
+                rotation={c.rot}
+                gold={r.gold}
+                loot={r.loot}
+                cache={c.cache}
+                variant={chestVariant(c.pos[0], c.pos[2])}
+              />
+            </Cullable>
+          )
+        })}
 
         {/* Number-key + right-click hotbar input */}
         <HotbarInput />
