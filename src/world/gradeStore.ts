@@ -11,7 +11,7 @@
 // read each frame by the ReactiveGrade driver in World.tsx. Same live-holder
 // pattern as audio's `audioMix`. Defaults are the shipping values.
 export const gradeTunables = {
-  baseDarkness: 0.5, // resting vignette darkness (calm, full HP)
+  baseDarkness: 0, // resting vignette darkness — 0 = no always-on static screen-edge frame (low-HP/hit still darken reactively)
   baseSaturation: 0.18, // resting hue/sat boost (richer; compensates AgX desaturation)
   lowThreshold: 0.35, // hp ratio below which dread ramps in
   lowDarken: 0.16, // extra vignette at 0 hp
@@ -29,8 +29,8 @@ export const gradeTunables = {
 // WORLD units (not normalised) — small fixed values just focused at the camera and
 // blurred everything, which is why focusing on the player's world distance is the fix.
 export const dofTunables = {
-  focusRange: 18,
-  bokehScale: 0,
+  focusRange: 70,
+  bokehScale: 7,
 }
 
 let pulse = 0
