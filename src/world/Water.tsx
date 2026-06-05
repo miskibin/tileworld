@@ -12,6 +12,21 @@ import { getDay, sunDirAt } from './timeStore'
 const W = COLS + 280
 const H = ROWS + 280
 
+// Live-tunable water look (the leva 'Water' folder in DebugBindings mutates this).
+// Applied to the material + shader uniforms each frame in useFrame — all of these
+// are live-settable without a shader recompile (color/metalness/roughness are
+// material uniforms; sky/sun strengths are float uniforms). Tune the look in-game.
+// Default: vivid blue, near-zero metalness (high metalness reflected the dim,
+// AgX-desaturated sky and washed the water out to grey), with a sky sheen + sun
+// glint doing the "reflective" read instead.
+export const waterTunables = {
+  color: '#3aa6e0',
+  metalness: 0.05,
+  roughness: 0.3,
+  skyStrength: 0.45, // broad fresnel sky-sheen
+  sunStrength: 1.6, // sun glint
+}
+
 export function Water() {
   const geo = useMemo(() => {
     const g = new THREE.PlaneGeometry(W, H, 56, 48)
@@ -27,10 +42,10 @@ export function Water() {
   const mat = useMemo(() => {
     const map = waterTexture('#2780c9', 7)
     const m = new THREE.MeshStandardMaterial({
-      color: map ? '#6db4e6' : '#2780c9',
+      color: waterTunables.color,
       map: map ?? undefined,
-      roughness: 0.22,
-      metalness: 0.35, // glossier → reflects the HDRI sky/sun (visible at any angle)
+      roughness: waterTunables.roughness,
+      metalness: waterTunables.metalness,
       transparent: true,
       opacity: 0.9,
     })
@@ -39,6 +54,8 @@ export function Water() {
       shader.uniforms.uSunDir = { value: new THREE.Vector3(0.3, 0.6, 0.5) }
       shader.uniforms.uSkyColor = { value: new THREE.Color('#bcd8f0') }
       shader.uniforms.uSunColor = { value: new THREE.Color('#fff0cc') }
+      shader.uniforms.uSkyStrength = { value: waterTunables.skyStrength }
+      shader.uniforms.uSunStrength = { value: waterTunables.sunStrength }
       m.userData.shader = shader
       shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`
         // Displace height (matches the old CPU formula exactly).
@@ -61,6 +78,8 @@ export function Water() {
       shader.fragmentShader = `uniform vec3 uSunDir;
 uniform vec3 uSkyColor;
 uniform vec3 uSunColor;
+uniform float uSkyStrength;
+uniform float uSunStrength;
 ${shader.fragmentShader}`.replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
@@ -74,13 +93,13 @@ ${shader.fragmentShader}`.replace(
          // Soft fresnel (low exponent so the sky tint reads even at the steep RTS
          // camera angle, not just at grazing edges) + a constant base sheen.
          float fres = 0.18 + pow(1.0 - max(dot(wsN, viewDir), 0.0), 1.6) * 0.82;
-         totalEmissiveRadiance += uSkyColor * fres * 0.4;
+         totalEmissiveRadiance += uSkyColor * fres * uSkyStrength;
          vec3 sunView = normalize(mat3(viewMatrix) * uSunDir);
          vec3 sunRefl = reflect(-sunView, wsN);
          // Tight glint + a broader soft sheen so the sun reads across more of the surface.
          float spec = pow(max(dot(sunRefl, viewDir), 0.0), 90.0);
          float sheen = pow(max(dot(sunRefl, viewDir), 0.0), 16.0);
-         totalEmissiveRadiance += uSunColor * (spec * 1.6 + sheen * 0.3);`,
+         totalEmissiveRadiance += uSunColor * (spec * uSunStrength + sheen * uSunStrength * 0.2);`,
       )
     }
     return m
@@ -89,10 +108,26 @@ ${shader.fragmentShader}`.replace(
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
     const shader = mat.userData.shader as
-      | { uniforms: { uTime: { value: number }; uSunDir: { value: THREE.Vector3 } } }
+      | {
+          uniforms: {
+            uTime: { value: number }
+            uSunDir: { value: THREE.Vector3 }
+            uSkyStrength: { value: number }
+            uSunStrength: { value: number }
+          }
+        }
       | undefined
-    if (shader) shader.uniforms.uTime.value = clock.getElapsedTime()
-    if (shader) sunDirAt(getDay().t, shader.uniforms.uSunDir.value)
+    if (shader) {
+      shader.uniforms.uTime.value = clock.getElapsedTime()
+      sunDirAt(getDay().t, shader.uniforms.uSunDir.value)
+      shader.uniforms.uSkyStrength.value = waterTunables.skyStrength
+      shader.uniforms.uSunStrength.value = waterTunables.sunStrength
+    }
+    // Live (leva-tunable) surface look — color/metalness/roughness update without a
+    // recompile (they're material uniforms).
+    mat.color.set(waterTunables.color)
+    mat.metalness = waterTunables.metalness
+    mat.roughness = waterTunables.roughness
     // Drift the ripple texture so the surface looks like it's flowing.
     if (mat.map) {
       mat.map.offset.x = (mat.map.offset.x + dt * 0.015) % 1

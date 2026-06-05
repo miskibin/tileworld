@@ -7,6 +7,7 @@ import { audioMix, applyLoopVolumes } from '../audio/audio'
 import { gradeTunables, dofTunables } from './gradeStore'
 import { fovTunables } from './fxStore'
 import { windStrength, windSpeed } from './wind'
+import { waterTunables } from './Water'
 
 interface Props {
   onLights: (l: {
@@ -109,6 +110,17 @@ export function DebugBindings({ onLights }: Props) {
     bokehScale: { value: 0, min: 0, max: 12, step: 0.5, label: 'blur amount' },
   })
 
+  // Water look — mutates waterTunables; the Water component applies it each frame
+  // (color/metalness/roughness + sky-sheen / sun-glint strengths). All live, no
+  // recompile.
+  const water = useControls('Water', {
+    color: { value: waterTunables.color, label: 'color' },
+    metalness: { value: waterTunables.metalness, min: 0, max: 1, step: 0.01 },
+    roughness: { value: waterTunables.roughness, min: 0, max: 1, step: 0.01 },
+    skyStrength: { value: waterTunables.skyStrength, min: 0, max: 2, step: 0.05, label: 'sky sheen' },
+    sunStrength: { value: waterTunables.sunStrength, min: 0, max: 4, step: 0.1, label: 'sun glint' },
+  })
+
   const audio = useControls('Audio', {
     sfx: { value: audioMix.sfx, min: 0, max: 1, step: 0.01, label: 'combat sfx' },
     voice: { value: audioMix.voice, min: 0, max: 1, step: 0.01, label: 'creature voices' },
@@ -170,6 +182,15 @@ export function DebugBindings({ onLights }: Props) {
     dofTunables.focalLength = dof.focalLength
     dofTunables.bokehScale = dof.bokehScale
   }, [dof.focusDistance, dof.focalLength, dof.bokehScale])
+
+  // Water → live holder (read each frame by the Water component).
+  useEffect(() => {
+    waterTunables.color = water.color
+    waterTunables.metalness = water.metalness
+    waterTunables.roughness = water.roughness
+    waterTunables.skyStrength = water.skyStrength
+    waterTunables.sunStrength = water.sunStrength
+  }, [water.color, water.metalness, water.roughness, water.skyStrength, water.sunStrength])
 
   // Audio mix → live holder. sfx/voice/range are read live by the players;
   // music/ambient are pushed onto the running loop nodes.
