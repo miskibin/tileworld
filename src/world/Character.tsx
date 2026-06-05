@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState, useEffect, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { tileAt, tileTopY, canStepOrDrop } from './tileMap'
+import { tileAt, tileTopY, canStepOrDrop, CASTLE_CENTER, CASTLE_SAFE_R } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx, stopVoice } from '../audio/audio'
@@ -190,6 +190,16 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   // Biome whose voice line is currently playing (null if none) — drives the
   // fade-stop when the player walks out before the line finishes.
   const speakingBiome = useRef<string | null>(null)
+  // Debounce + freshness clocks for biome musings (seconds, performance.now):
+  //  - diffSince: when curBiome first differed from the speaking biome (−1 = same),
+  //    so a frayed-edge freckle / road / lake / bridge tile that flips the biome
+  //    for an instant doesn't clip the line.
+  //  - enteredAt + lastSeen: when he first set foot in the current biome, so a
+  //    musing that can't play promptly (blocked by another line) is dropped
+  //    instead of fired stale 15 s into exploring it.
+  const biomeDiffSince = useRef(-1)
+  const biomeEnteredAt = useRef(0)
+  const lastBiomeSeen = useRef<string | null>(null)
   // Next R3F-clock time the swamp's poison may bite again.
   const swampPoisonAt = useRef(0)
 
@@ -453,18 +463,44 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     // biome (sayHeroLine handles the once-per-run + min-gap + single-mouth gates).
     // The line fades out if he walks out of that biome before it finishes.
     const curBiome = tileBelow?.biome
-    // Cut the line only when he actually enters a DIFFERENT named biome — not when
-    // curBiome is momentarily undefined over a bridge / water / map edge (else a
-    // musing gets clipped the instant he steps onto a river crossing).
-    if (speakingBiome.current && curBiome && curBiome !== speakingBiome.current) {
-      stopVoice()
-      speakingBiome.current = null
+    const tnow = performance.now() * 0.001
+    // Cut the line only when he STAYS in a different named biome for ~0.7 s — not
+    // on a single transient tile flip. Biome blobs have frayed edges (stray grass
+    // freckles inside the rim, biome freckles out in the grass) and roads/lakes/
+    // bridges flip the tile biome for an instant; without the debounce those clip
+    // the musing "for no reason" while he's still inside the biome.
+    if (speakingBiome.current) {
+      if (curBiome && curBiome !== speakingBiome.current) {
+        if (biomeDiffSince.current < 0) biomeDiffSince.current = tnow
+        if (tnow - biomeDiffSince.current > 0.7) {
+          stopVoice()
+          speakingBiome.current = null
+          biomeDiffSince.current = -1
+        }
+      } else {
+        biomeDiffSince.current = -1 // back in the speaking biome (or over water)
+      }
     }
     if (curBiome) {
-      const line = BIOME_VO[curBiome]
-      // 'grass' is home — suppress it at spawn; only speak it once he's roamed.
-      const homeOk = curBiome !== 'grass' || wildernessSpoken()
-      if (line && homeOk && sayHeroLine('biome:' + curBiome, line, { minGap: 18 })) {
+      // Stamp first-entry time per biome so a musing that can't fire promptly is
+      // dropped, not spoken stale long after he's done exploring.
+      if (curBiome !== lastBiomeSeen.current) {
+        lastBiomeSeen.current = curBiome
+        biomeEnteredAt.current = tnow
+      }
+      // 'grass' is the frontier filler covering the whole island, not just the
+      // keep — so only treat it as HOME (and speak the "home, finally" line) when
+      // actually near the castle, and only once he's roamed a wilderness biome.
+      let line: string | undefined = BIOME_VO[curBiome]
+      if (curBiome === 'grass') {
+        const dx = pos.current.x - CASTLE_CENTER.x
+        const dz = pos.current.z - CASTLE_CENTER.z
+        const nearHome = dx * dx + dz * dz < (CASTLE_SAFE_R * 1.25) ** 2
+        if (!nearHome || !wildernessSpoken()) line = undefined
+      }
+      // Only muse within ~6 s of entering; past that the "oh, a forest" is stale.
+      const fresh = tnow - biomeEnteredAt.current < 6
+      if (line && fresh && sayHeroLine('biome:' + curBiome, line)) {
         speakingBiome.current = curBiome
       }
     }
