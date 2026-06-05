@@ -11,8 +11,9 @@ import {
   HueSaturation,
   BrightnessContrast,
   SMAA,
+  DepthOfField,
 } from '@react-three/postprocessing'
-import { KernelSize, BlendFunction, VignetteEffect, HueSaturationEffect } from 'postprocessing'
+import { KernelSize, BlendFunction, VignetteEffect, HueSaturationEffect, DepthOfFieldEffect } from 'postprocessing'
 import { Perf } from 'r3f-perf'
 import { SoundScape } from '../audio/SoundScape'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
@@ -135,7 +136,7 @@ import { CENTER_X, CENTER_Z, tileAt, tileTopY, fromBase, shiftToCentre, type Bio
 import { chestLootFor } from './frontier'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
 import { getPlayer } from './playerStore'
-import { getGradePulse, gradeTunables } from './gradeStore'
+import { getGradePulse, gradeTunables, dofTunables } from './gradeStore'
 
 // Drives the Vignette + HueSaturation passes (already in the stack, so no new
 // render cost) off live player state each frame: low HP desaturates + darkens
@@ -219,6 +220,21 @@ function DebugExpose() {
   return null
 }
 
+// Applies the leva-tuned depth-of-field knobs (dofTunables) to the DepthOfField
+// effect each frame via a ref — same imperative pattern as ReactiveGrade, so tuning
+// DoF never re-renders the memoized PostFX (which would rebuild the composer).
+// bokehScale 0 leaves it effectively off.
+function DofDriver({ dofRef }: { dofRef: RefObject<DepthOfFieldEffect | null> }) {
+  useFrame(() => {
+    const d = dofRef.current
+    if (!d) return
+    d.bokehScale = dofTunables.bokehScale
+    d.cocMaterial.focusDistance = dofTunables.focusDistance
+    d.cocMaterial.focalLength = dofTunables.focalLength
+  })
+  return null
+}
+
 // The post-processing stack, isolated in React.memo so frequent World re-renders
 // (e.g. leva light tweaks → setLights) do NOT re-render it. @react-three/post-
 // processing's <EffectComposer> rebuilds its WHOLE pass pipeline whenever its
@@ -238,6 +254,7 @@ const PostFX = memo(function PostFX({
   vignetteRef: RefObject<VignetteEffect | null>
   hueRef: RefObject<HueSaturationEffect | null>
 }) {
+  const dofRef = useRef<DepthOfFieldEffect>(null)
   return (
     <>
       <EffectComposer multisampling={0} enableNormalPass={false}>
@@ -267,6 +284,16 @@ const PostFX = memo(function PostFX({
           intensity={0.6}
           kernelSize={KernelSize.MEDIUM}
         />
+        {/* Depth of field — soft background blur (the dreamy look). Ref-driven by
+            DofDriver from dofTunables each frame, so leva tuning never re-renders
+            this memoized stack (no composer rebuild). bokehScale 0 = off. */}
+        <DepthOfField
+          ref={dofRef}
+          focusDistance={dofTunables.focusDistance}
+          focalLength={dofTunables.focalLength}
+          bokehScale={dofTunables.bokehScale}
+          height={480}
+        />
         {/* Warm cinematic grade; saturation driven down by ReactiveGrade when hurt. */}
         <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
         <BrightnessContrast brightness={-0.02} contrast={0.12} />
@@ -275,6 +302,7 @@ const PostFX = memo(function PostFX({
         <SMAA />
       </EffectComposer>
       <ReactiveGrade vignette={vignetteRef} hue={hueRef} />
+      <DofDriver dofRef={dofRef} />
     </>
   )
 })

@@ -4,7 +4,7 @@ import { useControls, folder } from 'leva'
 import * as THREE from 'three'
 import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
 import { audioMix, applyLoopVolumes } from '../audio/audio'
-import { gradeTunables } from './gradeStore'
+import { gradeTunables, dofTunables } from './gradeStore'
 import { fovTunables } from './fxStore'
 import { windStrength, windSpeed } from './wind'
 
@@ -100,6 +100,15 @@ export function DebugBindings({ onLights }: Props) {
     decay: { value: fovTunables.decay, min: 4, max: 60, step: 1, label: 'ease-out' },
   })
 
+  // Depth of field — soft background blur. Mutates the dofTunables holder (read
+  // each frame by DofDriver via a ref to the effect), so dragging these NEVER
+  // re-renders World / rebuilds the post stack. bokehScale 0 = off.
+  const dof = useControls('Depth of field', {
+    focusDistance: { value: 0.05, min: 0, max: 0.3, step: 0.005, label: 'focus dist' },
+    focalLength: { value: 0.05, min: 0, max: 0.3, step: 0.005, label: 'focal length' },
+    bokehScale: { value: 0, min: 0, max: 12, step: 0.5, label: 'blur amount' },
+  })
+
   const audio = useControls('Audio', {
     sfx: { value: audioMix.sfx, min: 0, max: 1, step: 0.01, label: 'combat sfx' },
     voice: { value: audioMix.voice, min: 0, max: 1, step: 0.01, label: 'creature voices' },
@@ -154,6 +163,13 @@ export function DebugBindings({ onLights }: Props) {
     fovTunables.max = fov.max
     fovTunables.decay = fov.decay
   }, [fov.kill, fov.hit, fov.land, fov.max, fov.decay])
+
+  // Depth of field → live holder (read each frame by DofDriver via the effect ref).
+  useEffect(() => {
+    dofTunables.focusDistance = dof.focusDistance
+    dofTunables.focalLength = dof.focalLength
+    dofTunables.bokehScale = dof.bokehScale
+  }, [dof.focusDistance, dof.focalLength, dof.bokehScale])
 
   // Audio mix → live holder. sfx/voice/range are read live by the players;
   // music/ambient are pushed onto the running loop nodes.

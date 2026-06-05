@@ -21,6 +21,17 @@ export const gradeTunables = {
   winceDesat: 0.16, // saturation dip on a fresh hit
 }
 
+// Depth-of-field knobs. Same live-holder pattern: mutated by the leva panel
+// (DebugBindings) and applied each frame by the DofDriver in World.tsx via a ref
+// to the DepthOfField effect — so tuning never re-renders/rebuilds the post stack.
+// bokehScale 0 = no blur (default OFF; the player opts in via the slider).
+// focusDistance/focalLength are normalised [0,1] (fraction of the view depth).
+export const dofTunables = {
+  focusDistance: 0.05,
+  focalLength: 0.05,
+  bokehScale: 0,
+}
+
 let pulse = 0
 let lastT = 0
 const PULSE_DECAY = 3.2 // charge shed per second
