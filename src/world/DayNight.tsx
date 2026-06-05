@@ -11,7 +11,8 @@ import {
   DAY_START_T,
 } from './timeStore'
 import { isFrozen } from './pauseStore'
-import { subscribePhase } from './gameStore'
+import { getPhase, subscribePhase } from './gameStore'
+import { getPrepProgress } from './waveStore'
 import { getPlayer } from './playerStore'
 import { tileAt, type Biome } from './tileMap'
 
@@ -43,6 +44,12 @@ const NOTIFY_INTERVAL = 0.2
 const NIGHT_T = 0.0 // midnight — deepest dark while a wave is live
 const DAY_T = DAY_START_T // golden-hour daytime
 const DAY_LERP_RATE = 0.7 // ease speed toward target time (≈ a few-second dusk/dawn)
+// Prep "day" sun arc (sky-as-countdown): the sun sweeps from morning (T_DAWN, the
+// golden start) up across noon and down to a low golden west (T_DUSK, still above
+// the horizon) as the prep timer runs out, so a glance at the sky tells the player
+// how long until night. The 'wave' ease then drops it to NIGHT_T (midnight).
+const T_DAWN = DAY_T // 0.30 — morning golden hour at prep start (= menu/start look)
+const T_DUSK = 0.7 // low golden west as the timer ends (sun still up: e ≈ 0.31)
 
 interface Props {
   /** Daytime baseline intensities from the leva panel (the noon values). */
@@ -135,6 +142,12 @@ export function DayNight({ lights, onSunMesh }: Props) {
     // behind a pause/menu, and when the debug "frozen" control holds the clock
     // for manual scrubbing. Visuals below still apply every frame regardless.
     if (!isFrozen() && !day.frozen) {
+      // During the prep day the sun tracks how much prep time is left
+      // (sky-as-countdown). Wave/menu/end targets are set on phase change by the
+      // subscribePhase effect below; only prep needs a live per-frame target.
+      if (getPhase() === 'prep') {
+        dayTarget.current = T_DAWN + (T_DUSK - T_DAWN) * getPrepProgress()
+      }
       day.t += (dayTarget.current - day.t) * Math.min(1, dt * DAY_LERP_RATE)
       notifyAcc.current += dt
       // Only notify when the time actually moved — avoids re-rendering the leva
