@@ -1,6 +1,7 @@
 import { tileAt, tileTopY } from './tileMap'
 import { ANIMAL_CONFIG, type AnimalSpecies } from './animalConfig'
 import type { AnimalFaction } from './factions'
+import { frontierFactor } from './frontier'
 
 // Shared store for the wild animals (wolf/deer/boar/rabbit). Mirrors the
 // orkStore/bearStore conventions: a module array, getAlive/reset/damage,
@@ -47,6 +48,9 @@ export function createAnimal(
   const cfg = ANIMAL_CONFIG[species]
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
+  // Frontier danger gradient: wildlife spawned far from the castle is tougher
+  // (rim ≈ 2× HP at k=1). Sampled once at spawn so tankiness is fixed.
+  const hp = Math.round(cfg.hp * (1 + frontierFactor(x, z)))
   const a: AnimalState = {
     id: nextId++,
     species,
@@ -55,8 +59,8 @@ export function createAnimal(
     y,
     z,
     facing: seed,
-    hp: cfg.hp,
-    maxHp: cfg.hp,
+    hp,
+    maxHp: hp,
     hurtFlashUntil: 0,
     seed,
     collisionRadius: cfg.collisionRadius,

@@ -5,6 +5,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 vi.mock('./tileMap', () => ({
   tileAt: () => ({ height: 0 }),
   tileTopY: () => 1,
+  // frontier.ts (imported via createOrk's camp-ork HP scaling) reads these.
+  CASTLE_CENTER: { x: 72, z: 54 },
+  CASTLE_SAFE_R: 18,
+  ROWS: 108,
 }))
 
 import {

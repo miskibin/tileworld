@@ -1,4 +1,5 @@
 import { tileAt, tileTopY } from './tileMap'
+import { frontierFactor } from './frontier'
 
 // Bears: neutral wildlife that turn hostile when the player gets close, then
 // chase and maul. Heavier and tougher than orks; give good XP/gold.
@@ -37,14 +38,16 @@ let nextId = 0
 export function createBear(x: number, z: number, seed: number): BearState {
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
+  // Frontier danger gradient: bears spawned far out are tougher (rim ≈ 2× HP).
+  const hp = Math.round(180 * (1 + frontierFactor(x, z)))
   const b: BearState = {
     id: nextId++,
     x,
     y,
     z,
     facing: seed,
-    hp: 180,
-    maxHp: 180,
+    hp,
+    maxHp: hp,
     hurtFlashUntil: 0,
     seed,
     collisionRadius: 0.45,

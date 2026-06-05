@@ -1,6 +1,7 @@
 import { tileAt, tileTopY } from './tileMap'
 import { ORK_CONFIG, type OrkVariant } from './orkConfig'
 import { orksHostile, type OrkFaction } from './factions'
+import { frontierFactor } from './frontier'
 
 export interface OrkState {
   id: number
@@ -79,14 +80,19 @@ export function createOrk(
   const t = tileAt(Math.floor(x), Math.floor(z))
   const y = t ? tileTopY(Math.floor(x), Math.floor(z)) : 1
   const cfg = ORK_CONFIG[variant]
+  // Frontier danger gradient: CAMP orks (home set) far from the castle are
+  // tougher (rim ≈ 2× HP). Night-wave orks (home === null) keep tuned HP so the
+  // assault balance is untouched. HP only — the shared ork damage path is left
+  // alone to avoid affecting wave damage.
+  const hp = home ? Math.round(cfg.hp * (1 + frontierFactor(x, z))) : cfg.hp
   const o: OrkState = {
     id: nextId++,
     x,
     y,
     z,
     facing,
-    hp: cfg.hp,
-    maxHp: cfg.hp,
+    hp,
+    maxHp: hp,
     hurtFlashUntil: 0,
     kbVX: 0,
     kbVZ: 0,

@@ -10,6 +10,7 @@ import { findPath } from './pathfinding'
 import { isFrozen } from './pauseStore'
 import { getTimeScale } from './hitStopStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
+import { frontierFactor } from './frontier'
 import { createBear, getBears, resetBears, reapBear, type BearState } from './bearStore'
 import { playBearRoar, playBearGrowl } from '../audio/sfx'
 import { cullVisible, isCulled } from './cull'
@@ -220,7 +221,8 @@ function BearView({ state }: { state: BearState }) {
         if (!state.attackHitDealt && phase >= 0.5) {
           state.attackHitDealt = true
           if (dist <= BEAR_MELEE + 0.3 && isPlayerAlive())
-            damagePlayer(BEAR_ATTACK_DAMAGE, tNow, state.x, state.z)
+            // Frontier danger gradient: bears hit harder the farther out (rim ≈ 2×).
+            damagePlayer(BEAR_ATTACK_DAMAGE * (1 + frontierFactor(state.x, state.z)), tNow, state.x, state.z)
         }
       }
     }

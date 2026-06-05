@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG, type AnimalConfig } from './animalConfig'
 import { nearestPredatorAnimal, type AnimalState } from './animalStore'
 import { getAliveBears } from './bearStore'
 import { damagePlayer, getPlayer, isPlayerAlive } from './playerStore'
+import { frontierFactor } from './frontier'
 
 // Shared AI for the wild animals. One step per frame; the view turns the
 // returned flags into a gait/attack animation. Behaviour class selects the
@@ -174,7 +175,9 @@ function applyMeleeHit(a: AnimalState, cfg: AnimalConfig, tNow: number): void {
   const reach = cfg.melee + 0.3
   const p = getPlayer()
   if (isPlayerAlive() && Math.hypot(p.x - a.x, p.z - a.z) <= reach) {
-    damagePlayer(cfg.attackDamage, tNow, a.x, a.z)
+    // Frontier danger gradient: animals hit harder the farther out the fight is
+    // (rim ≈ 2× at k=1). Sampled live at the hit so it tracks where the fight is.
+    damagePlayer(cfg.attackDamage * (1 + frontierFactor(a.x, a.z)), tNow, a.x, a.z)
   }
 }
 
