@@ -21,14 +21,15 @@ export const gradeTunables = {
   winceDesat: 0.16, // saturation dip on a fresh hit
 }
 
-// Depth-of-field knobs. Same live-holder pattern: mutated by the leva panel
-// (DebugBindings) and applied each frame by the DofDriver in World.tsx via a ref
-// to the DepthOfField effect — so tuning never re-renders/rebuilds the post stack.
-// bokehScale 0 = no blur (default OFF; the player opts in via the slider).
-// focusDistance/focalLength are normalised [0,1] (fraction of the view depth).
+// Depth-of-field knobs. Live-holder pattern: mutated by leva (DebugBindings),
+// applied each frame by DofDriver via a ref to the effect (no re-render/rebuild).
+// The effect auto-focuses on the PLAYER, so there's no manual focus distance.
+// focusRange = how many WORLD UNITS around the player stay sharp; bokehScale =
+// blur strength (0 = off). NB: this postprocessing version's focus distance is in
+// WORLD units (not normalised) — small fixed values just focused at the camera and
+// blurred everything, which is why focusing on the player's world distance is the fix.
 export const dofTunables = {
-  focusDistance: 0.05,
-  focalLength: 0.05,
+  focusRange: 18,
   bokehScale: 0,
 }
 

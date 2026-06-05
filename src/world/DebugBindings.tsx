@@ -105,9 +105,8 @@ export function DebugBindings({ onLights }: Props) {
   // each frame by DofDriver via a ref to the effect), so dragging these NEVER
   // re-renders World / rebuilds the post stack. bokehScale 0 = off.
   const dof = useControls('Depth of field', {
-    focusDistance: { value: 0.05, min: 0, max: 0.3, step: 0.005, label: 'focus dist' },
-    focalLength: { value: 0.05, min: 0, max: 0.3, step: 0.005, label: 'focal length' },
-    bokehScale: { value: 0, min: 0, max: 12, step: 0.5, label: 'blur amount' },
+    blurAmount: { value: 0, min: 0, max: 12, step: 0.5, label: 'blur amount' },
+    sharpRange: { value: 18, min: 2, max: 120, step: 1, label: 'sharp range' },
   })
 
   // Water look — mutates waterTunables; the Water component applies it each frame
@@ -178,10 +177,9 @@ export function DebugBindings({ onLights }: Props) {
 
   // Depth of field → live holder (read each frame by DofDriver via the effect ref).
   useEffect(() => {
-    dofTunables.focusDistance = dof.focusDistance
-    dofTunables.focalLength = dof.focalLength
-    dofTunables.bokehScale = dof.bokehScale
-  }, [dof.focusDistance, dof.focalLength, dof.bokehScale])
+    dofTunables.bokehScale = dof.blurAmount
+    dofTunables.focusRange = dof.sharpRange
+  }, [dof.blurAmount, dof.sharpRange])
 
   // Water → live holder (read each frame by the Water component).
   useEffect(() => {

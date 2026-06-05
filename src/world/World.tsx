@@ -224,13 +224,23 @@ function DebugExpose() {
 // effect each frame via a ref — same imperative pattern as ReactiveGrade, so tuning
 // DoF never re-renders the memoized PostFX (which would rebuild the composer).
 // bokehScale 0 leaves it effectively off.
+const _dofCam = new THREE.Vector3()
+const _dofFocus = new THREE.Vector3()
+
 function DofDriver({ dofRef }: { dofRef: RefObject<DepthOfFieldEffect | null> }) {
+  const camera = useThree((s) => s.camera)
   useFrame(() => {
     const d = dofRef.current
     if (!d) return
     d.bokehScale = dofTunables.bokehScale
-    d.cocMaterial.focusDistance = dofTunables.focusDistance
-    d.cocMaterial.focalLength = dofTunables.focalLength
+    // Auto-focus on the player so the hero stays sharp and distance blurs (the
+    // dreamy look). Focus distance here is WORLD units, so we use the actual
+    // camera→player distance; focusRange is the sharp band in world units. (Fixed
+    // 0..0.3 values just focused at the camera → everything blurred.)
+    const p = getPlayer()
+    _dofFocus.set(p.x - CENTER_X, p.y + 1, p.z - CENTER_Z)
+    d.cocMaterial.focusDistance = camera.getWorldPosition(_dofCam).distanceTo(_dofFocus)
+    d.cocMaterial.focusRange = dofTunables.focusRange
   })
   return null
 }
@@ -287,13 +297,7 @@ const PostFX = memo(function PostFX({
         {/* Depth of field — soft background blur (the dreamy look). Ref-driven by
             DofDriver from dofTunables each frame, so leva tuning never re-renders
             this memoized stack (no composer rebuild). bokehScale 0 = off. */}
-        <DepthOfField
-          ref={dofRef}
-          focusDistance={dofTunables.focusDistance}
-          focalLength={dofTunables.focalLength}
-          bokehScale={dofTunables.bokehScale}
-          height={480}
-        />
+        <DepthOfField ref={dofRef} bokehScale={dofTunables.bokehScale} height={480} />
         {/* Warm cinematic grade; saturation driven down by ReactiveGrade when hurt. */}
         <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
         <BrightnessContrast brightness={-0.02} contrast={0.12} />
