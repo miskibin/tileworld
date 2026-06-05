@@ -492,12 +492,19 @@ export function World() {
       {sunMesh && !CAPTURE_MODE && quality !== 'low' && (
         <>
         <EffectComposer multisampling={0} enableNormalPass={false}>
-          {/* Ambient occlusion grounds props/buildings into the terrain so
-              they stop looking pasted-on. Half-res + the "performance" preset
-              (8 AO samples / 4 denoise vs the default ~16/8) keeps this AO march
-              — the other expensive post pass — cheap; the denoise + half-res blur
-              hide the lower sample count. */}
-          <N8AO halfRes quality="performance" aoRadius={2.0} distanceFalloff={1.5} intensity={2.2} />
+          {/* Ambient occlusion grounds props/buildings into the terrain so they
+              stop looking pasted-on — the main "depth" cue. Strengthened (wider
+              radius + intensity) for a more 3D read. This is the real HIGH-vs-MEDIUM
+              difference: HIGH renders AO full-res with the "high" sample preset
+              (crisp, deep contact shadows); MEDIUM keeps it half-res "performance"
+              (cheap — the denoise + half-res blur hide the lower sample count). */}
+          <N8AO
+            halfRes={quality !== 'high'}
+            quality={quality === 'high' ? 'high' : 'performance'}
+            aoRadius={3.0}
+            distanceFalloff={1.5}
+            intensity={3.2}
+          />
           {/* Volumetric sun shafts from the emissive sun sphere. The shafts are
               low-frequency and `blur`-smoothed, so they tolerate a lower march
               resolution + fewer samples with no visible change — and that's the
