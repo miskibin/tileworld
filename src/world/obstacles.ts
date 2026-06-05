@@ -105,10 +105,10 @@ function rng(seed: number) {
 
 // Smaller-than-visual radii; small props are walk-through.
 const RADIUS_BY_KIND: Record<ObstacleKind, number> = {
-  tree: 0.16,
-  birch: 0.14,
-  snowPine: 0.16,
-  deadTree: 0.12,
+  tree: 0.12,
+  birch: 0.1,
+  snowPine: 0.12,
+  deadTree: 0.09,
   bush: 0, // small bushes are walk-through
   rock: 0,
   boulder: 0.34,
@@ -116,9 +116,9 @@ const RADIUS_BY_KIND: Record<ObstacleKind, number> = {
   flower: 0,
   tuft: 0,
   cactus: 0.18,
-  // A tall ice spire reads as a small obstacle; bones lie flat on the sand and
-  // reeds are flimsy low growth, so both are walk-through (radius 0).
-  iceShard: 0.12,
+  // Bones lie flat on the sand, reeds are flimsy low growth, and the small ice
+  // crystals are thin slivers — all walk-through (radius 0).
+  iceShard: 0,
   bones: 0,
   reeds: 0,
 }
@@ -253,6 +253,8 @@ function generate(): Obstacle[] {
       // props (boulders, cactus) drop ~30%. Walk-through decor is untouched.
       if (picked.kind === 'tree' || picked.kind === 'birch' || picked.kind === 'snowPine') {
         if (rand() < 0.65) continue
+        // Forest reads ~15% too thick: drop an extra 15% of its trees.
+        if (tile.biome === 'forest' && rand() < 0.15) continue
       } else if (RADIUS_BY_KIND[picked.kind] > 0) {
         if (rand() < 0.3) continue
       }

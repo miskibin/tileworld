@@ -362,12 +362,12 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_hp_1',
     branch: 'hero',
     name: 'Vigor',
-    desc: '+25 max HP.',
+    desc: '+18 max HP.',
     icon: '❤️',
     cost: 30,
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpMaxHp(25)
+      bumpMaxHp(18)
       return true
     },
   },
@@ -375,13 +375,13 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_hp_2',
     branch: 'hero',
     name: 'Greater Vigor',
-    desc: '+50 max HP.',
+    desc: '+35 max HP.',
     icon: '💗',
     cost: 70,
     prereqId: 'hero_hp_1',
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpMaxHp(50)
+      bumpMaxHp(35)
       return true
     },
   },
@@ -389,12 +389,12 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_dmg_1',
     branch: 'hero',
     name: 'Sharpened Blade',
-    desc: '+5 attack damage.',
+    desc: '+4 attack damage.',
     icon: '⚔️',
     cost: 30,
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpAttackDamage(5)
+      bumpAttackDamage(4)
       return true
     },
   },
@@ -402,13 +402,13 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_dmg_2',
     branch: 'hero',
     name: 'Honed Edge',
-    desc: '+10 attack damage.',
+    desc: '+7 attack damage.',
     icon: '🗡️',
     cost: 70,
     prereqId: 'hero_dmg_1',
     apply() {
       if (!spendGold(this.cost)) return false
-      bumpAttackDamage(10)
+      bumpAttackDamage(7)
       return true
     },
   },
@@ -416,14 +416,14 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_crit',
     branch: 'hero',
     name: 'Crit Strike',
-    desc: '20% chance for a swing to deal double damage.',
+    desc: '14% chance for a swing to deal double damage.',
     icon: '💥',
     cost: 80,
     prereqId: 'hero_dmg_1',
     apply() {
       if (getPlayer().critChance > 0) return false
       if (!spendGold(this.cost)) return false
-      setCritChance(0.2)
+      setCritChance(0.14)
       return true
     },
   },
@@ -431,14 +431,14 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_lifesteal',
     branch: 'hero',
     name: 'Lifesteal',
-    desc: 'Heal 10 HP every time you slay an ork.',
+    desc: 'Heal 7 HP every time you slay an ork.',
     icon: '🩸',
     cost: 90,
     prereqId: 'hero_hp_1',
     apply() {
       if (getPlayer().lifesteal > 0) return false
       if (!spendGold(this.cost)) return false
-      setLifesteal(10)
+      setLifesteal(7)
       return true
     },
   },
@@ -446,13 +446,13 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_swift',
     branch: 'hero',
     name: 'Swift Boots',
-    desc: 'Move 18% faster.',
+    desc: 'Move 13% faster.',
     icon: '👢',
     cost: 60,
     apply() {
       if (getPlayer().moveSpeedMult > 1) return false
       if (!spendGold(this.cost)) return false
-      setMoveSpeedMult(1.18)
+      setMoveSpeedMult(1.13)
       return true
     },
   },
@@ -460,14 +460,14 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'hero_cleave',
     branch: 'hero',
     name: 'Cleave',
-    desc: 'Strikes splash 30% damage to orks beside your target.',
+    desc: 'Strikes splash 21% damage to orks beside your target.',
     icon: '🌀',
     cost: 110,
     prereqId: 'hero_dmg_2',
     apply() {
       if (getPlayer().cleave > 0) return false
       if (!spendGold(this.cost)) return false
-      setCleave(0.3)
+      setCleave(0.21)
       return true
     },
   },

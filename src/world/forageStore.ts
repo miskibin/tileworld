@@ -15,6 +15,9 @@ export interface ForageState {
   z: number
   seed: number
   collected: boolean
+  /** elapsed-seconds timestamp of the last collect; drives respawn. 0 when never
+   *  collected. */
+  collectedAt: number
 }
 
 export interface ForageStore {
@@ -26,16 +29,26 @@ export interface ForageStore {
   all(): ForageState[]
   /** Only the still-gatherable plants. */
   active(): ForageState[]
-  /** Mark one foraged; returns false if it was already taken. */
-  collect(item: ForageState): boolean
+  /** Mark one foraged at time `now` (elapsed seconds); returns false if it was
+   *  already taken. The stamp lets it respawn `respawn` seconds later. */
+  collect(item: ForageState, now?: number): boolean
+  /** Revive any collected plant whose respawn delay has elapsed by `now`
+   *  (elapsed seconds). Returns true if at least one regrew. Cheap to call every
+   *  frame from the field's useFrame. */
+  tick(now: number): boolean
+  /** The respawn delay this field was built with (seconds). */
+  readonly respawn: number
 }
 
 /** Build an independent forage field. State is captured in the closure, so two
- *  instances (herbs, apples) never share plants. */
-export function makeForageStore(): ForageStore {
+ *  instances (herbs, apples) never share plants. `respawn` is how long a gathered
+ *  plant takes to regrow (seconds); the field's live count is the real per-trip
+ *  cap, this just refills it for the next visit. */
+export function makeForageStore(respawn = 90): ForageStore {
   const items: ForageState[] = []
   let nextId = 0
   return {
+    respawn,
     create(x, z, seed) {
       const fx = Math.floor(x)
       const fz = Math.floor(z)
@@ -47,6 +60,7 @@ export function makeForageStore(): ForageStore {
         z,
         seed,
         collected: false,
+        collectedAt: 0,
       }
       items.push(item)
       return item
@@ -61,10 +75,21 @@ export function makeForageStore(): ForageStore {
     active() {
       return items.filter((i) => !i.collected)
     },
-    collect(item) {
+    collect(item, now = 0) {
       if (item.collected) return false
       item.collected = true
+      item.collectedAt = now
       return true
+    },
+    tick(now) {
+      let revived = false
+      for (const i of items) {
+        if (i.collected && now - i.collectedAt >= respawn) {
+          i.collected = false
+          revived = true
+        }
+      }
+      return revived
     },
   }
 }

@@ -91,7 +91,7 @@ const TOP_SPECS: Record<TopClass, TopSpec> = {
 
 const CLASSES = Object.keys(TOP_SPECS) as TopClass[]
 
-function makeTopMat(s: TopSpec, edgeAlpha: boolean, alphaFray = false): THREE.MeshStandardMaterial {
+function makeTopMat(s: TopSpec, edgeAlpha: boolean): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ color: s.color, roughness: s.rough, flatShading: s.flat })
   applyVisionShader(m, {
     detail: s.tex,
@@ -100,15 +100,7 @@ function makeTopMat(s: TopSpec, edgeAlpha: boolean, alphaFray = false): THREE.Me
     detailStrength: s.detailStrength,
     variation: s.variation,
     edgeAlpha,
-    alphaFray,
   })
-  if (alphaFray) {
-    // Smooth alpha fade needs real blending: render after the opaque base and
-    // don't write depth (the polygonOffset below still wins the depth TEST so it
-    // sits on top of the grass it blends into).
-    m.transparent = true
-    m.depthWrite = false
-  }
   return m
 }
 
@@ -118,9 +110,7 @@ const BASE_TOP = {} as Record<TopClass, THREE.MeshStandardMaterial>
 const OVERLAY_TOP = {} as Record<TopClass, THREE.MeshStandardMaterial>
 CLASSES.forEach((c) => {
   BASE_TOP[c] = makeTopMat(TOP_SPECS[c], false)
-  // Sand's overlay fades via smooth alpha (gradient sand→grass, no mottle); every
-  // other seam keeps the cheaper binary discard fray.
-  OVERLAY_TOP[c] = makeTopMat(TOP_SPECS[c], true, c === 'sand')
+  OVERLAY_TOP[c] = makeTopMat(TOP_SPECS[c], true)
   // Decal-style depth bias: the seam overlay sits COPLANAR with the base tile
   // top (OVERLAY_EPS = 0) and wins the depth test via polygonOffset instead of a
   // physical Y gap. A positive Y gap (the old 0.03) z-fought at distance/grazing

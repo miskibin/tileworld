@@ -72,35 +72,47 @@ import { Ballista } from './Ballista'
 import { HealingShrine } from './HealingShrine'
 import { registerLandmarkBlockers } from './landmarks'
 
-// Treasure chests scattered across the map. Data-driven so each can be wrapped in
+// Chests scattered across the map. Data-driven so each can be wrapped in
 // <Cullable> (most sit far out in the biomes — fog-hidden and worth freezing when
 // the player isn't near). position auto-snaps to valid land in Chest.
-const CHESTS: { pos: [number, number, number]; rot: number; gold: number; loot: string[] }[] = [
+//
+// Two kinds (see Chest `cache`):
+//  - TREASURE (default): unique gear + the deep-biome landmark rewards. One-shot —
+//    opened once and gone. These are the exploration trophy.
+//  - CACHE (cache: true): gold + consumable food. Refills CACHE_RESPAWN seconds
+//    after opening, so the map's food/gold is a recurring daily trickle, not a
+//    one-time sweep. Fewer of them than before and rung around the OUTER EDGE, so
+//    the daily loot run is a real trip to the frontier.
+const CHESTS: {
+  pos: [number, number, number]
+  rot: number
+  gold: number
+  loot: string[]
+  cache?: boolean
+}[] = [
+  // ---- Treasure (one-shot): unique gear ----
   { pos: [59, 1, 59], rot: 0.3, gold: 6, loot: ['sword_iron'] },
-  { pos: [60, 1, 40], rot: -0.5, gold: 8, loot: ['potion'] },
-  { pos: [90, 1, 46], rot: 1.0, gold: 12, loot: ['potion'] },
-  { pos: [78, 1, 38], rot: 2.2, gold: 5, loot: ['bread'] },
-  { pos: [44, 1, 46], rot: 0.8, gold: 7, loot: ['potion'] },
   { pos: [104, 1, 80], rot: -1.2, gold: 14, loot: ['feast', 'mercenary_contract'] },
-  { pos: [40, 1, 80], rot: 1.6, gold: 9, loot: ['bread'] },
   { pos: [96, 1, 39], rot: 2.6, gold: 10, loot: ['mercenary_contract'] }, // by the NE trader market — teaches recruiting
-  { pos: [120, 1, 66], rot: 0.4, gold: 12, loot: ['potion'] },
-  { pos: [60, 1, 88], rot: -0.9, gold: 12, loot: ['feast'] },
-  { pos: [50, 1, 66], rot: 1.9, gold: 9, loot: ['bread'] },
-  { pos: [100, 1, 44], rot: 2.3, gold: 13, loot: ['potion'] },
   { pos: [34, 1, 30], rot: 0.5, gold: 8, loot: ['fur', 'leather_armor'] },
-  { pos: [106, 1, 28], rot: -0.6, gold: 8, loot: ['venom'] },
-  { pos: [72, 1, 88], rot: 1.3, gold: 8, loot: ['croc_steak'] },
-  { pos: [40, 1, 74], rot: 2.0, gold: 8, loot: ['elk_jerky'] },
   { pos: [120, 1, 58], rot: -1.4, gold: 8, loot: ['goat_charm'] },
   { pos: [24, 1, 56], rot: 0.9, gold: 10, loot: ['stone_maul', 'iron_armor'] },
   { pos: [18, 1, 54], rot: 0.6, gold: 30, loot: ['gold_armor'] },
-  // Deep-biome reward chests beside each biome's signature landmark.
+  // Deep-biome reward chests beside each biome's signature landmark (one-shot).
   { pos: [33, 1, 30], rot: 0.7, gold: 18, loot: ['feast', 'gold_armor'] }, // snow spire
   { pos: [112, 1, 31], rot: -0.8, gold: 16, loot: ['venom', 'iron_armor'] }, // desert pyramid
   { pos: [116, 1, 82], rot: 1.5, gold: 16, loot: ['stone_maul'] }, // stone circle (SE frontier)
   { pos: [73, 1, 90], rot: 2.1, gold: 14, loot: ['croc_steak', 'potion'] }, // swamp tree
   { pos: [33, 1, 82], rot: -1.1, gold: 14, loot: ['elk_jerky', 'goat_charm'] }, // forest shrine
+
+  // ---- Caches (respawning): gold + food, rung around the map edge ----
+  { pos: [50, 1, 22], rot: -0.5, gold: 8, loot: ['potion'], cache: true }, // N gap (snow↔desert)
+  { pos: [116, 1, 24], rot: -0.6, gold: 8, loot: ['venom'], cache: true }, // NE desert rim
+  { pos: [122, 1, 66], rot: 0.4, gold: 12, loot: ['potion'], cache: true }, // E rock rim
+  { pos: [84, 1, 92], rot: 1.3, gold: 8, loot: ['croc_steak'], cache: true }, // SE swamp rim
+  { pos: [60, 1, 94], rot: -0.9, gold: 12, loot: ['feast'], cache: true }, // S swamp rim
+  { pos: [30, 1, 86], rot: 1.6, gold: 9, loot: ['bread'], cache: true }, // SW forest rim
+  { pos: [20, 1, 62], rot: 2.0, gold: 8, loot: ['elk_jerky'], cache: true }, // W forest/coast rim
 ]
 import { CENTER_X, CENTER_Z, tileAt, tileTopY, type Biome } from './tileMap'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
@@ -371,6 +383,7 @@ export function World() {
               rotation={c.rot}
               gold={c.gold}
               loot={c.loot}
+              cache={c.cache}
               variant={chestVariant(c.pos[0], c.pos[2])}
             />
           </Cullable>

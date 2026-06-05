@@ -32,8 +32,8 @@ export const PLAYER_STARTING_GOLD = 30
 export const PLAYER_BASE_DAMAGE = 25 // attack damage at level 1
 export const XP_PER_ORK = 20 // xp granted per ork slain
 const XP_FIRST_LEVEL = 50 // xp needed for level 2 (scales linearly after)
-const HP_PER_LEVEL = 20 // max-hp gained each level
-const DAMAGE_PER_LEVEL = 8 // attack damage gained each level
+const HP_PER_LEVEL = 14 // max-hp gained each level (nerfed −30% to raise difficulty)
+const DAMAGE_PER_LEVEL = 6 // attack damage gained each level (nerfed −30%)
 
 export interface PlayerLive {
   x: number

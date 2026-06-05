@@ -220,18 +220,27 @@ export function regionByBiome(biome: Biome): { x: number; z: number; r: number }
 }
 
 /** `n` deterministic scatter points spread across a biome blob — a golden-angle
- *  (sunflower) spiral kept inside 0.78·r so points stay off the frayed coast.
- *  Callers snap each onto a standable, prop-free tile via findSpawnNear.
- *  Meaningful only for FLAT biomes (forest/swamp); a mountain core is cliff, so
- *  ore stays a hand-placed apron list (see OreNodes). Deterministic across
- *  reloads (no Math.random) so the field is stable within a run. */
+ *  (sunflower) spiral mapped onto the OUTER-RIM ANNULUS (0.55·r .. 0.95·r), so
+ *  forage targets ring the biome frontier near the map edges instead of filling
+ *  the centre — the daily gather run is then a real trip out, not a stroll. The
+ *  sqrt-of-area radius keeps points evenly spread across the ring (no inner
+ *  crowding) and stays off the frayed coast. Callers snap each onto a standable,
+ *  prop-free tile via findSpawnNear. Meaningful only for FLAT biomes
+ *  (forest/swamp); a mountain core is cliff, so ore stays a hand-placed apron
+ *  list (see OreNodes). Deterministic across reloads (no Math.random) so the
+ *  field is stable within a run. */
+const SCATTER_INNER = 0.55
+const SCATTER_OUTER = 0.95
 export function scatterInRegion(biome: Biome, n: number): Array<{ x: number; z: number; seed: number }> {
   const reg = regionByBiome(biome)
   if (!reg) return []
   const GOLDEN = 2.39996323 // golden angle (radians)
+  const i2 = SCATTER_INNER * SCATTER_INNER
+  const span = SCATTER_OUTER * SCATTER_OUTER - i2
   const pts: Array<{ x: number; z: number; seed: number }> = []
   for (let i = 0; i < n; i++) {
-    const rad = Math.sqrt((i + 0.5) / n) * reg.r * 0.78
+    // Area-uniform radius within the [inner, outer] ring.
+    const rad = reg.r * Math.sqrt(i2 + ((i + 0.5) / n) * span)
     const ang = i * GOLDEN + reg.x // offset by centre so two regions don't align
     pts.push({
       x: reg.x + Math.cos(ang) * rad,

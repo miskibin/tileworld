@@ -33,7 +33,7 @@ export const WAVES: WaveDef[] = [
 // The day is a free-roam window: long enough to ride out to a biome (mine stone,
 // clear a camp for heirs, hunt, forage) AND get back before the siege. Ring the
 // war bell (WarBell) to summon the night early when you're ready.
-export const PREP_DURATION = 180 // seconds — a full "day" to explore + rebuild
+export const PREP_DURATION = 150 // seconds — a "day" to explore + rebuild (2.5 min)
 
 /** Gold paid by the Tax Office (Economy upgrade) each time a wave is cleared. */
 export const TAX_STIPEND = 25

@@ -23,6 +23,10 @@ interface ChestProps {
   gold?: number
   /** biome recolor of the wood + metal (and a small accent). Default = brown+gold. */
   variant?: ChestVariant
+  /** A cache (gold + consumable food) refills CACHE_RESPAWN seconds after it's
+   *  opened, so the map's food/gold is a recurring daily trickle. Treasure chests
+   *  (the default, false) hold unique gear and stay opened once and for all. */
+  cache?: boolean
   /** headless inspector flag — omits the drei <Text> (troika can't mount headless) */
   inspect?: boolean
 }
@@ -47,6 +51,10 @@ const VARIANT_STYLE: Record<ChestVariant, VariantStyle> = {
 }
 
 const INTERACT_DIST = 2.2
+// A cache chest re-closes (and becomes lootable again) this many seconds after
+// being opened — ~one in-game day, so a cache yields one batch of food/gold per
+// daily pass rather than one forever.
+const CACHE_RESPAWN = 150
 
 // ---- Dimensions (chunky game chest) ---------------------------------------
 // Body: a solid box resting with its base flush on y=0.
@@ -76,6 +84,7 @@ export function Chest({
   loot = [],
   gold = 0,
   variant = 'default',
+  cache = false,
   inspect = false,
 }: ChestProps) {
   // Snap to valid land so chests placed in the expanded coastline can't float
@@ -105,13 +114,23 @@ export function Chest({
   const inRange = useRef(false)
   const [opened, setOpened] = useState(false)
   const lidAngle = useRef(0)
+  // Elapsed-seconds clock mirror (so the F handler, which has no clock, can stamp
+  // the open time) + the time this chest was opened, for cache respawn.
+  const nowSec = useRef(0)
+  const openedAt = useRef(0)
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (isPaused()) return
+    const t = clock.getElapsedTime()
+    nowSec.current = t
     const p = getPlayer()
     const near = Math.hypot(p.x - pos[0], p.z - pos[2]) < INTERACT_DIST
     inRange.current = near
     if (promptRef.current) promptRef.current.visible = near && !opened && !isShopOpen()
+
+    // Cache chests refill after a cooldown: re-close so they're lootable again
+    // next time through. Treasure chests stay opened forever.
+    if (opened && cache && t - openedAt.current >= CACHE_RESPAWN) setOpened(false)
 
     // Animate the lid opening (ease toward target angle). Pivot is the back-top
     // edge so the curved lid swings up and back without clipping the body.
@@ -131,6 +150,7 @@ export function Chest({
         return
       }
       setOpened(true)
+      openedAt.current = nowSec.current
       playChestOpen()
       sayHeroLine('chest', '/audio/vo/chest.mp3', { once: false })
       if (gold > 0) {

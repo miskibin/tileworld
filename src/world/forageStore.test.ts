@@ -49,4 +49,49 @@ describe('forageStore factory', () => {
     const s = makeForageStore()
     expect(s.create(-50, -50, 0).y).toBe(1)
   })
+
+  it('collect stamps the time; tick before the respawn delay keeps it collected', () => {
+    const s = makeForageStore(90)
+    const a = s.create(1, 2, 0.1)
+    s.collect(a, 100)
+    expect(a.collectedAt).toBe(100)
+    s.tick(189) // 89s elapsed, still under 90
+    expect(a.collected).toBe(true)
+    expect(s.active()).toHaveLength(0)
+  })
+
+  it('tick respawns a plant once the respawn delay has elapsed', () => {
+    const s = makeForageStore(90)
+    const a = s.create(1, 2, 0.1)
+    s.collect(a, 100)
+    const revived = s.tick(190) // exactly 90s later
+    expect(revived).toBe(true)
+    expect(a.collected).toBe(false)
+    expect(s.active()).toHaveLength(1)
+  })
+
+  it('tick returns false when nothing is ready to respawn', () => {
+    const s = makeForageStore(90)
+    const a = s.create(1, 2, 0.1)
+    s.collect(a, 100)
+    expect(s.tick(150)).toBe(false)
+  })
+
+  it('a respawned plant can be foraged again', () => {
+    const s = makeForageStore(90)
+    const a = s.create(1, 2, 0.1)
+    s.collect(a, 100)
+    s.tick(200)
+    expect(s.collect(a, 300)).toBe(true)
+    expect(a.collected).toBe(true)
+  })
+
+  it('respawn delay is configurable per store', () => {
+    const s = makeForageStore(10)
+    const a = s.create(1, 2, 0.1)
+    s.collect(a, 0)
+    expect(s.tick(9)).toBe(false)
+    expect(s.tick(10)).toBe(true)
+    expect(a.collected).toBe(false)
+  })
 })

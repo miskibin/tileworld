@@ -116,7 +116,7 @@ describe('activateBagItem (click in the panel)', () => {
     const i = getInventory().bag.findIndex((s) => s.itemId === 'sword_iron')
     activateBagItem(i)
     expect(getInventory().equippedId).toBe('sword_iron')
-    expect(getWeaponBonus()).toBe(15)
+    expect(getWeaponBonus()).toBe(11)
     expect(hasItem('sword_iron')).toBe(false) // moved into the equip slot
   })
 
@@ -133,7 +133,7 @@ describe('activateBagItem (click in the panel)', () => {
     addItem('leather_armor', 1)
     activateBagItem(getInventory().bag.findIndex((s) => s.itemId === 'leather_armor'))
     expect(getInventory().equippedArmorId).toBe('leather_armor')
-    expect(getArmorDamageMult()).toBeCloseTo(0.85) // 1 - 0.15
+    expect(getArmorDamageMult()).toBeCloseTo(0.89) // 1 - 0.11
   })
 
   it('eats a consumable when clicked', () => {

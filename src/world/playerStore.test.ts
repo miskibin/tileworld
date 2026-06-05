@@ -121,9 +121,9 @@ describe('addXp / level curve', () => {
     const p = getPlayer()
     expect(p.level).toBe(2)
     expect(p.xp).toBe(0)
-    expect(p.maxHp).toBe(PLAYER_MAX_HP + 20)
+    expect(p.maxHp).toBe(PLAYER_MAX_HP + 14)
     expect(p.hp).toBe(p.maxHp) // level-up fully heals
-    expect(p.attackDamage).toBe(PLAYER_BASE_DAMAGE + 8)
+    expect(p.attackDamage).toBe(PLAYER_BASE_DAMAGE + 6)
     expect(p.xpToNext).toBe(100) // 50 * level
   })
 
@@ -133,8 +133,8 @@ describe('addXp / level curve', () => {
     expect(p.level).toBe(3)
     expect(p.xp).toBe(50)
     expect(p.xpToNext).toBe(150)
-    expect(p.maxHp).toBe(PLAYER_MAX_HP + 40)
-    expect(p.attackDamage).toBe(PLAYER_BASE_DAMAGE + 16)
+    expect(p.maxHp).toBe(PLAYER_MAX_HP + 28)
+    expect(p.attackDamage).toBe(PLAYER_BASE_DAMAGE + 12)
   })
 
   it('a dead player still banks earned xp but is never revived by the level-up heal', () => {

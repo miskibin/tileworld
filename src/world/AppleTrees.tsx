@@ -66,7 +66,7 @@ const APPLE_CONFIG: ForageConfig = {
   harvestR: 0.95,
   float: { text: '+🍎 Apple', color: '#ff8a78', y: 1.2 },
   sway: { freq: 1.1, amp: 0.05 },
-  spawns: () => scatterInRegion('forest', 10),
+  spawns: () => scatterInRegion('forest', 5),
 }
 
 export function AppleTrees() {

@@ -48,9 +48,9 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
   bread: { id: 'bread', name: 'Bread', icon: '🍞', kind: 'consumable', heal: 15, stackable: true },
   potion: { id: 'potion', name: 'Health Potion', icon: '🧪', kind: 'consumable', heal: 40, stackable: true },
   feast: { id: 'feast', name: 'Tavern Feast', icon: '🍖', kind: 'consumable', heal: 100, stackable: true },
-  sword_iron: { id: 'sword_iron', name: 'Iron Sword', icon: '⚔️', kind: 'weapon', damageBonus: 15, stackable: false },
-  sword_gold: { id: 'sword_gold', name: 'Golden Blade', icon: '🗡️', kind: 'weapon', damageBonus: 30, stackable: false },
-  axe: { id: 'axe', name: 'Battle Axe', icon: '🪓', kind: 'weapon', damageBonus: 22, stackable: false },
+  sword_iron: { id: 'sword_iron', name: 'Iron Sword', icon: '⚔️', kind: 'weapon', damageBonus: 11, stackable: false },
+  sword_gold: { id: 'sword_gold', name: 'Golden Blade', icon: '🗡️', kind: 'weapon', damageBonus: 21, stackable: false },
+  axe: { id: 'axe', name: 'Battle Axe', icon: '🪓', kind: 'weapon', damageBonus: 15, stackable: false },
   // ─── Biome creature drops (Phase 2) ───────────────────────────
   fur: {
     id: 'fur', name: 'Thick Fur', icon: '🧥', kind: 'consumable', stackable: true,
@@ -81,11 +81,16 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
     id: 'apple', name: 'Forest Apple', icon: '🍎', kind: 'consumable', stackable: true,
     heal: 18,
   },
-  stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 26, stackable: false },
+  stone_maul: { id: 'stone_maul', name: 'Stone Maul', icon: '🔨', kind: 'weapon', damageBonus: 18, stackable: false },
   // ─── Wearable armor (equip → re-skins the knight + cuts incoming damage) ──
-  leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.15, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },
-  iron_armor: { id: 'iron_armor', name: 'Iron Cuirass', icon: '🛡️', kind: 'armor', defense: 0.28, armorTint: '#aeb4c0', armorMetal: 0.6, stackable: false },
-  gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.4, armorTint: '#e8b84b', armorMetal: 0.85, stackable: false },
+  leather_armor: { id: 'leather_armor', name: 'Leather Armor', icon: '🦺', kind: 'armor', defense: 0.11, armorTint: '#7a5230', armorMetal: 0.18, stackable: false },
+  iron_armor: { id: 'iron_armor', name: 'Iron Cuirass', icon: '🛡️', kind: 'armor', defense: 0.2, armorTint: '#aeb4c0', armorMetal: 0.6, stackable: false },
+  gold_armor: { id: 'gold_armor', name: 'Gilded Plate', icon: '👑', kind: 'armor', defense: 0.28, armorTint: '#e8b84b', armorMetal: 0.85, stackable: false },
+  // ─── Rim-only top tier (frontier gradient, see frontier.ts) ──────
+  // Best gear in the game; drops only at the far map edges (rollGear tier 2).
+  // Tuned above the nerfed Golden Blade (21) / Gilded Plate (0.28).
+  blade_frost: { id: 'blade_frost', name: 'Frostfang Greatsword', icon: '🗡️', kind: 'weapon', damageBonus: 34, stackable: false },
+  dragon_plate: { id: 'dragon_plate', name: 'Dragonscale Plate', icon: '🐉', kind: 'armor', defense: 0.42, armorTint: '#3a6a4a', armorMetal: 0.7, stackable: false },
   // ─── Key items (tokens) ───────────────────────────────────────
   // Rare ork/chest drop spent to recruit a trader into the militia (see recruit.ts).
   mercenary_contract: { id: 'mercenary_contract', name: 'Mercenary Contract', icon: '📜', kind: 'token', stackable: true },
