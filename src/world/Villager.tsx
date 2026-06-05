@@ -69,15 +69,17 @@ const DOOR_OPEN_DURATION = 1.8 // door stays open this long when entering/leavin
 // Castle-dwelling villagers act as town guards: they break off their daily
 // routine to chase and strike any ork/bear that wanders near, but never take
 // damage themselves. Armour (Defense upgrade) makes them braver + hit harder.
+// Both aggro and damage scale with the villager-arms tier (Defense branch) so
+// EACH tier is a real upgrade: tier 1 (Town Guard Arms), tier 2 (Veteran Guard).
 const GUARD_AGGRO = 7.5 // base detection range
-const GUARD_AGGRO_ARMORED = 11
+const GUARD_AGGRO_PER_TIER = 3.5 // armed guards spot + engage from farther (t1→11, t2→14.5)
 const GUARD_DEFEND_RADIUS = 12 // won't chase a foe farther than this from home
 const GUARD_MELEE = 1.45
 const GUARD_SPEED = 2.4 // chase faster than a stroll
 const GUARD_ATTACK_DURATION = 0.55
 const GUARD_ATTACK_COOLDOWN = 1.0
-const GUARD_DAMAGE = 9
-const GUARD_DAMAGE_ARMORED = 16
+const GUARD_DAMAGE = 9 // base hit
+const GUARD_DAMAGE_PER_TIER = 7 // each arms tier hits harder (t1→16, t2→23)
 
 interface Foe {
   x: number
@@ -230,7 +232,7 @@ export function VillagerView({ state }: Props) {
     if (isGuard) {
       const waveActive = getPhase() === 'wave'
       const defendR = GUARD_DEFEND_RADIUS * (waveActive ? 1.8 : 1)
-      const aggro = armorTier > 0 ? GUARD_AGGRO_ARMORED : GUARD_AGGRO
+      const aggro = GUARD_AGGRO + armorTier * GUARD_AGGRO_PER_TIER
       const foe = nearestHostile(state, defendR, aggro)
       if (foe) {
         fighting = true
@@ -272,7 +274,7 @@ export function VillagerView({ state }: Props) {
             if (!state.attackHitDealt && phase >= 0.5) {
               state.attackHitDealt = true
               if (dist <= GUARD_MELEE + 0.4) {
-                const dmg = armorTier > 0 ? GUARD_DAMAGE_ARMORED : GUARD_DAMAGE
+                const dmg = GUARD_DAMAGE + armorTier * GUARD_DAMAGE_PER_TIER
                 foe.hit(dmg, tNow)
                 const pd = Math.hypot(getPlayer().x - state.x, getPlayer().z - state.z)
                 playHit(Math.max(0, 1 - pd / 16) * 0.7)
