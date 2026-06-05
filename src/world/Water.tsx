@@ -30,7 +30,7 @@ export function Water() {
       color: map ? '#6db4e6' : '#2780c9',
       map: map ?? undefined,
       roughness: 0.22,
-      metalness: 0.15,
+      metalness: 0.35, // glossier → reflects the HDRI sky/sun (visible at any angle)
       transparent: true,
       opacity: 0.9,
     })
@@ -64,18 +64,23 @@ uniform vec3 uSunColor;
 ${shader.fragmentShader}`.replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-         // Stylized water reflectivity (cheap, no extra pass): fresnel sky tint +
-         // an animated sun-specular glint. Added as emissive so it flows through
-         // the normal tonemap + fog. normal/vViewPosition/viewMatrix are provided
-         // by MeshStandardMaterial; the ripple's analytic normal feeds 'normal'.
+         // Stylized water reflectivity (cheap, no extra pass): a broad sky sheen +
+         // an animated sun glint, on top of the PBR env reflection (metalness).
+         // Added as emissive so it flows through the normal tonemap + fog.
+         // normal/vViewPosition/viewMatrix are provided by MeshStandardMaterial;
+         // the ripple's analytic normal feeds 'normal'.
          vec3 wsN = normalize(normal);
          vec3 viewDir = normalize(vViewPosition);
-         float fres = pow(1.0 - max(dot(wsN, viewDir), 0.0), 3.0);
-         totalEmissiveRadiance += uSkyColor * fres * 0.5;
+         // Soft fresnel (low exponent so the sky tint reads even at the steep RTS
+         // camera angle, not just at grazing edges) + a constant base sheen.
+         float fres = 0.18 + pow(1.0 - max(dot(wsN, viewDir), 0.0), 1.6) * 0.82;
+         totalEmissiveRadiance += uSkyColor * fres * 0.4;
          vec3 sunView = normalize(mat3(viewMatrix) * uSunDir);
          vec3 sunRefl = reflect(-sunView, wsN);
+         // Tight glint + a broader soft sheen so the sun reads across more of the surface.
          float spec = pow(max(dot(sunRefl, viewDir), 0.0), 90.0);
-         totalEmissiveRadiance += uSunColor * spec * 1.6;`,
+         float sheen = pow(max(dot(sunRefl, viewDir), 0.0), 16.0);
+         totalEmissiveRadiance += uSunColor * (spec * 1.6 + sheen * 0.3);`,
       )
     }
     return m
