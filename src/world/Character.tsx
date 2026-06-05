@@ -603,7 +603,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           b === 'snow' ? '/audio/footstep-snow.mp3'
           : b === 'rock' ? '/audio/footstep-stone.mp3'
           : DIRT_STEP_VARIANTS[(Math.random() * DIRT_STEP_VARIANTS.length) | 0]
-        void playSfx(stepClip, 0.015, 0.12)
+        void playSfx(stepClip, 0.12, 0.12)
         // Footfall dust: a sprint always kicks up a puff; a plain walk only
         // stirs loose ground (sand / snow / scree) so packed grass stays clean.
         const dust = dustForBiome(b)
