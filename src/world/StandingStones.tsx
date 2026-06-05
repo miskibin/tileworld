@@ -1,23 +1,24 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 
-// Rock-biome landmark: a stone circle — six rough megaliths standing in a ring
-// with two lintels laid across the top of adjacent pairs, like a henge. Tallest
-// uprights ~4.5 units. A clear focal point on the rocky highlands.
+// Rock-biome landmark: a small weathered megalith circle — five rough granite
+// uprights leaning slightly around a low central altar stone. A tidy, pretty
+// focal point on the rocky highlands rather than a sprawling henge.
 //
 // Hand-built mesh tree (project convention — no GLTF). Authored around the local
 // origin with its base on y=0; the parent supplies grid-coord placement and
 // facing. No lights, no interaction.
 
-const STONE = '#8a8780'
-const STONE_DARK = '#62605a'
-const MOSS = '#6f7d3c'
+const GRANITE = '#8f8c86' // light weathered granite
+const GRANITE_DARK = '#6b6862' // shaded / base tone + altar
+const MOSS = '#74803f' // subtle moss accent
 
-const RING_R = 3.2 // radius of the circle
-const N_STONES = 6
-const STONE_H = 4.2
-const STONE_W = 1.1
-const STONE_D = 0.7
+const RING_R = 0.85 // radius of the circle (centres of the uprights)
+const N_STONES = 5
+const STONE_H = 1.55 // base upright height (varied per stone)
+const STONE_W = 0.34
+const STONE_D = 0.22
+const PLINTH_H = 0.12 // low turf/earth platform the circle stands on
 
 // Per-stone deterministic variation (height, yaw jitter, lean) so the ring looks
 // rough-hewn rather than stamped.
@@ -36,11 +37,11 @@ export function StandingStones({
   rotation?: number
 }) {
   const stoneMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: STONE, roughness: 1, flatShading: true }),
+    () => new THREE.MeshStandardMaterial({ color: GRANITE, roughness: 1, flatShading: true }),
     [],
   )
   const darkMat = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: STONE_DARK, roughness: 1, flatShading: true }),
+    () => new THREE.MeshStandardMaterial({ color: GRANITE_DARK, roughness: 1, flatShading: true }),
     [],
   )
   const mossMat = useMemo(
@@ -54,71 +55,61 @@ export function StandingStones({
       const a = (i / N_STONES) * Math.PI * 2
       const x = Math.cos(a) * RING_R
       const z = Math.sin(a) * RING_R
-      const h = STONE_H * (0.78 + hash(i, 1) * 0.32)
-      const lean = (hash(i, 2) - 0.5) * 0.16
-      const yaw = a + Math.PI / 2 + (hash(i, 3) - 0.5) * 0.3 // face the centre, jittered
-      const fallen = i === 4 // one toppled stone for ruin character
-      return { x, z, h, lean, yaw, fallen }
+      const h = STONE_H * (0.82 + hash(i, 1) * 0.3) // ~1.27..1.65 tall
+      const lean = (hash(i, 2) - 0.5) * 0.13 // gentle tilt
+      const yaw = a + Math.PI / 2 + (hash(i, 3) - 0.5) * 0.4 // roughly face the centre
+      const w = STONE_W * (0.85 + hash(i, 4) * 0.35) // slight width variety
+      return { x, z, h, lean, yaw, w }
     })
   }, [])
 
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      {/* Low earth/turf platform the circle stands on */}
-      <mesh position={[0, 0.1, 0]} receiveShadow material={darkMat}>
-        <cylinderGeometry args={[RING_R + 1.0, RING_R + 1.2, 0.2, 16]} />
+      {/* Low turf platform the circle stands on */}
+      <mesh position={[0, PLINTH_H / 2, 0]} receiveShadow material={darkMat}>
+        <cylinderGeometry args={[RING_R + 0.3, RING_R + 0.42, PLINTH_H, 16]} />
+      </mesh>
+      {/* Thin moss ring blended into the turf edge */}
+      <mesh position={[0, PLINTH_H + 0.005, 0]} receiveShadow material={mossMat}>
+        <cylinderGeometry args={[RING_R + 0.18, RING_R + 0.18, 0.02, 16]} />
       </mesh>
 
-      {stones.map((s, i) =>
-        s.fallen ? (
-          // Toppled megalith lying on its side on the platform
-          <group key={i} position={[s.x, 0.62, s.z]} rotation={[0, s.yaw, Math.PI / 2]}>
-            <mesh castShadow receiveShadow material={stoneMat}>
-              <boxGeometry args={[STONE_W, s.h * 0.85, STONE_D]} />
-            </mesh>
-          </group>
-        ) : (
-          <group key={i} position={[s.x, 0.2, s.z]} rotation={[s.lean, s.yaw, s.lean * 0.5]}>
-            {/* Upright megalith — slightly narrower at top for a hewn look */}
-            <mesh position={[0, s.h / 2, 0]} castShadow receiveShadow material={stoneMat}>
-              <boxGeometry args={[STONE_W, s.h, STONE_D]} />
-            </mesh>
-            <mesh position={[0, s.h, 0]} castShadow material={stoneMat}>
-              <boxGeometry args={[STONE_W * 0.85, 0.4, STONE_D * 0.85]} />
-            </mesh>
-            {/* Moss patch creeping up the base of some stones */}
-            {i % 2 === 0 && (
-              <mesh position={[0, 0.5, STONE_D / 2 + 0.005]} material={mossMat}>
-                <boxGeometry args={[STONE_W * 0.7, 0.8, 0.04]} />
-              </mesh>
-            )}
-          </group>
-        ),
-      )}
+      {/* Central altar — a low broad granite slab on two small footings */}
+      <group position={[0, PLINTH_H, 0]}>
+        <mesh position={[0.16, 0.11, 0.1]} castShadow receiveShadow material={darkMat}>
+          <boxGeometry args={[0.16, 0.22, 0.16]} />
+        </mesh>
+        <mesh position={[-0.16, 0.11, -0.1]} castShadow receiveShadow material={darkMat}>
+          <boxGeometry args={[0.16, 0.22, 0.16]} />
+        </mesh>
+        <mesh position={[0, 0.27, 0]} rotation={[0, 0.5, 0]} castShadow receiveShadow material={stoneMat}>
+          <boxGeometry args={[0.62, 0.12, 0.42]} />
+        </mesh>
+        {/* Moss patch on the altar top */}
+        <mesh position={[0.12, 0.335, 0.06]} rotation={[0, 0.5, 0]} material={mossMat}>
+          <boxGeometry args={[0.22, 0.02, 0.16]} />
+        </mesh>
+      </group>
 
-      {/* Two lintels laid across the tops of adjacent standing pairs (stones
-          0-1 and 2-3). Each spans the gap between two uprights at their top. */}
-      {[
-        [0, 1],
-        [2, 3],
-      ].map(([a, b], k) => {
-        const sa = stones[a]
-        const sb = stones[b]
-        const mx = (sa.x + sb.x) / 2
-        const mz = (sa.z + sb.z) / 2
-        const dx = sb.x - sa.x
-        const dz = sb.z - sa.z
-        const span = Math.hypot(dx, dz)
-        const ang = Math.atan2(dz, dx)
-        const y = Math.min(sa.h, sb.h) + 0.2
-        return (
-          <group key={`lintel-${k}`} position={[mx, y, mz]} rotation={[0, -ang, 0]}>
-            <mesh castShadow receiveShadow material={darkMat}>
-              <boxGeometry args={[span + STONE_W * 0.6, 0.5, STONE_D * 0.9]} />
+      {/* Ring of weathered uprights */}
+      {stones.map((s, i) => (
+        <group key={i} position={[s.x, PLINTH_H, s.z]} rotation={[s.lean, s.yaw, s.lean * 0.5]}>
+          {/* Upright megalith — slightly narrower & shorter taper at the top */}
+          <mesh position={[0, s.h / 2, 0]} castShadow receiveShadow material={stoneMat}>
+            <boxGeometry args={[s.w, s.h, STONE_D]} />
+          </mesh>
+          {/* Hewn cap, narrower, for a chiselled silhouette */}
+          <mesh position={[0, s.h - 0.04, 0]} castShadow receiveShadow material={darkMat}>
+            <boxGeometry args={[s.w * 0.78, 0.16, STONE_D * 0.78]} />
+          </mesh>
+          {/* Moss creeping up the base of alternating stones */}
+          {i % 2 === 0 && (
+            <mesh position={[0, 0.26, STONE_D / 2 + 0.004]} material={mossMat}>
+              <boxGeometry args={[s.w * 0.62, 0.4, 0.03]} />
             </mesh>
-          </group>
-        )
-      })}
+          )}
+        </group>
+      ))}
     </group>
   )
 }

@@ -1,65 +1,131 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 
-// Forest-biome landmark: a small ruined stone shrine — a pair of intact columns
-// carrying a cracked lintel (the surviving archway), two broken column stumps, a
-// mossy altar at the centre, and scattered rubble. ~4.5 units at the archway. A
-// quiet focal point in the woods.
+// Forest-biome landmark: a small, overgrown ruined shrine — a low stone platform
+// carrying a few weathered columns at varied broken heights, one toppled column
+// drum lying on the platform, a partial lintel still bridging the two tall
+// columns, a mossy altar block, and a little scattered rubble. A quiet, pretty
+// focal point in the woods. ~2.4-unit footprint, ~2.0 units tall.
 //
 // Hand-built mesh tree (project convention — no GLTF). Authored around the local
 // origin with its base on y=0; the parent supplies grid-coord placement and
 // facing. No lights, no interaction.
 
-const STONE = '#9a958a'
-const STONE_DARK = '#6b675e'
+const STONE = '#a8a399'
+const STONE_DARK = '#736e64'
 const MOSS = '#5d7a3a'
-const MOSS_DARK = '#46612b'
+const MOSS_DARK = '#445c2a'
 
-const COL_R = 0.42
-const COL_H = 3.4
-const SPAN = 2.8 // distance between the two intact columns (along X)
+// --- platform ---
+const PLAT_W = 2.4 // x footprint
+const PLAT_D = 2.2 // z footprint
+const PLAT_H = 0.18 // step slab thickness
+const PLAT_TOP = PLAT_H // columns stand on top of the slab
 
-// Fluted column: a slightly tapered drum stack. Built as one tapered cylinder
-// with a wider base plinth.
-function columnGroup(
-  key: string,
-  x: number,
-  z: number,
-  height: number,
-  stoneMat: THREE.Material,
-  darkMat: THREE.Material,
-) {
-  return (
-    <group key={key} position={[x, 0, z]}>
-      {/* Square plinth */}
-      <mesh position={[0, 0.2, 0]} castShadow receiveShadow material={darkMat}>
-        <boxGeometry args={[COL_R * 2.6, 0.4, COL_R * 2.6]} />
-      </mesh>
-      {/* Shaft */}
-      <mesh position={[0, 0.4 + height / 2, 0]} castShadow receiveShadow material={stoneMat}>
-        <cylinderGeometry args={[COL_R * 0.85, COL_R, height, 8]} />
-      </mesh>
-      {/* Capital */}
-      <mesh position={[0, 0.4 + height + 0.12, 0]} castShadow receiveShadow material={darkMat}>
-        <boxGeometry args={[COL_R * 2.3, 0.24, COL_R * 2.3]} />
-      </mesh>
-    </group>
-  )
+// --- columns ---
+const COL_R = 0.2
+const PLINTH = 0.12 // square base block under each column
+const TALL_H = 1.55 // intact pair height (shaft above plinth)
+const CAP_H = 0.12 // capital block height
+
+// Shared materials are created per-instance in the component (R3F convention in
+// this repo memoises them so they aren't rebuilt every render); named here only
+// via the palette consts above.
+
+interface ColSpec {
+  x: number
+  z: number
+  h: number // shaft height
+  cap: boolean // intact capital on top?
+  broken: boolean // jagged broken crown instead of a capital?
 }
 
+// Four columns ringing the altar. The back pair (negative z) is tall + intact and
+// carries the surviving lintel; the front pair is broken to varied heights.
+const COL_GAP_X = 0.78 // half-distance between left/right columns
+const COL_BACK_Z = -0.7
+const COL_FRONT_Z = 0.7
+
+const COLUMNS: ColSpec[] = [
+  { x: -COL_GAP_X, z: COL_BACK_Z, h: TALL_H, cap: true, broken: false },
+  { x: COL_GAP_X, z: COL_BACK_Z, h: TALL_H, cap: true, broken: false },
+  { x: -COL_GAP_X, z: COL_FRONT_Z, h: 0.95, cap: false, broken: true },
+  { x: COL_GAP_X, z: COL_FRONT_Z, h: 0.45, cap: false, broken: true },
+]
+
+// Mossy patches clinging to bases / platform corners.
+interface Patch {
+  x: number
+  z: number
+  w: number
+  d: number
+}
+const MOSS_PATCHES: Patch[] = [
+  { x: -0.85, z: 0.85, w: 0.5, d: 0.45 },
+  { x: 0.95, z: -0.55, w: 0.4, d: 0.5 },
+  { x: 0.2, z: 0.95, w: 0.55, d: 0.35 },
+]
+
+// Small scattered rubble blocks on / beside the platform.
 interface Rubble {
   x: number
   z: number
   s: number
   rot: number
+  dark: boolean
 }
 const RUBBLE: Rubble[] = [
-  { x: 1.9, z: 1.4, s: 0.6, rot: 0.5 },
-  { x: -2.1, z: 0.8, s: 0.5, rot: 1.2 },
-  { x: 0.6, z: -2.0, s: 0.7, rot: 2.1 },
-  { x: -1.4, z: -1.6, s: 0.45, rot: 0.9 },
-  { x: 2.2, z: -0.6, s: 0.4, rot: 1.8 },
+  { x: 0.95, z: 0.7, s: 0.26, rot: 0.6, dark: false },
+  { x: -1.0, z: -0.25, s: 0.22, rot: 1.3, dark: true },
+  { x: 0.55, z: -0.9, s: 0.2, rot: 2.0, dark: false },
 ]
+
+function Column({
+  spec,
+  stoneMat,
+  darkMat,
+  mossMat,
+}: {
+  spec: ColSpec
+  stoneMat: THREE.Material
+  darkMat: THREE.Material
+  mossMat: THREE.Material
+}) {
+  const plinthTop = PLAT_TOP + PLINTH
+  const shaftTop = plinthTop + spec.h
+  return (
+    <group position={[spec.x, 0, spec.z]}>
+      {/* Square plinth resting on the platform */}
+      <mesh position={[0, PLAT_TOP + PLINTH / 2, 0]} castShadow receiveShadow material={darkMat}>
+        <boxGeometry args={[COL_R * 2.6, PLINTH, COL_R * 2.6]} />
+      </mesh>
+      {/* Tapered shaft */}
+      <mesh position={[0, plinthTop + spec.h / 2, 0]} castShadow receiveShadow material={stoneMat}>
+        <cylinderGeometry args={[COL_R * 0.86, COL_R, spec.h, 8]} />
+      </mesh>
+      {spec.cap && (
+        <mesh position={[0, shaftTop + CAP_H / 2, 0]} castShadow receiveShadow material={darkMat}>
+          <boxGeometry args={[COL_R * 2.5, CAP_H, COL_R * 2.5]} />
+        </mesh>
+      )}
+      {spec.broken && (
+        // Jagged broken crown — a little tilted cone sitting on the shaft top.
+        <mesh
+          position={[COL_R * 0.18, shaftTop + 0.07, COL_R * 0.12]}
+          rotation={[0.25, 0.5, 0.18]}
+          castShadow
+          material={stoneMat}
+        >
+          <coneGeometry args={[COL_R * 0.95, 0.22, 6]} />
+        </mesh>
+      )}
+      {/* Moss skirt around the base */}
+      <mesh position={[0, PLAT_TOP + 0.04, 0]} receiveShadow material={mossMat}>
+        <boxGeometry args={[COL_R * 2.8, 0.06, COL_R * 2.8]} />
+      </mesh>
+    </group>
+  )
+}
 
 export function RuinedShrine({
   position = [0, 0, 0],
@@ -85,87 +151,95 @@ export function RuinedShrine({
     [],
   )
 
-  const lintelY = 0.4 + COL_H + 0.24
+  // Lintel bridges the two tall back columns at their capital height.
+  const lintelY = PLAT_TOP + PLINTH + TALL_H + CAP_H
+
+  // A toppled column drum lying on the platform (rolled to its side).
+  const TOPPLE_LEN = 1.1
+  const toppleY = PLAT_TOP + COL_R // half-diameter off the slab
 
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      {/* Cracked stone foundation slab */}
-      <mesh position={[0, 0.08, 0]} receiveShadow material={darkMat}>
-        <boxGeometry args={[5.2, 0.16, 4.6]} />
+      {/* --- Low stepped stone platform --- */}
+      {/* Wide bottom step */}
+      <mesh position={[0, PLAT_H / 2, 0]} receiveShadow castShadow material={darkMat}>
+        <boxGeometry args={[PLAT_W, PLAT_H, PLAT_D]} />
+      </mesh>
+      {/* Inner riser (slightly inset) for a tidy stepped read */}
+      <mesh position={[0, PLAT_H + 0.05, 0]} receiveShadow castShadow material={stoneMat}>
+        <boxGeometry args={[PLAT_W - 0.45, 0.1, PLAT_D - 0.45]} />
       </mesh>
 
-      {/* Two intact columns carrying the surviving archway */}
-      {columnGroup('col-l', -SPAN / 2, -1.4, COL_H, stoneMat, darkMat)}
-      {columnGroup('col-r', SPAN / 2, -1.4, COL_H, stoneMat, darkMat)}
+      {/* --- Columns --- */}
+      {COLUMNS.map((spec, i) => (
+        <Column
+          key={`col-${i}`}
+          spec={spec}
+          stoneMat={stoneMat}
+          darkMat={darkMat}
+          mossMat={mossMat}
+        />
+      ))}
 
-      {/* Cracked lintel across the top — split into two offset blocks so it reads
-          as broken at the join. */}
-      <group position={[0, lintelY + 0.2, -1.4]}>
-        <mesh position={[-0.75, 0.0, 0]} rotation={[0, 0, 0.04]} castShadow receiveShadow material={stoneMat}>
-          <boxGeometry args={[SPAN / 2 + 0.3, 0.4, 0.7]} />
-        </mesh>
-        <mesh position={[0.78, 0.05, 0]} rotation={[0, 0, -0.06]} castShadow receiveShadow material={stoneMat}>
-          <boxGeometry args={[SPAN / 2 + 0.2, 0.4, 0.7]} />
-        </mesh>
-        {/* Moss along the top of the lintel */}
-        <mesh position={[0, 0.24, 0]} material={mossMat}>
-          <boxGeometry args={[SPAN + 0.2, 0.06, 0.55]} />
-        </mesh>
-      </group>
+      {/* --- Surviving lintel across the tall back pair --- */}
+      <mesh
+        position={[0, lintelY + 0.08, COL_BACK_Z]}
+        rotation={[0, 0, 0.015]}
+        castShadow
+        receiveShadow
+        material={stoneMat}
+      >
+        <boxGeometry args={[COL_GAP_X * 2 + COL_R * 2.4, 0.18, COL_R * 2.2]} />
+      </mesh>
+      {/* Moss creeping over the lintel top */}
+      <mesh position={[0, lintelY + 0.19, COL_BACK_Z]} material={mossMat}>
+        <boxGeometry args={[COL_GAP_X * 2, 0.05, COL_R * 1.8]} />
+      </mesh>
 
-      {/* Two broken column stumps (front row) */}
-      <group position={[-SPAN / 2, 0, 1.5]}>
-        <mesh position={[0, 0.2, 0]} castShadow receiveShadow material={darkMat}>
-          <boxGeometry args={[COL_R * 2.6, 0.4, COL_R * 2.6]} />
-        </mesh>
-        <mesh position={[0, 0.4 + 0.55, 0]} rotation={[0.06, 0, 0.04]} castShadow receiveShadow material={stoneMat}>
-          <cylinderGeometry args={[COL_R, COL_R, 1.1, 8]} />
-        </mesh>
-        {/* jagged broken top */}
-        <mesh position={[0.08, 0.4 + 1.15, 0.05]} rotation={[0.3, 0.4, 0.2]} castShadow material={stoneMat}>
-          <coneGeometry args={[COL_R * 0.9, 0.3, 6]} />
-        </mesh>
-      </group>
-      <group position={[SPAN / 2, 0, 1.5]}>
-        <mesh position={[0, 0.2, 0]} castShadow receiveShadow material={darkMat}>
-          <boxGeometry args={[COL_R * 2.6, 0.4, COL_R * 2.6]} />
-        </mesh>
-        <mesh position={[0, 0.4 + 0.35, 0]} rotation={[-0.05, 0, -0.05]} castShadow receiveShadow material={stoneMat}>
-          <cylinderGeometry args={[COL_R, COL_R, 0.7, 8]} />
-        </mesh>
-      </group>
-
-      {/* Fallen column drum lying across the slab */}
-      <group position={[0.4, 0.42, 0.4]} rotation={[0, 0.3, Math.PI / 2]}>
+      {/* --- Toppled column drum lying on the platform --- */}
+      <group position={[0.45, toppleY, 0.05]} rotation={[0, 0.35, Math.PI / 2]}>
         <mesh castShadow receiveShadow material={stoneMat}>
-          <cylinderGeometry args={[COL_R * 0.9, COL_R * 0.9, 1.8, 8]} />
+          <cylinderGeometry args={[COL_R, COL_R * 0.92, TOPPLE_LEN, 8]} />
         </mesh>
       </group>
 
-      {/* Mossy altar at the centre */}
+      {/* --- Mossy altar block at the centre --- */}
       <group position={[0, 0, 0]}>
-        <mesh position={[0, 0.45, 0]} castShadow receiveShadow material={stoneMat}>
-          <boxGeometry args={[1.3, 0.7, 0.9]} />
+        {/* base step */}
+        <mesh position={[0, PLAT_TOP + 0.08, 0]} castShadow receiveShadow material={darkMat}>
+          <boxGeometry args={[0.78, 0.16, 0.62]} />
         </mesh>
-        {/* Moss blanket over the altar top */}
-        <mesh position={[0, 0.82, 0]} receiveShadow material={mossDarkMat}>
-          <boxGeometry args={[1.34, 0.08, 0.94]} />
+        {/* altar body */}
+        <mesh position={[0, PLAT_TOP + 0.16 + 0.21, 0]} castShadow receiveShadow material={stoneMat}>
+          <boxGeometry args={[0.6, 0.42, 0.46]} />
         </mesh>
-        {/* Worn altar base step */}
-        <mesh position={[0, 0.12, 0]} castShadow receiveShadow material={darkMat}>
-          <boxGeometry args={[1.6, 0.24, 1.2]} />
+        {/* moss slab on top */}
+        <mesh position={[0, PLAT_TOP + 0.16 + 0.42 + 0.03, 0]} receiveShadow material={mossDarkMat}>
+          <boxGeometry args={[0.64, 0.06, 0.5]} />
         </mesh>
       </group>
 
-      {/* Scattered rubble blocks */}
+      {/* --- Scattered moss patches on the platform --- */}
+      {MOSS_PATCHES.map((p, i) => (
+        <mesh
+          key={`moss-${i}`}
+          position={[p.x, PLAT_TOP + 0.03, p.z]}
+          receiveShadow
+          material={mossMat}
+        >
+          <boxGeometry args={[p.w, 0.05, p.d]} />
+        </mesh>
+      ))}
+
+      {/* --- Scattered rubble --- */}
       {RUBBLE.map((r, i) => (
         <mesh
           key={`rub-${i}`}
-          position={[r.x, r.s / 2 + 0.08, r.z]}
-          rotation={[r.rot * 0.3, r.rot, r.rot * 0.2]}
+          position={[r.x, PLAT_TOP + r.s / 2, r.z]}
+          rotation={[r.rot * 0.25, r.rot, r.rot * 0.18]}
           castShadow
           receiveShadow
-          material={i % 2 ? stoneMat : darkMat}
+          material={r.dark ? darkMat : stoneMat}
         >
           <boxGeometry args={[r.s, r.s * 0.8, r.s * 0.9]} />
         </mesh>
