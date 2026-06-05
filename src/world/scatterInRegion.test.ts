@@ -12,7 +12,9 @@ describe('scatterInRegion', () => {
   it('scatters every point inside the outer-rim annulus of the region', () => {
     const reg = regionByBiome('forest')!
     const pts = scatterInRegion('forest', 5)
-    expect(pts).toHaveLength(5)
+    // Off-island points (a blob can overhang the map edge) are dropped, so the
+    // count can be ≤ n; every surviving point must still sit in the annulus.
+    expect(pts.length).toBeGreaterThan(0)
     for (const p of pts) {
       const d = Math.hypot(p.x - reg.x, p.z - reg.z)
       expect(d).toBeGreaterThanOrEqual(reg.r * INNER - 1e-6)

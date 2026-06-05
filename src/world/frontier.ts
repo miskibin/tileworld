@@ -8,7 +8,7 @@ import { CASTLE_CENTER, CASTLE_SAFE_R, ROWS } from './tileMap'
 
 // Distance (tiles) from the castle at which the factor reaches 1 — about the
 // outer reach of the biome blobs. Derived from ROWS so it tracks MAP_SCALE
-// automatically (the rescale grows ROWS). 0.68·ROWS ≈ 73 on the 108-row map.
+// automatically. 0.68·ROWS ≈ 103 on the enlarged 152-row map.
 export const RIM_DIST = ROWS * 0.68
 
 function smoothstep(t: number): number {

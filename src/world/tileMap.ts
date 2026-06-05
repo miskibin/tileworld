@@ -294,7 +294,10 @@ export function scatterInRegion(biome: Biome, n: number): Array<{ x: number; z: 
       seed: (i * 0.6180339 + 0.13) % 1,
     })
   }
-  return pts
+  // Drop any point that fell on water / off the island — a big biome blob (e.g.
+  // the swamp) can overhang the map edge, and an off-island forage point would be
+  // planted where the player can never reach it. Survivors are still in-annulus.
+  return pts.filter((p) => tileAt(Math.floor(p.x), Math.floor(p.z)) !== null)
 }
 
 /** True if (x,z) falls inside (or just outside) any mountain region blob

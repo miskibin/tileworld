@@ -407,8 +407,12 @@ export function World() {
           // Treasure (one-shot gear) chests roll their gear by frontier distance
           // — the best gear surfaces only at the rim. Caches (the food/gold
           // trickle economy) and token/teaching chests keep hand-authored loot.
+          // Caches (food/gold economy), token/teaching chests, AND castle-adjacent
+          // chests keep hand-authored loot — the latter so the starter chest by
+          // spawn always gives its weapon (frontierFactor≈0 there would otherwise
+          // roll the tier-0 pool, which can yield bread instead of a blade).
           const isToken = c.loot.includes('mercenary_contract')
-          const r = c.cache || isToken ? { loot: c.loot, gold: c.gold } : chestLootFor(nx, nz)
+          const r = c.cache || isToken || castleish ? { loot: c.loot, gold: c.gold } : chestLootFor(nx, nz)
           return (
             <Cullable key={i} x={nx} z={nz}>
               <Chest
