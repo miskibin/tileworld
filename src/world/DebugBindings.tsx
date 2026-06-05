@@ -31,7 +31,7 @@ export function DebugBindings({ onLights }: Props) {
     fog: folder({
       // Fog colour is now driven by the day/night cycle (see DayNight.tsx);
       // only its density stays manually tunable here.
-      fogDensity: { value: 0.2, min: 0, max: 0.3, step: 0.001, label: 'density' },
+      fogDensity: { value: 0.02, min: 0, max: 0.1, step: 0.001, label: 'density' },
     }),
     lights: folder({
       ambient: { value: 0.13, min: 0, max: 2, step: 0.05 },

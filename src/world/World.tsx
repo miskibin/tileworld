@@ -356,7 +356,7 @@ export function World() {
 
       {/* Day fog — exponential falloff; colour is animated by the day/night
           cycle (see DayNight.tsx), density is leva-tunable. */}
-      <fogExp2 attach="fog" args={['#d6c6a0', 0.2]} />
+      <fogExp2 attach="fog" args={['#d6c6a0', 0.02]} />
 
       {/* Grid-coord group: centers island on origin. */}
       <group position={[-CENTER_X, 0, -CENTER_Z]}>
