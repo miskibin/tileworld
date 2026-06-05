@@ -96,6 +96,12 @@ function vary(frac = 0.06): number {
   return 1 + (Math.random() * 2 - 1) * frac
 }
 
+const SWORD_HIT_VARIANTS = [
+  '/audio/sword-hit-var-1.wav',
+  '/audio/sword-hit-var-2.wav',
+  '/audio/sword-hit-var-3.wav',
+] as const
+
 /** Sword whoosh — sampled blade swipe, synth fallback. `vol` (0..1) scales it
  *  down for distant fights (villagers); the hero's own swing uses the default 1. */
 export function playSwing(vol = 1): void {
@@ -115,7 +121,8 @@ function swingSynth(vol = 1): void {
  *  (0..1) scales it for distance — the hero's own hit uses the default 1. */
 export function playHit(vol = 1): void {
   if (vol <= 0.02) return
-  playSfx('/audio/sword-hit.mp3', 0.5 * vol, 0.08).catch(() => hitSynth(vol))
+  const clip = SWORD_HIT_VARIANTS[(Math.random() * SWORD_HIT_VARIANTS.length) | 0]
+  playSfx(clip, 0.5 * vol, 0.08).catch(() => hitSynth(vol))
 }
 
 /** Synth fallback for playHit — noise crack + low thud. */

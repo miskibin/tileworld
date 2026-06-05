@@ -129,6 +129,12 @@ const BIOME_VO: Record<string, string> = {
   swamp: '/audio/vo/swamp.mp3',
 }
 
+const DIRT_STEP_VARIANTS = [
+  '/audio/footstep-dirt-var-1.wav',
+  '/audio/footstep-dirt-var-2.wav',
+  '/audio/footstep-dirt-var-3.wav',
+] as const
+
 export interface PlayerStateRef {
   x: number
   z: number
@@ -596,7 +602,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         const stepClip =
           b === 'snow' ? '/audio/footstep-snow.mp3'
           : b === 'rock' ? '/audio/footstep-stone.mp3'
-          : '/audio/footstep-dirt.mp3'
+          : DIRT_STEP_VARIANTS[(Math.random() * DIRT_STEP_VARIANTS.length) | 0]
         void playSfx(stepClip, 0.015, 0.12)
         // Footfall dust: a sprint always kicks up a puff; a plain walk only
         // stirs loose ground (sand / snow / scree) so packed grass stays clean.
