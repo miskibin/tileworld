@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
 import { isPaused } from './pauseStore'
 import { waterTexture } from './textures'
+import { getDay, sunDirAt } from './timeStore'
 
 // Wide open ocean ring around the island. A big plane fading into the horizon
 // fog reads as the open sea; the margin is generous so the distant mountain
@@ -26,15 +27,18 @@ export function Water() {
   const mat = useMemo(() => {
     const map = waterTexture('#2780c9', 7)
     const m = new THREE.MeshStandardMaterial({
-      color: map ? '#5aa6e0' : '#2780c9',
+      color: map ? '#6db4e6' : '#2780c9',
       map: map ?? undefined,
-      roughness: 0.3,
+      roughness: 0.22,
       metalness: 0.15,
       transparent: true,
       opacity: 0.9,
     })
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 }
+      shader.uniforms.uSunDir = { value: new THREE.Vector3(0.3, 0.6, 0.5) }
+      shader.uniforms.uSkyColor = { value: new THREE.Color('#bcd8f0') }
+      shader.uniforms.uSunColor = { value: new THREE.Color('#fff0cc') }
       m.userData.shader = shader
       shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`
         // Displace height (matches the old CPU formula exactly).
@@ -54,14 +58,36 @@ export function Water() {
              1.0,
               sin(position.z * 0.7 + uTime * 1.1) * 0.7 * 0.05));`,
         )
+      shader.fragmentShader = `uniform vec3 uSunDir;
+uniform vec3 uSkyColor;
+uniform vec3 uSunColor;
+${shader.fragmentShader}`.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>
+         // Stylized water reflectivity (cheap, no extra pass): fresnel sky tint +
+         // an animated sun-specular glint. Added as emissive so it flows through
+         // the normal tonemap + fog. normal/vViewPosition/viewMatrix are provided
+         // by MeshStandardMaterial; the ripple's analytic normal feeds 'normal'.
+         vec3 wsN = normalize(normal);
+         vec3 viewDir = normalize(vViewPosition);
+         float fres = pow(1.0 - max(dot(wsN, viewDir), 0.0), 3.0);
+         totalEmissiveRadiance += uSkyColor * fres * 0.5;
+         vec3 sunView = normalize(mat3(viewMatrix) * uSunDir);
+         vec3 sunRefl = reflect(-sunView, wsN);
+         float spec = pow(max(dot(sunRefl, viewDir), 0.0), 90.0);
+         totalEmissiveRadiance += uSunColor * spec * 1.6;`,
+      )
     }
     return m
   }, [])
 
   useFrame(({ clock }, dt) => {
     if (isPaused()) return
-    const shader = mat.userData.shader as { uniforms: { uTime: { value: number } } } | undefined
+    const shader = mat.userData.shader as
+      | { uniforms: { uTime: { value: number }; uSunDir: { value: THREE.Vector3 } } }
+      | undefined
     if (shader) shader.uniforms.uTime.value = clock.getElapsedTime()
+    if (shader) sunDirAt(getDay().t, shader.uniforms.uSunDir.value)
     // Drift the ripple texture so the surface looks like it's flowing.
     if (mat.map) {
       mat.map.offset.x = (mat.map.offset.x + dt * 0.015) % 1
