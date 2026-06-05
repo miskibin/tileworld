@@ -182,8 +182,8 @@ const ROLLS: Record<Biome, Roll[]> = {
   ],
   // FOREST — the DENSEST biome: thick trees + birch, heavy undergrowth of
   // bushes + mushrooms, scattered flowers/tufts. Should feel hard to see through.
-  // Bumped ground cover ~+50% (2026-06-05): mushroom 0.80→0.86, flower 0.85→0.91,
-  // tuft 0.97→0.98, clusterMax +1 on mushroom/flower/tuft.
+  // Bumped ground cover (2026-06-05): clusterMax +1 on mushroom/flower/tuft +
+  // flower until 0.85→0.86. (The grass biome got the larger `until` bumps.)
   forest: [
     { kind: 'tree', until: 0.34 },
     { kind: 'birch', until: 0.48 },
