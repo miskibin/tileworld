@@ -168,27 +168,30 @@ function push(out: Obstacle[], kind: ObstacleKind, x: number, z: number, scale: 
 type Roll = { kind: ObstacleKind; until: number; clusterMin?: number; clusterMax?: number }
 const ROLLS: Record<Biome, Roll[]> = {
   // GRASS frontier — open meadow: tufts + flowers with a touch of life
-  // (occasional tree/bush/mushroom). Light density (~0.34).
+  // (occasional tree/bush/mushroom). Bumped ~+50% ground cover (2026-06-05):
+  // tuft 0.5→0.72, flower 0.25→0.37, mushroom 0.17→0.25, clusterMax +1 each.
   grass: [
     { kind: 'tree', until: 0.05 },
     { kind: 'birch', until: 0.08 },
     { kind: 'bush', until: 0.12 },
     { kind: 'rock', until: 0.14 },
     { kind: 'boulder', until: 0.15 },
-    { kind: 'mushroom', until: 0.17, clusterMin: 1, clusterMax: 2 },
-    { kind: 'flower', until: 0.25, clusterMin: 2, clusterMax: 4 },
-    { kind: 'tuft', until: 0.5, clusterMin: 1, clusterMax: 2 },
+    { kind: 'mushroom', until: 0.25, clusterMin: 1, clusterMax: 3 },
+    { kind: 'flower', until: 0.37, clusterMin: 2, clusterMax: 5 },
+    { kind: 'tuft', until: 0.72, clusterMin: 1, clusterMax: 3 },
   ],
   // FOREST — the DENSEST biome: thick trees + birch, heavy undergrowth of
   // bushes + mushrooms, scattered flowers/tufts. Should feel hard to see through.
+  // Bumped ground cover ~+50% (2026-06-05): mushroom 0.80→0.86, flower 0.85→0.91,
+  // tuft 0.97→0.98, clusterMax +1 on mushroom/flower/tuft.
   forest: [
     { kind: 'tree', until: 0.34 },
     { kind: 'birch', until: 0.48 },
     { kind: 'deadTree', until: 0.52 },
     { kind: 'bush', until: 0.68 },
-    { kind: 'mushroom', until: 0.8, clusterMin: 2, clusterMax: 3 },
-    { kind: 'flower', until: 0.85, clusterMin: 1, clusterMax: 2 },
-    { kind: 'tuft', until: 0.97, clusterMin: 1, clusterMax: 2 },
+    { kind: 'mushroom', until: 0.80, clusterMin: 2, clusterMax: 4 },
+    { kind: 'flower', until: 0.86, clusterMin: 1, clusterMax: 3 },
+    { kind: 'tuft', until: 0.97, clusterMin: 1, clusterMax: 3 },
   ],
   // SAND beach ring — almost bare: a few tufts, the odd rock or bone washed up.
   sand: [

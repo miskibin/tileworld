@@ -225,10 +225,14 @@ const PARTS: Record<string, Part[]> = {
   'flower-1': flowerParts(FLOWER_PETAL_MATS[1]),
   'flower-2': flowerParts(FLOWER_PETAL_MATS[2]),
   'flower-3': flowerParts(FLOWER_PETAL_MATS[3]),
+  // Bladier grass tuft: 5 thin leaning blades, all rooted near y≈0 (cone center
+  // = height/2 above base), tint:true for per-instance color variation (2026-06-05).
   tuft: [
-    { geo: bake(() => new THREE.ConeGeometry(0.05, 0.18, 4), [0, 0.05, 0]), mat: TUFT_MAT },
-    { geo: bake(() => new THREE.ConeGeometry(0.04, 0.14, 4), [0.07, 0.04, 0.02], [0, 0.5, 0.2]), mat: TUFT_MAT },
-    { geo: bake(() => new THREE.ConeGeometry(0.04, 0.14, 4), [-0.06, 0.04, -0.03], [0, -0.4, -0.15]), mat: TUFT_MAT },
+    { geo: bake(() => new THREE.ConeGeometry(0.025, 0.26, 4), [0, 0.13, 0]), mat: TUFT_MAT, tint: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.022, 0.22, 4), [0.06, 0.11, 0.02], [0, 0.5, 0.22]), mat: TUFT_MAT, tint: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.022, 0.2, 4), [-0.06, 0.1, -0.03], [0, -0.4, -0.2]), mat: TUFT_MAT, tint: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.02, 0.18, 4), [0.03, 0.09, -0.06], [0.25, 0, 0.15]), mat: TUFT_MAT, tint: true },
+    { geo: bake(() => new THREE.ConeGeometry(0.02, 0.17, 4), [-0.04, 0.085, 0.05], [-0.2, 0, -0.18]), mat: TUFT_MAT, tint: true },
   ],
   cactus: [
     // Main column
