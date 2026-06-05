@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState, type RefObject } from 'react'
+import { Suspense, memo, useEffect, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { useThree, useFrame } from '@react-three/fiber'
 import { PositionalAudio, Sparkles, Environment } from '@react-three/drei'
@@ -218,6 +218,66 @@ function DebugExpose() {
   }
   return null
 }
+
+// The post-processing stack, isolated in React.memo so frequent World re-renders
+// (e.g. leva light tweaks → setLights) do NOT re-render it. @react-three/post-
+// processing's <EffectComposer> rebuilds its WHOLE pass pipeline whenever its
+// children array identity changes, and JSX makes a new children array every
+// render — so without this isolation, dragging any leva slider that re-renders
+// World thrashed the composer (repeated pass disposal + shader recompiles),
+// leaving the canvas a broken dark frame. These props are all stable across those
+// re-renders (sunMesh + the two effect refs), so memo skips the re-render and the
+// pipeline builds exactly once. Grade is driven imperatively by ReactiveGrade
+// (refs, per frame), so it updates without any re-render.
+const PostFX = memo(function PostFX({
+  sunMesh,
+  vignetteRef,
+  hueRef,
+}: {
+  sunMesh: THREE.Mesh
+  vignetteRef: RefObject<VignetteEffect | null>
+  hueRef: RefObject<HueSaturationEffect | null>
+}) {
+  return (
+    <>
+      <EffectComposer multisampling={0} enableNormalPass={false}>
+        {/* Ambient occlusion grounds props/buildings into the terrain — the main
+            "depth" cue. Half-res + the "performance" preset keep the AO march
+            cheap; the denoise + half-res blur hide the lower sample count. */}
+        <N8AO halfRes quality="performance" aoRadius={3.0} distanceFalloff={1.5} intensity={3.6} />
+        {/* Volumetric sun shafts from the emissive sun sphere (the priciest pass;
+            low-res march + few samples, blur-smoothed so it still reads). */}
+        <GodRays
+          sun={sunMesh}
+          blur
+          samples={36}
+          resolutionScale={0.4}
+          density={0.96}
+          decay={0.92}
+          weight={0.4}
+          exposure={0.34}
+          clampMax={1}
+          blendFunction={BlendFunction.SCREEN}
+        />
+        {/* Selective glow on the sun + emissive surfaces (windows, fire). */}
+        <Bloom
+          mipmapBlur
+          luminanceThreshold={1.0}
+          luminanceSmoothing={0.3}
+          intensity={0.6}
+          kernelSize={KernelSize.MEDIUM}
+        />
+        {/* Warm cinematic grade; saturation driven down by ReactiveGrade when hurt. */}
+        <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
+        <BrightnessContrast brightness={-0.02} contrast={0.12} />
+        {/* Darkness driven up by ReactiveGrade on low HP / a fresh hit. */}
+        <Vignette ref={vignetteRef} offset={0.35} darkness={gradeTunables.baseDarkness} eskil={false} />
+        <SMAA />
+      </EffectComposer>
+      <ReactiveGrade vignette={vignetteRef} hue={hueRef} />
+    </>
+  )
+})
 
 export function World() {
   // Knight spawns at the centred castle (matches PLAYER_SPAWN in playerStore).
@@ -490,50 +550,7 @@ export function World() {
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
       {sunMesh && !CAPTURE_MODE && quality !== 'low' && (
-        <>
-        <EffectComposer multisampling={0} enableNormalPass={false}>
-          {/* Ambient occlusion grounds props/buildings into the terrain so they
-              stop looking pasted-on — the main "depth" cue. Strengthened (wider
-              radius + intensity) for a more 3D read. This is the real HIGH-vs-MEDIUM
-              difference: HIGH renders AO full-res with the "high" sample preset
-              (crisp, deep contact shadows); MEDIUM keeps it half-res "performance"
-              (cheap — the denoise + half-res blur hide the lower sample count). */}
-          <N8AO halfRes quality="performance" aoRadius={3.0} distanceFalloff={1.5} intensity={3.6} />
-          {/* Volumetric sun shafts from the emissive sun sphere. The shafts are
-              low-frequency and `blur`-smoothed, so they tolerate a lower march
-              resolution + fewer samples with no visible change — and that's the
-              single most expensive post pass. (resolutionScale defaults to 0.5;
-              0.4 + 36 samples roughly halves its fill cost vs the old 60.) */}
-          <GodRays
-            sun={sunMesh}
-            blur
-            samples={36}
-            resolutionScale={0.4}
-            density={0.96}
-            decay={0.92}
-            weight={0.4}
-            exposure={0.34}
-            clampMax={1}
-            blendFunction={BlendFunction.SCREEN}
-          />
-          {/* Selective glow on the sun + emissive surfaces (windows, fire). */}
-          <Bloom
-            mipmapBlur
-            luminanceThreshold={1.0}
-            luminanceSmoothing={0.3}
-            intensity={0.6}
-            kernelSize={KernelSize.MEDIUM}
-          />
-          {/* Warm cinematic grade: a touch more saturation + contrast. Saturation
-              is driven down by ReactiveGrade when the hero is hurt. */}
-          <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
-          <BrightnessContrast brightness={-0.02} contrast={0.12} />
-          {/* Darkness is driven up by ReactiveGrade on low HP / a fresh hit. */}
-          <Vignette ref={vignetteRef} offset={0.35} darkness={gradeTunables.baseDarkness} eskil={false} />
-          <SMAA />
-        </EffectComposer>
-        <ReactiveGrade vignette={vignetteRef} hue={hueRef} />
-        </>
+        <PostFX sunMesh={sunMesh} vignetteRef={vignetteRef} hueRef={hueRef} />
       )}
 
       <MouseLookCamera posRef={posRef} />
