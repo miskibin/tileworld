@@ -226,7 +226,7 @@ export function World() {
   // Lower flat fills than before — the HDRI environment now supplies most of
   // the ambient/bounce light, so ambient+hemi are dialled back and the sun is
   // pushed up for golden-hour contrast. Keep in sync with DebugBindings.tsx.
-  const [lights, setLights] = useState({ ambient: 0.22, hemi: 0.4, dir: 2.1 })
+  const [lights, setLights] = useState({ ambient: 0.13, hemi: 0.24, dir: 2.1 })
   // GodRays needs the rendered sun mesh; capture it via callback ref.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
   // Effect handles the ReactiveGrade driver mutates each frame (low-HP grade +
@@ -498,13 +498,7 @@ export function World() {
               difference: HIGH renders AO full-res with the "high" sample preset
               (crisp, deep contact shadows); MEDIUM keeps it half-res "performance"
               (cheap — the denoise + half-res blur hide the lower sample count). */}
-          <N8AO
-            halfRes={quality !== 'high'}
-            quality={quality === 'high' ? 'high' : 'performance'}
-            aoRadius={3.0}
-            distanceFalloff={1.5}
-            intensity={3.2}
-          />
+          <N8AO halfRes quality="performance" aoRadius={3.0} distanceFalloff={1.5} intensity={3.6} />
           {/* Volumetric sun shafts from the emissive sun sphere. The shafts are
               low-frequency and `blur`-smoothed, so they tolerate a lower march
               resolution + fewer samples with no visible change — and that's the
