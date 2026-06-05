@@ -15,11 +15,43 @@ export interface Tile {
   height: number
 }
 
-export const COLS = 144
-export const ROWS = 108
+// ─── Map size + the 1.4× expansion transform ────────────────────────────────
+// The island is RESAMPLED from an original 144×108 "base" map: every new tile
+// reads the base map's generation at toBase(x,z), so the layout keeps its exact
+// shape — just bigger (biomes ~1.4× larger, longer trek to the rim). Anchors
+// authored in base coords convert to the bigger grid via fromBase (wilderness,
+// scaled about centre) or shiftToCentre (the castle, kept ABSOLUTE size).
+export const MAP_SCALE = 1.4
+const BASE_COLS = 144
+const BASE_ROWS = 108
+export const COLS = 202 // ≈ 144 × 1.4
+export const ROWS = 152 // ≈ 108 × 1.4
 
 export const CENTER_X = COLS / 2
 export const CENTER_Z = ROWS / 2
+const BASE_CENTER_X = BASE_COLS / 2 // 72
+const BASE_CENTER_Z = BASE_ROWS / 2 // 54
+// Per-axis scale (COLS/ROWS were rounded to keep CENTER integral).
+const SCALE_X = COLS / BASE_COLS
+const SCALE_Z = ROWS / BASE_ROWS
+
+/** New grid coord → base/original-map coord. Generation samples the base map
+ *  here, so the bigger map is the original stretched (same shape). */
+function toBase(x: number, z: number): [number, number] {
+  return [BASE_CENTER_X + (x - CENTER_X) / SCALE_X, BASE_CENTER_Z + (z - CENTER_Z) / SCALE_Z]
+}
+/** Base/original WILDERNESS anchor coord → new grid coord (scaled about centre,
+ *  so camps/landmarks/ore track the stretched terrain). */
+export function fromBase(x: number, z: number): [number, number] {
+  return [CENTER_X + (x - BASE_CENTER_X) * SCALE_X, CENTER_Z + (z - BASE_CENTER_Z) * SCALE_Z]
+}
+/** Base/original CASTLE-attached coord → new grid coord by pure translation (no
+ *  scale), so the keep/walls/gates keep their ABSOLUTE size and just re-centre on
+ *  the bigger map's middle. The flat grass safe-zone disc is uniform there, so
+ *  the absolute castle sits cleanly regardless of exact terrain alignment. */
+export function shiftToCentre(x: number, z: number): [number, number] {
+  return [x + (CENTER_X - BASE_CENTER_X), z + (CENTER_Z - BASE_CENTER_Z)]
+}
 
 // World-Y per height class. One class = half a tile-unit tall, so a terrace
 // step reads as ~1m instead of the old ~2m (height was used as world Y 1:1).
@@ -32,7 +64,14 @@ export const GROUND_STEP = 0.5
 // mountain or biome blob inside — so the player always boots onto open ground
 // with nothing menacing crowding the keep.
 export const CASTLE_CENTER = { x: CENTER_X, z: CENTER_Z } as const
-export const CASTLE_SAFE_R = 18
+// New-space grass safe-zone radius (the base 18 disc, stretched). Read by the
+// frontier gradient + gameplay "near castle" checks.
+export const CASTLE_SAFE_R = Math.round(18 * SCALE_X)
+// BASE-space castle constants — used ONLY by terrain generation, which runs in
+// base coords (see toBase). The resample maps the base safe-zone disc onto the
+// new centre, where the absolute, re-centred castle building sits.
+const BASE_CASTLE_CENTER = { x: BASE_CENTER_X, z: BASE_CENTER_Z } as const
+const BASE_CASTLE_SAFE_R = 18
 
 // Procedural map: single island with noisy coast + interior biomes driven by
 // temperature × moisture × elevation noise channels, plus carved rivers and
@@ -50,9 +89,10 @@ function noiseB(x: number, z: number): number {
   )
 }
 
-/** Distance (tiles) from the castle centre — drives the flat safe-zone. */
+/** Distance (tiles) from the castle centre — drives the flat safe-zone. Runs in
+ *  BASE space (generation only), so it uses the base castle centre. */
 function distFromCastle(x: number, z: number): number {
-  return Math.hypot(x - CASTLE_CENTER.x, z - CASTLE_CENTER.z)
+  return Math.hypot(x - BASE_CASTLE_CENTER.x, z - BASE_CASTLE_CENTER.z)
 }
 
 // Hand-placed grassy hills (climbable terraces) dotted across the open frontier
@@ -85,13 +125,15 @@ function plateauHeightAt(x: number, z: number): number {
 
 // Superellipse (rounded rectangle) island so the grid corners fill with land
 // too, giving frontier all the way out to the edges around the centred castle.
-const islandRx = COLS / 2 - 1
-const islandRz = ROWS / 2 - 1
+// Island shape lives in BASE space (generation samples it via toBase); the
+// resample stretches it to the bigger grid, keeping the same coastline shape.
+const islandRx = BASE_COLS / 2 - 1
+const islandRz = BASE_ROWS / 2 - 1
 const ISLAND_EXP = 2.6 // 2 = ellipse; higher = squarer (more corner land)
 
 function isLandShape(x: number, z: number): boolean {
-  const dx = Math.abs(x - CENTER_X) / islandRx
-  const dz = Math.abs(z - CENTER_Z) / islandRz
+  const dx = Math.abs(x - BASE_CENTER_X) / islandRx
+  const dz = Math.abs(z - BASE_CENTER_Z) / islandRz
   const r = Math.pow(dx, ISLAND_EXP) + Math.pow(dz, ISLAND_EXP)
   const coast = noiseA(x, z) * 0.08
   return r + coast < 1.0
@@ -128,7 +170,7 @@ function riverZ(x: number): number {
 
 function isRiverAt(x: number, z: number): boolean {
   // Never carve a channel through the castle safe-zone…
-  if (distFromCastle(x, z) < CASTLE_SAFE_R) return false
+  if (distFromCastle(x, z) < BASE_CASTLE_SAFE_R) return false
   // …nor through a mountain mass — the river stops at the mountain foot instead
   // of slicing a gorge straight through the peak.
   if (inMountain(x, z)) return false
@@ -137,7 +179,7 @@ function isRiverAt(x: number, z: number): boolean {
     const w = 1.3 + Math.sin(z * 0.5) * 0.3
     if (Math.abs(x - cx) < w) return true
   }
-  if (x > 46 && x < COLS - 10) {
+  if (x > 46 && x < BASE_COLS - 10) {
     const cz = riverZ(x)
     if (Math.abs(z - cz) < 1.0) return true
   }
@@ -216,7 +258,11 @@ const REGIONS: Region[] = [
  *  centre that silently desyncs when a biome is moved or resized. */
 export function regionByBiome(biome: Biome): { x: number; z: number; r: number } | undefined {
   const r = REGIONS.find((reg) => reg.biome === biome)
-  return r ? { x: r.x, z: r.z, r: r.r } : undefined
+  if (!r) return undefined
+  // REGIONS live in base space; return the NEW-space centre + radius so spawn
+  // placement (foragables, ore, etc.) lands on the resampled, enlarged biome.
+  const [x, z] = fromBase(r.x, r.z)
+  return { x, z, r: r.r * SCALE_X }
 }
 
 /** `n` deterministic scatter points spread across a biome blob — a golden-angle
@@ -326,7 +372,7 @@ function rampClass(x: number, z: number, reg: Region): number | null {
   const dz = z - reg.z
   const dc = Math.hypot(dx, dz)
   if (dc >= reg.r) return null
-  const rampAng = reg.rampAng ?? Math.atan2(CASTLE_CENTER.z - reg.z, CASTLE_CENTER.x - reg.x)
+  const rampAng = reg.rampAng ?? Math.atan2(BASE_CASTLE_CENTER.z - reg.z, BASE_CASTLE_CENTER.x - reg.x)
   let da = (Math.atan2(dz, dx) - rampAng) % (Math.PI * 2)
   if (da < -Math.PI) da += Math.PI * 2
   if (da > Math.PI) da -= Math.PI * 2
@@ -342,8 +388,10 @@ function rampClass(x: number, z: number, reg: Region): number | null {
 /** True if (x,z) lies in any mountain's ramp corridor — obstacles.ts reserves
  *  these tiles so scatter never blocks the one guaranteed path up. */
 export function isMountainRampTile(x: number, z: number): boolean {
+  // x,z are NEW-space tiles; rampClass works in base space.
+  const [bx, bz] = toBase(x, z)
   for (const reg of REGIONS) {
-    if (rampClass(x, z, reg) !== null) return true
+    if (rampClass(bx, bz, reg) !== null) return true
   }
   return false
 }
@@ -380,7 +428,7 @@ function classifyBiome(x: number, z: number): Tile | null {
   const dc = distFromCastle(x, z)
   // Full-strength fray on the bulge OUT into the dunes; the shrink IN is clamped
   // at −4 so the keep core (radius ≥ CASTLE_SAFE_R−4 ≈ 14) is always pure grass.
-  if (dc < CASTLE_SAFE_R + Math.max(-4, edgeFray(x, z))) return { biome: 'grass', height: 1 }
+  if (dc < BASE_CASTLE_SAFE_R + Math.max(-4, edgeFray(x, z))) return { biome: 'grass', height: 1 }
 
   if (isRiverAt(x, z)) return null
 
@@ -410,7 +458,7 @@ function classifyBiome(x: number, z: number): Tile | null {
     // Keep the poisonous marsh out of the keep's frayed safe-zone band: a swamp
     // tile that the fray pulled inside the true safe radius reverts to grass, so
     // sand may interlock toward the keep but the south-side marsh never does.
-    if (reg.biome === 'swamp' && dc < CASTLE_SAFE_R) return { biome: 'grass', height: 1 }
+    if (reg.biome === 'swamp' && dc < BASE_CASTLE_SAFE_R) return { biome: 'grass', height: 1 }
     if (reg.peak !== undefined) {
       // Mountain biome (rock / snow): tall climbable mass.
       return { biome: reg.biome, height: mountainHeight(x, z, reg) }
@@ -435,7 +483,20 @@ function ensureTiles(): (Tile | null)[][] {
   for (let z = 0; z < ROWS; z++) {
     const row: (Tile | null)[] = []
     for (let x = 0; x < COLS; x++) {
-      row.push(classifyBiome(x, z))
+      const [bx, bz] = toBase(x, z)
+      // Biome + land mask from the CONTINUOUS base sample → coast/biome edges
+      // stay smooth at the bigger resolution.
+      const t = classifyBiome(bx, bz)
+      if (!t) {
+        row.push(null)
+        continue
+      }
+      // Height re-sampled at the base GRID tile this falls in: each base tile
+      // becomes a small flat plateau of new tiles, so Δ≥2 mountain cliffs and the
+      // one climbable ramp survive the stretch (a continuous height sample would
+      // smear every cliff into a walkable slope).
+      const q = classifyBiome(Math.round(bx), Math.round(bz))
+      row.push({ biome: t.biome, height: q ? q.height : t.height })
     }
     rows.push(row)
   }

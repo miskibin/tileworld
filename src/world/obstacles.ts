@@ -1,4 +1,4 @@
-import { tileAt, tileTopY, standable, isMountainRampTile, COLS, ROWS, type Biome } from './tileMap'
+import { tileAt, tileTopY, standable, isMountainRampTile, fromBase, shiftToCentre, COLS, ROWS, type Biome } from './tileMap'
 import { isInsideCastle, snapToCardinal } from './cityPlan'
 import { isRoadTile } from './roads'
 import { LANDMARKS } from './landmarks'
@@ -50,11 +50,17 @@ export interface CampSlot {
   /** the biome this camp guards the approach to */
   biome: Biome
 }
-export const ORK_CAMPS: readonly CampSlot[] = [
+// Authored in BASE coords (the original 144×108 layout); converted to the
+// enlarged map via fromBase so each camp tracks its (now bigger, farther) biome.
+const BASE_CAMPS: readonly CampSlot[] = [
   { x: 74, z: 26, biome: 'snow' }, // N — snow/desert frontier (flat grass apron)
   { x: 104, z: 32, biome: 'desert' }, // NE — deep in the dunes, well out from spawn
   { x: 34, z: 72, biome: 'forest' }, // SW — clearing deep in the wood (clear of the river)
 ] as const
+export const ORK_CAMPS: readonly CampSlot[] = BASE_CAMPS.map((c) => {
+  const [x, z] = fromBase(c.x, c.z)
+  return { x: Math.round(x), z: Math.round(z), biome: c.biome }
+})
 
 // Hand-placed structure footprints to keep clear of scatter (camps + hamlet +
 // market). The castle interior is handled separately (see isInsideCastle in
@@ -66,14 +72,22 @@ const RESERVED = new Set<string>(
     const box = (x0: number, x1: number, z0: number, z1: number) => {
       for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) r.push(`${x},${z}`)
     }
-    // A 7×7 clearing around each ork camp (matches the camp's local spawn reach).
+    // Box authored in BASE coords, mapped to the enlarged map. `wild` scales the
+    // footprint about centre (tracks a biome structure); `near` translates it
+    // (castle-attached, absolute). Corners floored/ceiled to whole tiles.
+    const baseBox = (x0: number, x1: number, z0: number, z1: number, t: (x: number, z: number) => [number, number]) => {
+      const [ax, az] = t(x0, z0)
+      const [bx, bz] = t(x1, z1)
+      box(Math.floor(Math.min(ax, bx)), Math.ceil(Math.max(ax, bx)), Math.floor(Math.min(az, bz)), Math.ceil(Math.max(az, bz)))
+    }
+    // A 7×7 clearing around each ork camp (ORK_CAMPS already in new space).
     for (const c of ORK_CAMPS) box(c.x - 3, c.x + 3, c.z - 3, c.z + 3)
-    // Northwest frontier hamlet (flat snow-foot grass, just NW of the castle).
-    box(62, 70, 28, 36)
-    // Market stall just outside the south gate.
-    box(65, 71, 68, 74)
+    // Northwest frontier hamlet (flat snow-foot grass) — wilderness.
+    baseBox(62, 70, 28, 36, fromBase)
+    // Market stall just outside the south gate — castle-attached.
+    baseBox(65, 71, 68, 74, shiftToCentre)
     // NE desert caravan market — the trader village (see TraderVillage.tsx).
-    box(90, 102, 28, 38)
+    baseBox(90, 102, 28, 38, fromBase)
     // Biome signature landmarks — clear a margin around each so scatter never
     // grows up through the monument (footprint shared via landmarks.ts).
     for (const l of LANDMARKS) box(l.x - l.r - 1, l.x + l.r + 1, l.z - l.r - 1, l.z + l.r + 1)

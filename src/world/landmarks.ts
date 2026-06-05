@@ -1,6 +1,6 @@
 import { registerHouseBlocker, resetHouseBlockers } from './houseBlockers'
 import { isRoadTile } from './roads'
-import { isMountainRampTile } from './tileMap'
+import { isMountainRampTile, fromBase } from './tileMap'
 
 // Shared anchors for the five biome "signature landmarks" — FrozenSpire (snow),
 // SunkenPyramid (desert), StandingStones (rock frontier), GiantDeadTree (swamp),
@@ -22,13 +22,20 @@ export interface LandmarkSlot {
 // landmarks (snow spire / rock stones) stay put — a mountain's far side is cliff
 // face (only one climbable ramp), so a far-edge spire would strand on a cliff.
 // Pushes are kept inside each region's flat interior (clear of the coast).
-export const LANDMARKS: readonly LandmarkSlot[] = [
+// Authored in BASE coords; converted to the enlarged map via fromBase so each
+// monument tracks its (bigger, farther) biome. World.tsx reads LANDMARKS for the
+// render positions, so both placement and reservation stay in sync.
+const BASE_LANDMARKS: readonly LandmarkSlot[] = [
   { x: 26, z: 24, r: 2 }, // FrozenSpire — snow massif summit (mountain: unmoved)
   { x: 122, z: 22, r: 3 }, // SunkenPyramid — desert far NE edge
   { x: 118, z: 82, r: 2 }, // StandingStones — SE rock frontier (mountain-side: unmoved)
   { x: 72, z: 100, r: 1 }, // GiantDeadTree — swamp far S edge
   { x: 22, z: 88, r: 2 }, // RuinedShrine — forest far SW edge
 ] as const
+export const LANDMARKS: readonly LandmarkSlot[] = BASE_LANDMARKS.map((l) => {
+  const [x, z] = fromBase(l.x, l.z)
+  return { x: Math.round(x), z: Math.round(z), r: l.r }
+})
 
 const OWNER = 'landmarks'
 

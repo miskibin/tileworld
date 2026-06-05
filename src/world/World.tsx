@@ -70,7 +70,8 @@ import { StandingStones } from './StandingStones'
 import { RuinedShrine } from './RuinedShrine'
 import { Ballista } from './Ballista'
 import { HealingShrine } from './HealingShrine'
-import { registerLandmarkBlockers } from './landmarks'
+import { registerLandmarkBlockers, LANDMARKS } from './landmarks'
+import { ORK_CAMPS } from './obstacles'
 
 // Chests scattered across the map. Data-driven so each can be wrapped in
 // <Cullable> (most sit far out in the biomes — fog-hidden and worth freezing when
@@ -114,7 +115,7 @@ const CHESTS: {
   { pos: [30, 1, 86], rot: 1.6, gold: 9, loot: ['bread'], cache: true }, // SW forest rim
   { pos: [20, 1, 62], rot: 2.0, gold: 8, loot: ['elk_jerky'], cache: true }, // W forest/coast rim
 ]
-import { CENTER_X, CENTER_Z, tileAt, tileTopY, type Biome } from './tileMap'
+import { CENTER_X, CENTER_Z, tileAt, tileTopY, fromBase, shiftToCentre, type Biome } from './tileMap'
 import { chestLootFor } from './frontier'
 import { CAPTURE_MODE, PERF_MODE } from './renderMode'
 import { getPlayer } from './playerStore'
@@ -164,6 +165,35 @@ function chestVariant(x: number, z: number): ChestVariant {
   const t = tileAt(Math.floor(x), Math.floor(z))
   return (t && BIOME_TO_VARIANT[t.biome]) || 'default'
 }
+
+// ── Structure placements on the enlarged map ───────────────────────────────
+// Coords below are the original 144×108 layout. Wilderness structures scale
+// about centre (fromBase) so they track their bigger, farther biome; castle-
+// attached ones translate (shiftToCentre) to keep absolute size by the keep.
+const HAMLET = fromBase(66, 32)
+const TRADER_VILLAGE_POS = fromBase(96, 34)
+const SHOP_POS = shiftToCentre(68, 71)
+const WARBELL_POS = shiftToCentre(72, 60)
+const SPARKLE_POS = shiftToCentre(72, 66)
+const SPAWN_XZ = shiftToCentre(72, 58)
+const CAT_HOMES = ([[72, 67], [50, 40], [66, 50], [80, 58]] as const).map(([x, z]) => shiftToCentre(x, z))
+const WATER_EDGES = ([[6, 54], [138, 54], [72, 6], [72, 102]] as const).map(([x, z]) => fromBase(x, z))
+// Landmark + camp views render straight off the canonical tables (LANDMARKS /
+// ORK_CAMPS), so model, collision blocker and scatter reservation always share
+// one position. Array index matches the table order.
+const LANDMARK_VIEWS = [
+  { C: FrozenSpire, rot: 0.4 }, // [0] snow spire
+  { C: SunkenPyramid, rot: -0.5 }, // [1] desert pyramid
+  { C: StandingStones, rot: 0.2 }, // [2] rock stones
+  { C: GiantDeadTree, rot: 1.1 }, // [3] swamp tree
+  { C: RuinedShrine, rot: -0.8 }, // [4] forest shrine
+] as const
+// ORK_CAMPS order: [snow, desert, forest].
+const CAMP_VIEWS = [
+  { rot: 0.1, seed: 4.1, cageOff: [-2, -1] as [number, number], cageSeed: 0.9 }, // snow
+  { rot: -1.6, seed: 2.7, cageOff: [2, 2] as [number, number], cageSeed: 0.6 }, // desert
+  { rot: 1.4, seed: 1.2, cageOff: [-2, -1] as [number, number], cageSeed: 0.2 }, // forest
+] as const
 
 function DebugExpose() {
   const state = useThree()
@@ -232,33 +262,26 @@ export function World() {
         {/* Biome signature landmarks — one focal structure per biome, a reward
             for exploring each. Placed at the biome's heart on its ground height;
             distance-culled like the chests. No lights (point-light count fixed). */}
-        <Cullable x={26} z={24}>
-          <FrozenSpire position={[26, tileTopY(26, 24), 24]} rotation={0.4} />
-        </Cullable>
-        <Cullable x={112} z={28}>
-          <SunkenPyramid position={[112, tileTopY(112, 28), 28]} rotation={-0.5} />
-        </Cullable>
-        <Cullable x={118} z={82}>
-          <StandingStones position={[118, tileTopY(118, 82), 82]} rotation={0.2} />
-        </Cullable>
-        <Cullable x={72} z={92}>
-          <GiantDeadTree position={[72, tileTopY(72, 92), 92]} rotation={1.1} />
-        </Cullable>
-        <Cullable x={32} z={80}>
-          <RuinedShrine position={[32, tileTopY(32, 80), 80]} rotation={-0.8} />
-        </Cullable>
-        <Character initial={[72, 1, 58]} facing0={Math.PI} posRef={posRef} />
+        {LANDMARK_VIEWS.map(({ C, rot }, i) => {
+          const l = LANDMARKS[i]
+          return (
+            <Cullable key={`lm${i}`} x={l.x} z={l.z}>
+              <C position={[l.x, tileTopY(l.x, l.z), l.z]} rotation={rot} />
+            </Cullable>
+          )
+        })}
+        <Character initial={[SPAWN_XZ[0], 1, SPAWN_XZ[1]]} facing0={Math.PI} posRef={posRef} />
 
         {/* Remote hamlet northwest of the castle, out in the grass belt */}
-        <Cullable x={66} z={32}>
-          <Village position={[66, 32]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
+        <Cullable x={HAMLET[0]} z={HAMLET[1]}>
+          <Village position={[HAMLET[0], HAMLET[1]]} rotation={0} seed={2.9} wallColor="#c8b094" roofColor="#7a4a26" />
         </Cullable>
 
         {/* NE desert caravan market — independent traders to trade with / recruit
             into the militia. Buildings (culled when far) are created here; the
             merchant NPCs + the E/R interaction live in <TraderCrowd/> below. */}
-        <Cullable x={96} z={34}>
-          <TraderVillage position={[96, 34]} />
+        <Cullable x={TRADER_VILLAGE_POS[0]} z={TRADER_VILLAGE_POS[1]}>
+          <TraderVillage position={[TRADER_VILLAGE_POS[0], TRADER_VILLAGE_POS[1]]} />
         </Cullable>
 
         {/* Central castle — Keep + tree-built walls, houses, towers, farm */}
@@ -275,17 +298,16 @@ export function World() {
         {/* Market stall just outside the south gate (the castle interior is a
             packed grid). Counter faces the gate; its tile is reserved from
             scatter in obstacles.ts so no tree spawns on it. */}
-        <Shop position={[68, 1, 71]} rotation={Math.PI} />
+        <Shop position={[SHOP_POS[0], 1, SHOP_POS[1]]} rotation={Math.PI} />
 
         {/* Cats hang around the villages + castle */}
-        <Cat home={[72, 1, 67]} seed={0.7} />
-        <Cat home={[50, 1, 40]} seed={2.1} />
-        <Cat home={[66, 1, 50]} seed={3.4} />
-        <Cat home={[80, 1, 58]} seed={5.6} />
+        {CAT_HOMES.map(([cx, cz], i) => (
+          <Cat key={`cat${i}`} home={[cx, 1, cz]} seed={[0.7, 2.1, 3.4, 5.6][i]} />
+        ))}
 
         {/* Butterflies / pollen drifting over the castle meadow */}
         <Sparkles
-          position={[72, 1.3, 66]}
+          position={[SPARKLE_POS[0], 1.3, SPARKLE_POS[1]]}
           scale={[22, 2, 16]}
           count={36}
           size={5}
@@ -322,26 +344,22 @@ export function World() {
             out and clear. Orks here guard their camp (home anchor) instead of
             marching on the keep; blue warband so they read apart from the red
             night-horde (and brawl any wave ork that strays near). */}
-        <Cullable x={34} z={72}>
-          <OrkCamp position={[34, tileTopY(34, 72), 72]} rotation={1.4} seed={1.2} faction="blue" />
-        </Cullable>
-        <Cullable x={104} z={32}>
-          <OrkCamp position={[104, tileTopY(104, 32), 32]} rotation={-1.6} seed={2.7} faction="blue" />
-        </Cullable>
-        <Cullable x={74} z={26}>
-          <OrkCamp position={[74, tileTopY(74, 26), 26]} rotation={0.1} seed={4.1} faction="blue" />
-        </Cullable>
+        {ORK_CAMPS.map((c, i) => (
+          <Cullable key={`camp${i}`} x={c.x} z={c.z}>
+            <OrkCamp position={[c.x, tileTopY(c.x, c.z), c.z]} rotation={CAMP_VIEWS[i].rot} seed={CAMP_VIEWS[i].seed} faction="blue" />
+          </Cullable>
+        ))}
 
         {/* Captive cages at each camp — clear the camp's guards and the freed
             villagers join the militia as heirs (rescue.ts). Kept OUTSIDE Cullable
             so the cage never unmounts and re-spawns its captives. */}
-        <CampCage camp={{ x: 34, z: 72 }} offset={[-2, -1]} captives={2} seed={0.2} />
-        <CampCage camp={{ x: 104, z: 32 }} offset={[2, 2]} captives={2} seed={0.6} />
-        <CampCage camp={{ x: 74, z: 26 }} offset={[-2, -1]} captives={2} seed={0.9} />
+        {ORK_CAMPS.map((c, i) => (
+          <CampCage key={`cage${i}`} camp={{ x: c.x, z: c.z }} offset={CAMP_VIEWS[i].cageOff} captives={2} seed={CAMP_VIEWS[i].cageSeed} />
+        ))}
 
         {/* War bell in the courtyard — ring it (E) during the day to summon the
             night early, once you're done preparing. */}
-        <WarBell position={[72, tileTopY(72, 60), 60]} />
+        <WarBell position={[WARBELL_POS[0], tileTopY(WARBELL_POS[0], WARBELL_POS[1]), WARBELL_POS[1]]} />
 
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
@@ -378,20 +396,28 @@ export function World() {
             <Cullable> stops three from processing their meshes until you're near
             (see CHESTS above + Cullable.tsx). */}
         {CHESTS.map((c, i) => {
+          // CHESTS are authored in base coords. A castle-adjacent chest translates
+          // with the keep (shiftToCentre); every wilderness chest scales out with
+          // its biome (fromBase).
+          const bx = c.pos[0]
+          const bz = c.pos[2]
+          const castleish = bx >= 55 && bx <= 89 && bz >= 41 && bz <= 67
+          const [nx, nz] = castleish ? shiftToCentre(bx, bz) : fromBase(bx, bz)
+          const pos: [number, number, number] = [nx, c.pos[1], nz]
           // Treasure (one-shot gear) chests roll their gear by frontier distance
           // — the best gear surfaces only at the rim. Caches (the food/gold
           // trickle economy) and token/teaching chests keep hand-authored loot.
           const isToken = c.loot.includes('mercenary_contract')
-          const r = c.cache || isToken ? { loot: c.loot, gold: c.gold } : chestLootFor(c.pos[0], c.pos[2])
+          const r = c.cache || isToken ? { loot: c.loot, gold: c.gold } : chestLootFor(nx, nz)
           return (
-            <Cullable key={i} x={c.pos[0]} z={c.pos[2]}>
+            <Cullable key={i} x={nx} z={nz}>
               <Chest
-                position={c.pos}
+                position={pos}
                 rotation={c.rot}
                 gold={r.gold}
                 loot={r.loot}
                 cache={c.cache}
-                variant={chestVariant(c.pos[0], c.pos[2])}
+                variant={chestVariant(nx, nz)}
               />
             </Cullable>
           )
@@ -408,18 +434,11 @@ export function World() {
         {/* Shoreline water loops — positional for stereo, placed at new map edges */}
         {audioEnabled && (
           <>
-            <group position={[6, 0.5, 54]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
-            </group>
-            <group position={[138, 0.5, 54]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
-            </group>
-            <group position={[72, 0.5, 6]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
-            </group>
-            <group position={[72, 0.5, 102]}>
-              <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
-            </group>
+            {WATER_EDGES.map(([wx, wz], i) => (
+              <group key={`water${i}`} position={[wx, 0.5, wz]}>
+                <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
+              </group>
+            ))}
           </>
         )}
       </group>

@@ -24,7 +24,10 @@ import {
 
 export const PLAYER_MAX_HP = 125
 // Player boots at the centred castle (just south of the keep, inside the walls).
-export const PLAYER_SPAWN = { x: 72, y: 1, z: 58 } as const
+// Just south of the re-centred keep, inside the walls. (Base layout had this at
+// (72,58) around base centre (72,54); on the enlarged map the keep sits at the
+// new centre, so spawn re-centres with it.)
+export const PLAYER_SPAWN = { x: 101, y: 1, z: 80 } as const
 export const PLAYER_RESPAWN_DELAY = 2.4
 export const PLAYER_STARTING_GOLD = 30
 

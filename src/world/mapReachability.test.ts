@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { COLS, ROWS, standable, canStep } from './tileMap'
+import { COLS, ROWS, standable, canStep, fromBase, shiftToCentre } from './tileMap'
 import { findSpawnNear, isObstacleTile } from './obstacles'
 import { getRoadBridges } from './roads'
 import { registerBridge, resetBridges } from './bridges'
@@ -50,8 +50,9 @@ function floodFrom(sx: number, sz: number): Set<number> {
   return seen
 }
 
-// Castle south-gate apron — open grass just outside the walls.
-const START: [number, number] = [72, 64]
+// Castle south-gate apron — open grass just outside the walls. Authored in base
+// coords; the castle translates to the enlarged map's centre (shiftToCentre).
+const START: [number, number] = shiftToCentre(72, 64)
 
 // The map now has exactly FIVE big biome regions (one per quadrant around the
 // castle): SNOW massif (NW, mountain), DESERT (NE, flat), ROCK range (E,
@@ -84,7 +85,9 @@ describe('map reachability', () => {
 
   for (const [name, [tx, tz]] of Object.entries(TARGETS)) {
     it(`castle → ${name} is reachable`, () => {
-      const goal = findSpawnNear(tx, tz)
+      // TARGETS are base-map biome coords; scale onto the enlarged map.
+      const [bx, bz] = fromBase(tx, tz)
+      const goal = findSpawnNear(bx, bz)
       expect(reachable.has(Math.floor(goal.z) * COLS + Math.floor(goal.x))).toBe(true)
     })
   }

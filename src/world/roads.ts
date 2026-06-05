@@ -1,4 +1,4 @@
-import { COLS, ROWS, isLand } from './tileMap'
+import { COLS, ROWS, isLand, fromBase } from './tileMap'
 
 // Grid-based road network. Roads are defined as polylines of integer tile
 // waypoints; every consecutive pair is axis-aligned (shares x or z), so the
@@ -20,7 +20,7 @@ export interface RoadBridge {
 // obstacles.ts): SNOW NW · DESERT NE · ROCK E · FOREST SW · SWAMP S.
 // Every consecutive pair is axis-aligned; routes were traced to stay on land
 // (scripts/probe-road.mjs), bridging any river crossing.
-const ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
+const BASE_ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
   // ── North gate (72,44 outside) → northern trunk between snow & desert ──
   [[72, 44], [72, 26]],
   // North trunk → north ork camp (snow/desert frontier).
@@ -48,6 +48,17 @@ const ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = [
   // North trunk → NW frontier hamlet.
   [[72, 32], [66, 32]],
 ]
+
+// Routes were traced on the original 144×108 map; scale every waypoint onto the
+// enlarged grid via fromBase. fromBase is separable (new-x depends only on x,
+// new-z only on z), so axis-aligned base segments stay axis-aligned — required by
+// lineTiles. Water crossings still auto-emit bridges in build().
+const ROUTES: ReadonlyArray<ReadonlyArray<readonly [number, number]>> = BASE_ROUTES.map((route) =>
+  route.map(([x, z]) => {
+    const [nx, nz] = fromBase(x, z)
+    return [Math.round(nx), Math.round(nz)] as readonly [number, number]
+  }),
+)
 
 interface RoadData {
   /** land road tiles to render as dirt */

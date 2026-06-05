@@ -8,6 +8,8 @@ vi.mock('./tileMap', () => ({
   tileTopY: () => 1,
   CENTER_X: 72,
   CENTER_Z: 54,
+  // cityPlan re-centres its slots through this; identity is fine for the test.
+  shiftToCentre: (x: number, z: number) => [x, z],
 }))
 
 import { freeCaptive } from './rescue'
