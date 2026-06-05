@@ -35,8 +35,9 @@ No new currencies. No new systems. Reuse the existing forage/chest/store machine
 
 ## Decisions (confirmed)
 
-- **Day length stays 180s** (`PREP_DURATION` unchanged). The trickle changes carry
-  the pacing; revisit only if a playtest still finishes early.
+- **Day length 180s → 150s** (`PREP_DURATION` in `waveStore.ts`). 2.5 min — a
+  little shorter, so one trip ≠ a full restock and the trickle changes have more
+  bite.
 - **Ore stays one-shot** (`oreStore` unchanged). The deliberate high-HP single dig
   for stone is left as-is; the rock biome remains a one-time stone run.
 
@@ -75,7 +76,7 @@ No new currencies. No new systems. Reuse the existing forage/chest/store machine
     **one-shot** and stay gone — the exploration trophy that does not trivialise the
     economy.
   - **cache** = gold + consumable food (bread, potion, feast, croc_steak,
-    elk_jerky, venom, fur). These **refill after ~1 day (default 165s)** and can be
+    elk_jerky, venom, fur). These **refill after ~1 day (default 150s)** and can be
     looted again. Cache gold stays small (current 5-14) so respawn does not flood
     income.
 - **Respawn mechanism:** `Chest` tracks an `openedAt`; once `kind === 'cache'` and
@@ -104,7 +105,7 @@ more nights.
 
 - New resource currencies (explicitly rejected).
 - Ore respawn / rebalance (kept one-shot).
-- Day-length change (kept 180s).
+- Further day-length tuning (set to 150s here; no other timing changes).
 - Upgrade cost changes (deferred to a tuning pass).
 - Any change to wave counts/HP, shop, or combat numbers.
 
@@ -129,4 +130,5 @@ more nights.
 - `FORAGE_RESPAWN` (default 90s) — forage regrow delay.
 - herb live count `6`, apple live count `5` — in each config's `spawns()`.
 - annulus inner/outer `0.55 / 0.95` — in `scatterInRegion`.
-- `CACHE_RESPAWN` (default 165s) — chest cache refill delay.
+- `CACHE_RESPAWN` (default 150s) — chest cache refill delay.
+- `PREP_DURATION` 150s — day length (`waveStore.ts`).
