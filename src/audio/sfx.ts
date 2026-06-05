@@ -97,9 +97,10 @@ function vary(frac = 0.06): number {
 }
 
 // var-2 is the meaty blade-on-flesh impact (used for orks/creatures); var-1 and
-// var-3 are metallic clangs, better suited to chipping stone (ore mining).
+// var-3 are metallic clangs — used both for chipping stone (ore mining) and for a
+// blow ringing off the hero's steel armor (playPlayerHit).
 const FLESH_HIT_CLIP = '/audio/sword-hit-var-2.wav'
-const STONE_HIT_VARIANTS = [
+const METALLIC_HIT_CLIPS = [
   '/audio/sword-hit-var-1.wav',
   '/audio/sword-hit-var-3.wav',
 ] as const
@@ -130,8 +131,16 @@ export function playHit(vol = 1): void {
  *  metallic sword-hit takes; synth fallback shares the flesh-hit crack. */
 export function playPick(vol = 1): void {
   if (vol <= 0.02) return
-  const clip = STONE_HIT_VARIANTS[(Math.random() * STONE_HIT_VARIANTS.length) | 0]
+  const clip = METALLIC_HIT_CLIPS[(Math.random() * METALLIC_HIT_CLIPS.length) | 0]
   playSfx(clip, 0.5 * vol, 0.1).catch(() => hitSynth(vol))
+}
+
+/** Hit landing on the HERO — metallic sword-on-armor clang, the same impact the
+ *  player hears swinging into a foe, so taking a blow reads as a real strike.
+ *  Layered over playHurt's dull thud; synth fallback shares the flesh-hit crack. */
+export function playPlayerHit(): void {
+  const clip = METALLIC_HIT_CLIPS[(Math.random() * METALLIC_HIT_CLIPS.length) | 0]
+  playSfx(clip, 0.5, 0.1).catch(() => hitSynth())
 }
 
 /** Synth fallback for playHit — noise crack + low thud. */

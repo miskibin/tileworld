@@ -6,7 +6,6 @@ import {
   EffectComposer,
   Bloom,
   Vignette,
-  N8AO,
   GodRays,
   HueSaturation,
   BrightnessContrast,
@@ -268,10 +267,6 @@ const PostFX = memo(function PostFX({
   return (
     <>
       <EffectComposer multisampling={0} enableNormalPass={false}>
-        {/* Ambient occlusion grounds props/buildings into the terrain — the main
-            "depth" cue. Half-res + the "performance" preset keep the AO march
-            cheap; the denoise + half-res blur hide the lower sample count. */}
-        <N8AO halfRes quality="performance" aoRadius={3.0} distanceFalloff={1.5} intensity={3.6} />
         {/* Volumetric sun shafts from the emissive sun sphere (the priciest pass;
             low-res march + few samples, blur-smoothed so it still reads). */}
         <GodRays

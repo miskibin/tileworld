@@ -53,7 +53,9 @@ const HERB_CONFIG: ForageConfig = {
   harvestR: 0.85,
   float: { text: '+🌿 Marsh Herb', color: '#aef0c4', y: 1.0 },
   sway: { freq: 1.3, amp: 0.08 },
-  spawns: () => scatterInRegion('swamp', 13),
+  // n=40 because scatterInRegion now drops rim points that overlap onto forest/
+  // off-island tiles (~⅔ of the swamp ring), leaving ~13 herbs actually in the bog.
+  spawns: () => scatterInRegion('swamp', 40),
 }
 
 export function HerbPlants() {

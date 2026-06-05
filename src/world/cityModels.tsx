@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text, Sparkles } from '@react-three/drei'
+import { Billboard, Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { isPaused } from './pauseStore'
@@ -265,9 +265,11 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
 
       {/* "Press E" prompt */}
       <group ref={promptRef} position={[0, roofY + 2.6, 0]} visible={false}>
-        <Text fontSize={0.34} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.025}>
-          Press E — Upgrades
-        </Text>
+        <Billboard>
+          <Text fontSize={0.24} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.018}>
+            Press E — Upgrades
+          </Text>
+        </Billboard>
       </group>
 
       {/* Smoke + embers when the keep is burning (low HP only) */}

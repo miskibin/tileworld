@@ -307,10 +307,15 @@ export function scatterInRegion(biome: Biome, n: number): Array<{ x: number; z: 
       seed: (i * 0.6180339 + 0.13) % 1,
     })
   }
-  // Drop any point that fell on water / off the island — a big biome blob (e.g.
-  // the swamp) can overhang the map edge, and an off-island forage point would be
-  // planted where the player can never reach it. Survivors are still in-annulus.
-  return pts.filter((p) => tileAt(Math.floor(p.x), Math.floor(p.z)) !== null)
+  // Keep only points whose tile actually resolves to THIS biome. Two filters in
+  // one: drops off-island points (tileAt null — a blob can overhang the map edge,
+  // unreachable), AND drops points that fell on a neighbouring biome's tile. The
+  // big blobs overlap (forest r34 ∩ swamp r32), and regionAt resolves the overlap
+  // to the nearer centre — so a swamp-rim point on the forest side sits on a
+  // FOREST tile, which planted marsh herbs out in the woods (and apples in the
+  // bog). Same-biome-only keeps each forage field inside its own biome. Survivors
+  // are still in-annulus (distance is set from reg.r above, unaffected here).
+  return pts.filter((p) => tileAt(Math.floor(p.x), Math.floor(p.z))?.biome === biome)
 }
 
 /** True if (x,z) falls inside (or just outside) any mountain region blob

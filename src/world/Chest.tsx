@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Billboard, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
 import { isShopOpen } from './shopStore'
@@ -265,9 +265,11 @@ export function Chest({
       {/* "Press F" prompt — omitted under the headless inspector (troika <Text>) */}
       {!inspect && (
         <group ref={promptRef} position={[0, 1.1, 0]} visible={false}>
-          <Text fontSize={0.2} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.02}>
-            Press F to open
-          </Text>
+          <Billboard>
+            <Text fontSize={0.16} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.016}>
+              Press F to open
+            </Text>
+          </Billboard>
         </group>
       )}
     </group>

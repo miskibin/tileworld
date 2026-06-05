@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Billboard, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import { isFrozen } from './pauseStore'
 import { getPlayer } from './playerStore'
@@ -125,9 +125,11 @@ export function WarBell({ position, rotation = 0, inspect = false }: Props) {
       <WarBellModel bellRef={bellRef} />
       {!inspect && (
         <group ref={promptRef} position={[0, POST_H + 0.6, 0]} visible={false}>
-          <Text fontSize={0.32} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.025}>
-            Press E — ring the bell, begin the night
-          </Text>
+          <Billboard>
+            <Text fontSize={0.22} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.018}>
+              Press E — ring the bell, begin the night
+            </Text>
+          </Billboard>
         </group>
       )}
     </group>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text, Sparkles } from '@react-three/drei'
+import { Billboard, Text, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
@@ -221,9 +221,11 @@ export function Shop({ position, rotation = 0 }: ShopProps) {
 
       {/* "Press E" prompt floating above the sign */}
       <group ref={promptRef} position={[0, FOUND_H + 2.2, 0]} visible={false}>
-        <Text fontSize={0.22} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.02}>
-          {promptText}
-        </Text>
+        <Billboard>
+          <Text fontSize={0.18} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.016}>
+            {promptText}
+          </Text>
+        </Billboard>
       </group>
     </group>
   )

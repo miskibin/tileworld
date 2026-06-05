@@ -1,5 +1,6 @@
 import {
   playHurt,
+  playPlayerHit,
   playBlock,
   playGoldPickup,
   playLevelUpFanfare,
@@ -181,7 +182,8 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
   // shown over enemies the player hits.
   spawnFloat(`-${Math.round(dmg)}`, '#ff5a4a', state.x, state.y + 2.2, state.z)
   state.hurtFlashUntil = now + 0.35
-  playHurt()
+  playPlayerHit() // metallic clang of the blow landing on armor
+  playHurt() // dull thud under it
   if (state.hp <= 0) {
     state.deadSince = now
     playPlayerDeath()

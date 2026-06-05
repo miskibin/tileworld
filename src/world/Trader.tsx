@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Billboard, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import type { TraderState, TraderStateName } from './traderStore'
 import { nearestTrader, subscribeTraders } from './traderStore'
@@ -288,14 +288,16 @@ export function TraderView({ state, inspect = false }: Props) {
       {/* Interaction prompt (omitted headless). Scaled up to counter the 0.55 root. */}
       {!inspect && (
         <group ref={promptRef} position={[0, 2.4, 0]} visible={false} scale={1.8}>
-          <Text fontSize={0.22} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.02}>
-            Press E to trade
-          </Text>
-          <group ref={recruitLineRef} position={[0, -0.3, 0]} visible={false}>
-            <Text fontSize={0.2} color="#9be88a" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.02}>
-              Press R to recruit 📜
+          <Billboard>
+            <Text fontSize={0.18} color="#fff5cc" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.016}>
+              Press E to trade
             </Text>
-          </group>
+            <group ref={recruitLineRef} position={[0, -0.26, 0]} visible={false}>
+              <Text fontSize={0.16} color="#9be88a" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.016}>
+                Press R to recruit 📜
+              </Text>
+            </group>
+          </Billboard>
         </group>
       )}
     </group>

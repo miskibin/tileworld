@@ -135,6 +135,19 @@ const DIRT_STEP_VARIANTS = [
   '/audio/footstep-dirt-var-3.wav',
 ] as const
 
+// Base footstep loudness (was 0.12; +20%). Landing thud after a jump/fall is a
+// further +20% over a normal step.
+const STEP_VOL = 0.144
+const LAND_STEP_VOL = STEP_VOL * 1.2
+
+// Surface-matched footstep clip: snow on the icy massif, stone on rock
+// highlands, soft dirt (random variant) everywhere else.
+function stepClipForBiome(b: string | undefined): string {
+  return b === 'snow' ? '/audio/footstep-snow.mp3'
+    : b === 'rock' ? '/audio/footstep-stone.mp3'
+    : DIRT_STEP_VARIANTS[(Math.random() * DIRT_STEP_VARIANTS.length) | 0]
+}
+
 export interface PlayerStateRef {
   x: number
   z: number
@@ -529,6 +542,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       // Landed. If we fell from far enough above (walked off a cliff or jumped
       // off a peak), take fall damage scaled by the drop past the safe height.
       if (!wasOnGround) {
+        // Touchdown footstep — 20% louder than a walking step.
+        void playSfx(stepClipForBiome(tileBelow?.biome), LAND_STEP_VOL, 0.12)
         const fall = airTakeoffY.current - groundY
         // Landing dust scaled by the drop — a real jump/fall thumps up a ring,
         // tiny slope-steps (< 0.25) stay quiet so descending a hill isn't a
@@ -596,14 +611,8 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
       const half = Math.floor(wp / Math.PI)
       if (half !== lastStepHalfCycle.current) {
         lastStepHalfCycle.current = half
-        // Surface-matched footstep: snow on the icy massif, stone on rock
-        // highlands, soft dirt everywhere else.
         const b = tileBelow?.biome
-        const stepClip =
-          b === 'snow' ? '/audio/footstep-snow.mp3'
-          : b === 'rock' ? '/audio/footstep-stone.mp3'
-          : DIRT_STEP_VARIANTS[(Math.random() * DIRT_STEP_VARIANTS.length) | 0]
-        void playSfx(stepClip, 0.12, 0.12)
+        void playSfx(stepClipForBiome(b), STEP_VOL, 0.12)
         // Footfall dust: a sprint always kicks up a puff; a plain walk only
         // stirs loose ground (sand / snow / scree) so packed grass stays clean.
         const dust = dustForBiome(b)

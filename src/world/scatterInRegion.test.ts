@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scatterInRegion, regionByBiome } from './tileMap'
+import { scatterInRegion, regionByBiome, tileAt } from './tileMap'
 
 // scatterInRegion places foragables (herbs/apples). They should ring the biome's
 // OUTER rim (an annulus), not fill the disc — that pushes gather targets toward
@@ -19,6 +19,20 @@ describe('scatterInRegion', () => {
       const d = Math.hypot(p.x - reg.x, p.z - reg.z)
       expect(d).toBeGreaterThanOrEqual(reg.r * INNER - 1e-6)
       expect(d).toBeLessThanOrEqual(reg.r * OUTER + 1e-6)
+    }
+  })
+
+  // Regression: the blobs overlap (forest r34 ∩ swamp r32), so a rim point can
+  // land on the neighbour's tile — which planted marsh herbs in the forest and
+  // apples in the bog. Every surviving point must resolve to its OWN biome.
+  it.each([
+    ['swamp', 40],
+    ['forest', 26],
+  ] as const)('keeps %s points on %s tiles only (n=%i)', (biome, n) => {
+    const pts = scatterInRegion(biome, n)
+    expect(pts.length).toBeGreaterThanOrEqual(10) // enough survive to be worth the trip
+    for (const p of pts) {
+      expect(tileAt(Math.floor(p.x), Math.floor(p.z))?.biome).toBe(biome)
     }
   })
 
