@@ -1,34 +1,16 @@
 import * as THREE from 'three'
 
 /**
- * Terrain shader injection — two effects share one onBeforeCompile pass:
- *
- *  1. Per-fragment detail: world-space value-noise mottle, large-scale
- *     hue/value variation (the cure for "flat green"), and an optional tiling
- *     detail texture sampled in continuous world-XZ UVs (so the 1×1 grid never
- *     shows). Strength is tunable per material via `opts`.
- *  2. Player-centred "fog of war": terrain darkens with distance from the
- *     player (LoL-style sight bubble). Disabled by default (maxDarken 0).
+ * Terrain shader injection — per-fragment detail in one onBeforeCompile pass:
+ * world-space value-noise mottle, large-scale hue/value variation (the cure for
+ * "flat green"), and an optional tiling detail texture sampled in continuous
+ * world-XZ UVs (so the 1×1 grid never shows). Strength is tunable per material
+ * via `opts`.
  *
  * World position is computed *including* instanceMatrix, so the instanced
  * terrain tiles actually vary per tile — without this the noise repeats
  * identically inside every 1×1 box and the ground looks uniform.
- *
- * The fog-of-war uniforms are shared across every patched material so a single
- * write per frame updates the whole world.
  */
-export const playerPosUniform = { value: new THREE.Vector3(0, 0, 0) }
-// Player-centric darkening is disabled by default — daylight + the
-// camera-centric FogExp2 already handle distance. Bump
-// viewMaxDarkenUniform.value to something > 0 if you ever want a
-// LoL-style sight bubble back.
-export const viewRadiusUniform = { value: 18 }
-export const viewFalloffUniform = { value: 22 }
-export const viewMaxDarkenUniform = { value: 0 }
-
-export function setVisionPlayerPos(x: number, y: number, z: number): void {
-  playerPosUniform.value.set(x, y, z)
-}
 
 export interface TerrainShaderOpts {
   /** tiling detail texture sampled in world-XZ; only applied to up-facing faces */
@@ -63,10 +45,6 @@ export function applyVisionShader(
   const edgeAlpha = !!opts.edgeAlpha
 
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.uPlayerPos = playerPosUniform
-    shader.uniforms.uViewRadius = viewRadiusUniform
-    shader.uniforms.uViewFalloff = viewFalloffUniform
-    shader.uniforms.uViewMaxDarken = viewMaxDarkenUniform
     shader.uniforms.uVariation = { value: opts.variation ?? 0.6 }
     if (hasDetail) {
       shader.uniforms.uDetailMap = { value: opts.detail }
@@ -101,10 +79,6 @@ export function applyVisionShader(
       .replace(
         '#include <common>',
         `#include <common>
-         uniform vec3 uPlayerPos;
-         uniform float uViewRadius;
-         uniform float uViewFalloff;
-         uniform float uViewMaxDarken;
          uniform float uVariation;
          ${hasDetail ? 'uniform sampler2D uDetailMap;\nuniform float uDetailScale;\nuniform float uDetailStrength;\nuniform float uDetailMean;' : ''}
          ${edgeAlpha ? 'varying float vCoverage;' : ''}
@@ -153,12 +127,7 @@ export function applyVisionShader(
          float terTop = step(0.5, vTerrainUp);
          vec3 terDet = texture2D(uDetailMap, terWp * uDetailScale).rgb / max(uDetailMean, 0.01);
          gl_FragColor.rgb *= mix(vec3(1.0), terDet, uDetailStrength * terTop);
-         ` : ''}
-
-         // (4) player-centred darkening (fog of war), disabled when maxDarken = 0.
-         float terD = length(vTerrainWorldPos.xz - uPlayerPos.xz);
-         float terDark = smoothstep(uViewRadius, uViewRadius + uViewFalloff, terD) * uViewMaxDarken;
-         gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.04, 0.05, 0.10), terDark);`,
+         ` : ''}`,
       )
   }
   material.needsUpdate = true

@@ -68,7 +68,7 @@ Mobs and villagers navigate by A* over the tile grid:
 - [obstacles.ts](src/world/obstacles.ts) — procedural trees/rocks/bushes with collision radii; precomputes a `blockedTiles` set. Reserves footprints (camps, villages, castle, bridge approaches) so scatter doesn't spawn there.
 - [roads.ts](src/world/roads.ts) / [bridges.ts](src/world/bridges.ts) — hand-authored road polylines from the 4 castle gates; water crossings emit bridges. Bridges make otherwise-water tiles walkable (`bridgeAt`).
 - [houseBlockers.ts](src/world/houseBlockers.ts) — AABB footprints registered by House/City components on mount, cleared on unmount (scoped per owner so unmounting one structure doesn't wipe others).
-- [vision.ts](src/world/vision.ts) — fog-of-war shader injection into MeshStandardMaterial; wired but currently disabled (`maxDarken` 0), tunable via the leva panel.
+- [vision.ts](src/world/vision.ts) — `applyVisionShader` injects per-fragment terrain detail (world-space noise mottle, large-scale hue/value variation — the cure for "flat green" — and an optional tiling detail texture) into MeshStandardMaterial via `onBeforeCompile`.
 - [cull.ts](src/world/cull.ts) — `isCulled(x,z)` is true beyond ~46 tiles from the player. Entity `useFrame`s call it to skip AI/animation and hide meshes; this is the main perf lever on a dense map.
 
 ## Game loop & combat

@@ -2,11 +2,6 @@ import { useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { useControls, folder } from 'leva'
 import * as THREE from 'three'
-import {
-  viewMaxDarkenUniform,
-  viewRadiusUniform,
-  viewFalloffUniform,
-} from './vision'
 import { setDayFrozen, setDayTime, subscribeDay } from './timeStore'
 import { audioMix, applyLoopVolumes } from '../audio/audio'
 import { gradeTunables } from './gradeStore'
@@ -23,7 +18,7 @@ interface Props {
 
 /**
  * Wires the leva debug panel to scene-level things that can't easily live
- * as JSX props (fog uniform, scene background, vision shader uniforms).
+ * as JSX props (fog density, scene background, shared shader uniforms).
  * Light intensities are reported up to the parent so it can render
  * `<ambientLight intensity={…}>` directly — light JSX props can't be
  * mutated from outside.
@@ -71,12 +66,6 @@ export function DebugBindings({ onLights }: Props) {
     () => subscribeDay((s) => setDayUi({ hour: s.t * 24, frozen: s.frozen })),
     [setDayUi],
   )
-
-  const vis = useControls('Vision (fog of war)', {
-    radius: { value: viewRadiusUniform.value, min: 0, max: 60, step: 0.5 },
-    falloff: { value: viewFalloffUniform.value, min: 0, max: 60, step: 0.5 },
-    maxDarken: { value: viewMaxDarkenUniform.value, min: 0, max: 1, step: 0.01 },
-  })
 
   // Reactive screen grade (ReactiveGrade in World.tsx reads gradeTunables live).
   const grade = useControls('Reactive grade', {
@@ -129,12 +118,6 @@ export function DebugBindings({ onLights }: Props) {
   useEffect(() => {
     onLights({ ambient: env.ambient, hemi: env.hemi, dir: env.dir })
   }, [env.ambient, env.hemi, env.dir, onLights])
-
-  useEffect(() => {
-    viewRadiusUniform.value = vis.radius
-    viewFalloffUniform.value = vis.falloff
-    viewMaxDarkenUniform.value = vis.maxDarken
-  }, [vis.radius, vis.falloff, vis.maxDarken])
 
   // Reactive grade → live holder (read each frame by ReactiveGrade).
   useEffect(() => {

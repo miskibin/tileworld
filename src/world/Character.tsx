@@ -1,7 +1,7 @@
 import { useRef, useMemo, useState, useEffect, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { tileAt, tileTopY, canStepOrDrop, CENTER_X, CENTER_Z } from './tileMap'
+import { tileAt, tileTopY, canStepOrDrop } from './tileMap'
 import { obstacleCollidesAt } from './obstacles'
 import { useKeyboard } from './useKeyboard'
 import { playSfx, stopVoice } from '../audio/audio'
@@ -45,7 +45,6 @@ import { triggerHitStop, getTimeScale, resetHitStop } from './hitStopStore'
 import { orkBountyGold, orkBountyXp } from './orkConfig'
 import { spawnOrbs } from './orbStore'
 import { getDamageDealtMult, getSpeedMult } from './buffStore'
-import { setVisionPlayerPos } from './vision'
 import { nearestVillager, removeVillager } from './villagerStore'
 import { addGrave, startSoul, clearSoul, SUCCESSION_DURATION } from './successionStore'
 import { setPhase, setDefeatReason } from './gameStore'
@@ -937,14 +936,6 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
     }
     // Publish to module store so ork AI can read it (facing drives the block cone).
     setPlayerPos(pos.current.x, pos.current.y, pos.current.z, moving, facing.current)
-    // World-space player position drives the terrain fog-of-war shader.
-    // We render inside an offset group (-CENTER_X, 0, -CENTER_Z), so subtract
-    // those center offsets to get the actual world coords the shader expects.
-    setVisionPlayerPos(
-      pos.current.x - CENTER_X,
-      pos.current.y,
-      pos.current.z - CENTER_Z,
-    )
   })
 
   return (
