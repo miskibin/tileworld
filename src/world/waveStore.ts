@@ -1,6 +1,7 @@
 import type { OrkVariant } from './orkConfig'
 import { getCity } from './cityStore'
 import { addGold } from './playerStore'
+import { addItem } from './inventoryStore'
 
 // Escalating assault waves. `variants` is the pool sampled (round-robin by spawn
 // index) for that wave; `hpScale` multiplies each ork's base HP; `count` orks
@@ -37,6 +38,9 @@ export const PREP_DURATION = 180 // seconds — a full "day" to explore + rebuil
 /** Gold paid by the Tax Office (Economy upgrade) each time a wave is cleared. */
 export const TAX_STIPEND = 25
 
+/** Loaves the Granary Farm (Economy upgrade) yields each time a wave is cleared. */
+export const FARM_HARVEST = 3
+
 /**
  * Pay the Tax Office stipend on a wave clear. Called by the wave director at the
  * wave→prep transition (the only "wave cleared" event). No-op unless the Tax
@@ -46,6 +50,18 @@ export function payWaveClearStipend(): number {
   if (!getCity().taxOffice) return 0
   addGold(TAX_STIPEND)
   return TAX_STIPEND
+}
+
+/**
+ * Granary Farm yield: drop a few loaves of bread into the bag on each wave clear,
+ * so the farm is a standing source of healing food between sieges. Called from the
+ * wave director at the wave→prep transition. No-op (returns 0) unless the farm is
+ * built; the pickup toast fired by addItem tells the player it arrived.
+ */
+export function harvestFarm(): number {
+  if (!getCity().farmBuilt) return 0
+  addItem('bread', FARM_HARVEST)
+  return FARM_HARVEST
 }
 
 export interface WaveProgress {

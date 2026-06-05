@@ -13,6 +13,7 @@ import {
   setPrepSecondsLeft,
   consumePrepSkip,
   payWaveClearStipend,
+  harvestFarm,
 } from './waveStore'
 import { reviveTowers } from './towerStore'
 import { reviveVillagers } from './villagerStore'
@@ -49,9 +50,13 @@ function applyWaveAction(a: WaveAction): void {
       beginWave(a.index)
       break
     case 'setPhase':
-      // Tax Office stipend: pays only on a wave-clear → prep transition (the
-      // game-start menu→prep goes through StartScreen, not this reducer).
-      if (a.phase === 'prep') payWaveClearStipend()
+      // Tax Office stipend + Granary Farm harvest: both pay out only on a
+      // wave-clear → prep transition (the game-start menu→prep goes through
+      // StartScreen, not this reducer). Each no-ops unless its building stands.
+      if (a.phase === 'prep') {
+        payWaveClearStipend()
+        harvestFarm()
+      }
       setPhase(a.phase)
       break
     case 'spawn': {
