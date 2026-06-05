@@ -22,8 +22,8 @@ export default function App() {
           // mode has no composer and also wants the cheap path. Either way: off.
           antialias: false,
           powerPreference: 'high-performance',
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
+          toneMapping: THREE.AgXToneMapping,
+          toneMappingExposure: 1.15,
         }}
         camera={{ position: [36, 40, 40], fov: 32 }}
         onCreated={({ gl }) => {

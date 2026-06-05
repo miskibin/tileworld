@@ -519,14 +519,14 @@ export function World() {
           <Bloom
             mipmapBlur
             luminanceThreshold={1.0}
-            luminanceSmoothing={0.2}
-            intensity={0.7}
+            luminanceSmoothing={0.3}
+            intensity={0.6}
             kernelSize={KernelSize.MEDIUM}
           />
           {/* Warm cinematic grade: a touch more saturation + contrast. Saturation
               is driven down by ReactiveGrade when the hero is hurt. */}
           <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
-          <BrightnessContrast brightness={-0.02} contrast={0.1} />
+          <BrightnessContrast brightness={-0.02} contrast={0.12} />
           {/* Darkness is driven up by ReactiveGrade on low HP / a fresh hit. */}
           <Vignette ref={vignetteRef} offset={0.35} darkness={gradeTunables.baseDarkness} eskil={false} />
           <SMAA />

@@ -12,7 +12,7 @@
 // pattern as audio's `audioMix`. Defaults are the shipping values.
 export const gradeTunables = {
   baseDarkness: 0.5, // resting vignette darkness (calm, full HP)
-  baseSaturation: 0.12, // resting hue/sat boost
+  baseSaturation: 0.18, // resting hue/sat boost (richer; compensates AgX desaturation)
   lowThreshold: 0.35, // hp ratio below which dread ramps in
   lowDarken: 0.16, // extra vignette at 0 hp
   lowDesat: 0.25, // saturation pulled out at 0 hp
