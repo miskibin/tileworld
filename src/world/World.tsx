@@ -5,6 +5,7 @@ import { PositionalAudio, Sparkles, Environment } from '@react-three/drei'
 import {
   EffectComposer,
   Bloom,
+  DepthOfField,
   Vignette,
   N8AO,
   GodRays,
@@ -227,6 +228,9 @@ export function World() {
   // the ambient/bounce light, so ambient+hemi are dialled back and the sun is
   // pushed up for golden-hour contrast. Keep in sync with DebugBindings.tsx.
   const [lights, setLights] = useState({ ambient: 0.13, hemi: 0.24, dir: 2.1 })
+  // Depth-of-field (dreamy background blur). Tuned live via leva (DebugBindings →
+  // onDof). bokehScale 0 = effectively off. Reactive so leva edits update the pass.
+  const [dof, setDof] = useState({ focusDistance: 0.015, focalLength: 0.03, bokehScale: 3 })
   // GodRays needs the rendered sun mesh; capture it via callback ref.
   const [sunMesh, setSunMesh] = useState<THREE.Mesh | null>(null)
   // Effect handles the ReactiveGrade driver mutates each frame (low-HP grade +
@@ -244,7 +248,7 @@ export function World() {
 
   return (
     <>
-      <DebugBindings onLights={setLights} />
+      <DebugBindings onLights={setLights} onDof={setDof} />
 
       {/* Day/night cycle: owns the sky dome, the sun glow sphere, the moon, the
           star field and the position-independent fill lights, and animates them
@@ -523,6 +527,15 @@ export function World() {
             luminanceSmoothing={0.3}
             intensity={0.6}
             kernelSize={KernelSize.MEDIUM}
+          />
+          {/* Depth of field — soft background blur for a dreamy, less "hard
+              low-poly" read. focus/blur are leva-tunable (DebugBindings); the user
+              dials bokehScale to taste (0 = off). */}
+          <DepthOfField
+            focusDistance={dof.focusDistance}
+            focalLength={dof.focalLength}
+            bokehScale={dof.bokehScale}
+            height={480}
           />
           {/* Warm cinematic grade: a touch more saturation + contrast. Saturation
               is driven down by ReactiveGrade when the hero is hurt. */}

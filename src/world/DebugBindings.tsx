@@ -14,6 +14,7 @@ interface Props {
     hemi: number
     dir: number
   }) => void
+  onDof: (d: { focusDistance: number; focalLength: number; bokehScale: number }) => void
 }
 
 /**
@@ -23,7 +24,7 @@ interface Props {
  * `<ambientLight intensity={…}>` directly — light JSX props can't be
  * mutated from outside.
  */
-export function DebugBindings({ onLights }: Props) {
+export function DebugBindings({ onLights, onDof }: Props) {
   const scene = useThree((s) => s.scene)
 
   const env = useControls('Environment', {
@@ -108,6 +109,12 @@ export function DebugBindings({ onLights }: Props) {
     ambient: { value: audioMix.ambient, min: 0, max: 1, step: 0.01, label: 'ambient' },
   })
 
+  const dof = useControls('Depth of field', {
+    focusDistance: { value: 0.015, min: 0, max: 0.2, step: 0.001, label: 'focus dist' },
+    focalLength: { value: 0.03, min: 0, max: 0.3, step: 0.001, label: 'focal length' },
+    bokehScale: { value: 3, min: 0, max: 10, step: 0.5, label: 'blur amount' },
+  })
+
   // Push fog density to the scene when it changes (colour is cycle-driven).
   useEffect(() => {
     if (scene.fog && 'density' in scene.fog) {
@@ -118,6 +125,10 @@ export function DebugBindings({ onLights }: Props) {
   useEffect(() => {
     onLights({ ambient: env.ambient, hemi: env.hemi, dir: env.dir })
   }, [env.ambient, env.hemi, env.dir, onLights])
+
+  useEffect(() => {
+    onDof({ focusDistance: dof.focusDistance, focalLength: dof.focalLength, bokehScale: dof.bokehScale })
+  }, [dof.focusDistance, dof.focalLength, dof.bokehScale, onDof])
 
   // Reactive grade → live holder (read each frame by ReactiveGrade).
   useEffect(() => {
