@@ -30,3 +30,6 @@ dist-ssr
 
 # Local debug screenshots
 .shots/
+
+# Brainstorming visual companion mockups
+.superpowers/
