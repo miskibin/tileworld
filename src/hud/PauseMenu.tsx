@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react'
 import {
   isPaused,
   setPaused,
+  shouldPauseOnFullscreenExit,
   subscribePaused,
   togglePaused,
 } from '../world/pauseStore'
+import { subscribeFullscreen } from '../world/fullscreenStore'
 import { isShopOpen } from '../world/shopStore'
 import { isTreeOpen } from '../world/townHallStore'
 import { isInventoryOpen } from '../world/inventoryStore'
-import { isSettingsOpen, openSettings } from '../world/settingsStore'
+import { isSettingsOpen } from '../world/settingsStore'
+import { SettingsControls } from './SettingsControls'
 import { isStarted, setPhase } from '../world/gameStore'
 import { resetRun } from '../world/runReset'
 import { bumpRun } from '../world/runStore'
@@ -56,6 +59,30 @@ export function PauseMenu() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Esc while fullscreen: the browser exits fullscreen and (in Chrome) eats the
+  // keydown, so the handler above never sees it — the player just gets dumped out
+  // of fullscreen with no menu. Treat that fullscreen exit as the pause request
+  // so Esc still opens the menu (the fullscreen drop itself is unavoidable in the
+  // browser). subscribeFullscreen fires once on subscribe with the current value;
+  // wasFs starts equal to it so that immediate call is a no-op.
+  useEffect(() => {
+    let wasFs = false
+    return subscribeFullscreen((fs) => {
+      const modalOpen =
+        isShopOpen() || isTreeOpen() || isInventoryOpen() || isSettingsOpen()
+      if (
+        shouldPauseOnFullscreenExit(wasFs, fs, {
+          started: isStarted(),
+          modalOpen,
+          paused: isPaused(),
+        })
+      ) {
+        setPaused(true)
+      }
+      wasFs = fs
+    })
+  }, [])
+
   // The StartScreen owns the overlay before the game starts; the settings panel
   // renders above the pause card when open.
   if (!paused || !isStarted()) return null
@@ -74,9 +101,11 @@ export function PauseMenu() {
         <button className="pause-btn pause-btn-primary" onClick={() => setPaused(false)}>
           Resume
         </button>
-        <button className="pause-btn" onClick={openSettings}>
-          Settings
-        </button>
+
+        <div className="pause-settings">
+          <SettingsControls />
+        </div>
+
         {confirmExit ? (
           <button className="pause-btn pause-btn-danger" onClick={returnToMenu}>
             Abandon run — sure?

@@ -4,35 +4,18 @@ import {
   closeSettings,
   subscribeSettings,
 } from '../world/settingsStore'
-import {
-  isEnabled as isAudioEnabled,
-  setEnabled as setAudioEnabled,
-  subscribeEnabled as subscribeAudio,
-} from '../audio/audio'
-import { getQuality, setQuality, subscribeQuality, type Quality } from '../world/qualityStore'
-import {
-  isFullscreen,
-  toggleFullscreen,
-  subscribeFullscreen,
-} from '../world/fullscreenStore'
-
-const QUALITIES: Quality[] = ['low', 'medium', 'high']
+import { SettingsControls } from './SettingsControls'
 
 /**
- * One shared settings overlay, opened from the StartScreen and the PauseMenu.
- * Lean by design: audio on/off, graphics quality, fullscreen — nothing more.
- * Opening it freezes the world (settingsStore is ORed into isFrozen). Esc closes.
+ * The settings overlay used by the StartScreen (the PauseMenu now shows the same
+ * controls inline). Lean by design: audio on/off, graphics quality, fullscreen —
+ * nothing more. Opening it freezes the world (settingsStore is ORed into
+ * isFrozen). Esc closes.
  */
 export function SettingsPanel() {
   const [open, setOpen] = useState<boolean>(isSettingsOpen())
-  const [audio, setAudio] = useState<boolean>(isAudioEnabled())
-  const [quality, setQualityState] = useState<Quality>(getQuality())
-  const [fullscreen, setFullscreen] = useState<boolean>(isFullscreen())
 
   useEffect(() => subscribeSettings(setOpen), [])
-  useEffect(() => subscribeAudio(setAudio), [])
-  useEffect(() => subscribeQuality(setQualityState), [])
-  useEffect(() => subscribeFullscreen(setFullscreen), [])
 
   // Esc closes the panel (and is swallowed so it doesn't also toggle pause).
   useEffect(() => {
@@ -55,43 +38,7 @@ export function SettingsPanel() {
       <div className="settings-card" onClick={(e) => e.stopPropagation()}>
         <div className="settings-title">Settings</div>
 
-        <div className="settings-row">
-          <span className="settings-label">Audio</span>
-          <button
-            className={'settings-toggle' + (audio ? ' is-on' : '')}
-            onClick={() => setAudioEnabled(!audio)}
-            aria-pressed={audio}
-          >
-            {audio ? 'On' : 'Off'}
-          </button>
-        </div>
-
-        <div className="settings-row">
-          <span className="settings-label">Graphics</span>
-          <div className="seg" role="group" aria-label="Quality preset">
-            {QUALITIES.map((q) => (
-              <button
-                key={q}
-                className={'seg-btn' + (q === quality ? ' seg-on' : '')}
-                onClick={() => setQuality(q)}
-                aria-pressed={q === quality}
-              >
-                {q[0].toUpperCase() + q.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="settings-row">
-          <span className="settings-label">Fullscreen</span>
-          <button
-            className={'settings-toggle' + (fullscreen ? ' is-on' : '')}
-            onClick={toggleFullscreen}
-            aria-pressed={fullscreen}
-          >
-            {fullscreen ? 'On' : 'Off'}
-          </button>
-        </div>
+        <SettingsControls />
 
         <button className="settings-done" onClick={closeSettings}>
           Done

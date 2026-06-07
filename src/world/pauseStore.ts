@@ -32,6 +32,28 @@ export function togglePaused(): void {
   setPaused(!paused)
 }
 
+/**
+ * Whether dropping out of fullscreen should open the pause menu. The browser
+ * reserves Esc to exit fullscreen and (in Chrome) swallows the keydown, so the
+ * normal Esc->togglePaused handler never fires while fullscreen. We treat the
+ * fullscreen exit itself as the pause request — but only mid-run, with no modal
+ * already owning the screen, and not when we're already paused (avoids a
+ * double-toggle on browsers that DO deliver the keydown too, e.g. Firefox).
+ */
+export function shouldPauseOnFullscreenExit(
+  wasFullscreen: boolean,
+  nowFullscreen: boolean,
+  ctx: { started: boolean; modalOpen: boolean; paused: boolean },
+): boolean {
+  return (
+    wasFullscreen &&
+    !nowFullscreen &&
+    ctx.started &&
+    !ctx.modalOpen &&
+    !ctx.paused
+  )
+}
+
 export function subscribePaused(fn: (v: boolean) => void): () => void {
   subs.add(fn)
   return () => {

@@ -1132,7 +1132,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-width: 240px;
+  min-width: 300px;
   padding: 22px 26px 18px;
   background: rgba(18, 22, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1189,6 +1189,19 @@
   letter-spacing: 0.18em;
   color: #8a8e98;
   text-align: center;
+}
+
+/* Settings controls live inline in the pause card now (no sub-panel). Group them
+   with a little breathing room + hairline separators so they read as a block
+   distinct from the action buttons. */
+.pause-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 2px;
+  margin: 2px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .inv-header {
