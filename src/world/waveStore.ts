@@ -2,6 +2,7 @@ import type { OrkVariant } from './orkConfig'
 import { getCity } from './cityStore'
 import { addGold } from './playerStore'
 import { addItem } from './inventoryStore'
+import { getMods } from './difficultyStore'
 
 // Escalating assault waves. `variants` is the pool sampled (round-robin by spawn
 // index) for that wave; `hpScale` multiplies each ork's base HP; `count` orks
@@ -103,8 +104,12 @@ export function getWave(): WaveProgress {
  * getPhase() === 'prep'; callers gate on that.
  */
 export function getPrepProgress(): number {
-  const left = Math.min(PREP_DURATION, Math.max(0, state.prepSecondsLeft))
-  return 1 - left / PREP_DURATION
+  // The day's length scales with difficulty, so the sky sweep must measure
+  // against the effective duration (else easy's longer day would start the sun
+  // off-clamp and the sweep would stall for the first stretch).
+  const dur = PREP_DURATION * getMods().prepMul
+  const left = Math.min(dur, Math.max(0, state.prepSecondsLeft))
+  return 1 - left / dur
 }
 
 /** True while the final wave — the boss push — is the active one. */
@@ -153,6 +158,21 @@ export function consumePrepSkip(): boolean {
 
 export function resetWaves(): void {
   state.index = -1
+  state.enemiesAlive = 0
+  state.spawned = 0
+  state.prepSecondsLeft = 0
+  skipRequested = false
+  notify()
+}
+
+/** Saveable: just which wave we're on (the night). Per-wave counters reset on load
+ *  — the checkpoint always restores to the dawn (prep) of the saved night. */
+export function serializeWave(): { index: number } {
+  return { index: state.index }
+}
+
+export function hydrateWave(s: { index: number }): void {
+  state.index = s.index
   state.enemiesAlive = 0
   state.spawned = 0
   state.prepSecondsLeft = 0

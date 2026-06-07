@@ -1,6 +1,16 @@
 import { WAVES, PREP_DURATION, type WaveProgress } from './waveStore'
 import { ORK_CONFIG, type OrkVariant } from './orkConfig'
 import type { GamePhase } from './gameStore'
+import type { DiffMods } from './difficultyStore'
+
+/** Identity mods (Normal): no scaling. Used as the default so callers/tests that
+ *  don't care about difficulty get the tuned baseline. */
+const NORMAL_MODS: DiffMods = { countMul: 1, hpMul: 1, prepMul: 1 }
+
+/** Orks in wave `i` after the difficulty count multiplier (min 1). */
+export function effectiveCount(i: number, mods: DiffMods = NORMAL_MODS): number {
+  return Math.max(1, Math.round(WAVES[i].count * mods.countMul))
+}
 
 // Pure decision core for the assault director. WaveDirector.tsx feeds it the
 // current phase/wave/timers each frame and applies the emitted actions; keeping
@@ -30,6 +40,8 @@ export interface WaveStepInput {
   alive: number
   /** player pressed "Skip" — start the next wave now without waiting out prep */
   skip?: boolean
+  /** difficulty multipliers (count / hp / prep). Defaults to Normal (no scaling). */
+  mods?: DiffMods
 }
 
 export interface WaveStepResult {
@@ -46,11 +58,12 @@ export interface WaveStepResult {
  */
 export function stepWaveDirector(input: WaveStepInput): WaveStepResult {
   const { phase, wave, now, alive, skip } = input
+  const mods = input.mods ?? NORMAL_MODS
   const timers: WaveTimers = { ...input.timers }
   const actions: WaveAction[] = []
 
   if (phase === 'prep') {
-    if (timers.prepEndsAt === 0) timers.prepEndsAt = now + PREP_DURATION
+    if (timers.prepEndsAt === 0) timers.prepEndsAt = now + PREP_DURATION * mods.prepMul
     if (skip || now >= timers.prepEndsAt) {
       actions.push({ type: 'beginWave', index: wave.index + 1 })
       timers.spawnIndex = 0
@@ -64,16 +77,18 @@ export function stepWaveDirector(input: WaveStepInput): WaveStepResult {
   if (phase === 'wave') {
     const def = WAVES[wave.index]
     if (!def) return { actions, timers }
+    // Difficulty scales the head-count and per-ork HP (min 1 ork).
+    const count = Math.max(1, Math.round(def.count * mods.countMul))
     // Spawn on interval until the wave's quota is met.
-    if (wave.spawned < def.count && now >= timers.nextSpawnAt) {
+    if (wave.spawned < count && now >= timers.nextSpawnAt) {
       const variant: OrkVariant = def.variants[timers.spawnIndex % def.variants.length]
-      const hp = Math.round(ORK_CONFIG[variant].hp * def.hpScale)
+      const hp = Math.round(ORK_CONFIG[variant].hp * def.hpScale * mods.hpMul)
       actions.push({ type: 'spawn', variant, hp, spawnIndex: timers.spawnIndex, waveIndex: wave.index })
       timers.spawnIndex += 1
       timers.nextSpawnAt = now + def.spawnInterval
     }
     // Wave cleared once everything has spawned and nothing is left alive.
-    if (wave.spawned >= def.count && alive === 0) {
+    if (wave.spawned >= count && alive === 0) {
       actions.push({ type: 'setPhase', phase: wave.index >= WAVES.length - 1 ? 'victory' : 'prep' })
     }
   }

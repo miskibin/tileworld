@@ -1,6 +1,5 @@
 import {
   playHurt,
-  playPlayerHit,
   playBlock,
   playGoldPickup,
   playLevelUpFanfare,
@@ -182,8 +181,7 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
   // shown over enemies the player hits.
   spawnFloat(`-${Math.round(dmg)}`, '#ff5a4a', state.x, state.y + 2.2, state.z)
   state.hurtFlashUntil = now + 0.35
-  playPlayerHit() // metallic clang of the blow landing on armor
-  playHurt() // dull thud under it
+  playHurt() // dull body-impact thud — always plays so every hit has feedback
   if (state.hp <= 0) {
     state.deadSince = now
     playPlayerDeath()
@@ -232,6 +230,60 @@ export function resetPlayer(): void {
   resetPickups() // clear any ground loot so it doesn't carry into a fresh run
   resetResources() // banked stone resets with the run (gold does, above)
   resetGrade() // drop any lingering screen wince from the prior run
+  notifyHp()
+  notifyGold()
+  notifyStats()
+}
+
+/** Saveable progression + combat flags (no position / hp — load restores full hp
+ *  at the keep spawn). Mirrors the field set resetPlayer wipes. */
+export interface PlayerSave {
+  level: number
+  xp: number
+  xpToNext: number
+  maxHp: number
+  attackDamage: number
+  gold: number
+  critChance: number
+  lifesteal: number
+  moveSpeedMult: number
+  cleave: number
+  bountyMult: number
+}
+
+export function serializePlayer(): PlayerSave {
+  return {
+    level: state.level,
+    xp: state.xp,
+    xpToNext: state.xpToNext,
+    maxHp: state.maxHp,
+    attackDamage: state.attackDamage,
+    gold: state.gold,
+    critChance: state.critChance,
+    lifesteal: state.lifesteal,
+    moveSpeedMult: state.moveSpeedMult,
+    cleave: state.cleave,
+    bountyMult: state.bountyMult,
+  }
+}
+
+/** Apply a saved snapshot: restore progression + flags, wake at full HP, alive. */
+export function hydratePlayer(s: PlayerSave): void {
+  state.level = s.level
+  state.xp = s.xp
+  state.xpToNext = s.xpToNext
+  state.maxHp = s.maxHp
+  state.attackDamage = s.attackDamage
+  state.gold = s.gold
+  state.critChance = s.critChance
+  state.lifesteal = s.lifesteal
+  state.moveSpeedMult = s.moveSpeedMult
+  state.cleave = s.cleave
+  state.bountyMult = s.bountyMult
+  state.hp = s.maxHp
+  state.deadSince = null
+  state.hurtFlashUntil = 0
+  state.levelUpFlashUntil = 0
   notifyHp()
   notifyGold()
   notifyStats()

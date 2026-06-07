@@ -35,3 +35,13 @@ export function resetUnlocks(): void {
   unlocked.clear()
   notify()
 }
+
+export function serializeUnlocks(): string[] {
+  return [...unlocked]
+}
+
+export function hydrateUnlocks(ids: string[]): void {
+  unlocked.clear()
+  for (const id of ids) unlocked.add(id)
+  notify()
+}

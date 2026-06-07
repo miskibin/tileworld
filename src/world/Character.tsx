@@ -20,6 +20,7 @@ import { damageOrk, knockbackOrk, getAliveOrks, orkCollidesAt } from './orkStore
 import { damageBear, getAliveBears, bearCollidesAt } from './bearStore'
 import { damageAnimal, getAliveAnimals, animalCollidesAt } from './animalStore'
 import { damageOre, getAliveOre, oreCollidesAt } from './oreStore'
+import { damageDummy, getAliveDummies, dummyCollidesAt } from './dummyStore'
 import { addStone } from './resourceStore'
 import { ANIMAL_CONFIG } from './animalConfig'
 import { bridgeAt } from './bridges'
@@ -456,6 +457,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         !bearCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !animalCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !oreCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
+        !dummyCollidesAt(nx, pos.current.z, PLAYER_RADIUS) &&
         !houseBlocksAt(nx, pos.current.z)
       const canMoveZ =
         canStepOrDrop(cxFloor, czFloor, cxFloor, Math.floor(nz)) &&
@@ -464,6 +466,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         !bearCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !animalCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !oreCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
+        !dummyCollidesAt(pos.current.x, nz, PLAYER_RADIUS) &&
         !houseBlocksAt(pos.current.x, nz)
       if (canMoveX) pos.current.x = nx
       if (canMoveZ) pos.current.z = nz
@@ -515,7 +518,11 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
         const dx = pos.current.x - CASTLE_CENTER.x
         const dz = pos.current.z - CASTLE_CENTER.z
         const nearHome = dx * dx + dz * dz < (CASTLE_SAFE_R * 1.25) ** 2
-        if (!nearHome || !wildernessSpoken()) line = undefined
+        // The line talks about ringing the bell to start the night — only true
+        // during the prep day. Suppress it at night, when the bell can't be rung
+        // and the orks are already here ("safe here" would be a lie mid-siege).
+        const inPrep = getWave().prepSecondsLeft > 0
+        if (!nearHome || !wildernessSpoken() || !inPrep) line = undefined
       }
       // Only muse within ~6 s of entering; past that the "oh, a forest" is stale.
       const fresh = tnow - biomeEnteredAt.current < 6
@@ -725,6 +732,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
           let hitAny = false
           let killedAny = false
           let hitOre = false
+          let hitDummy = false
           for (const dog of getAliveDogs()) {
             if (!inCone(dog.x, dog.z)) continue
             const died = damageDog(dog, dmg, hitT)
@@ -893,6 +901,14 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
               spawnFloat(`${dmg}`, '#c0c6cc', o.x, o.y + 1.6, o.z)
             }
           }
+          // ─── Training dummies: practice targets — no HP, no reward ──
+          for (const d of getAliveDummies()) {
+            if (!inCone(d.x, d.z)) continue
+            damageDummy(d, hitT)
+            hitDummy = true
+            spawnImpact(d.x, d.y + 1.0, d.z, { color: '#d8c46a', count: 6, spread: 2.2, up: 1.2 })
+            spawnFloat(`${dmg}`, '#e8dcb0', d.x, d.y + 1.7, d.z)
+          }
           // Combat juice: impact SFX + camera shake + hit-stop scaled to the
           // outcome. A kill freezes longer so a takedown lands with more weight.
           if (killedAny) {
@@ -911,6 +927,12 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
             addShake(0.3)
             addFovKick(fovTunables.hit)
             triggerHitStop(0.05)
+          } else if (hitDummy) {
+            // Practice target — a soft thwack with a little weight, no kill juice.
+            playHit()
+            addShake(0.2)
+            addFovKick(fovTunables.hit)
+            triggerHitStop(0.04)
           } else {
             // Whiffed — only now the empty-swing whoosh, so a connecting hit
             // never stacks whoosh + impact.

@@ -35,7 +35,6 @@ import { TraderView } from '../src/world/Trader'
 import { createTrader } from '../src/world/traderStore'
 import { Boat } from '../src/world/Boat'
 import { Grave } from '../src/world/Grave'
-import { DistantMountains } from '../src/world/DistantMountains'
 import { WolfView } from '../src/world/Wolf'
 import { ElkView } from '../src/world/Elk'
 import { ScorpionView } from '../src/world/Scorpion'
@@ -58,6 +57,8 @@ import { Cage } from '../src/world/CampCage'
 import { WarBellModel } from '../src/world/WarBell'
 import { HerbModel } from '../src/world/HerbPlants'
 import { AppleModel } from '../src/world/AppleTrees'
+import { TrainingDummy } from '../src/world/TrainingDummy'
+import { Signpost } from '../src/world/Signpost'
 
 // Character is loaded lazily/tolerantly: it transitively imports a number of
 // gameplay stores, and if any of those is mid-refactor (a dangling import) a
@@ -108,7 +109,6 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   Keep: () => <Keep position={[0, 0, 0]} />,
   Boat: () => <Boat />,
   Grave: () => <Grave position={[0, 0, 0]} />,
-  DistantMountains: () => <DistantMountains />,
   // Chest carries a drei <Text> prompt; pass inspect to omit it so it mounts headless.
   Chest: () => <Chest position={[0, 0, 0]} inspect />,
   FrozenSpire: () => <FrozenSpire position={[0, 0, 0]} />,
@@ -121,6 +121,9 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   WarBell: () => <WarBellModel />,
   Herb: () => <HerbModel />,
   Apple: () => <AppleModel />,
+  TrainingDummy: () => <TrainingDummy position={[0, 0, 0]} />,
+  TrainingDummyPell: () => <TrainingDummy position={[0, 0, 0]} isPell />,
+  Signpost: () => <Signpost position={[0, 0, 0]} />,
   Villager: () => (
     <VillagerView
       state={createVillager({

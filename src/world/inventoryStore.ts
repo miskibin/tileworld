@@ -423,3 +423,39 @@ export function resetInventory(): void {
   state.open = false
   notify()
 }
+
+/** Saveable inventory: bag contents + equipped gear (the modal-open flag is not
+ *  persisted — load always starts closed). */
+export interface InventorySave {
+  bag: Slot[]
+  weaponBonus: number
+  equippedId: string | null
+  equippedArmorId: string | null
+  armorDamageMult: number
+}
+
+export function serializeInventory(): InventorySave {
+  return {
+    bag: state.bag.map((s) => ({ itemId: s.itemId, count: s.count })),
+    weaponBonus: state.weaponBonus,
+    equippedId: state.equippedId,
+    equippedArmorId: state.equippedArmorId,
+    armorDamageMult: state.armorDamageMult,
+  }
+}
+
+export function hydrateInventory(s: InventorySave): void {
+  // Rebuild a full-size bag from the saved slots so the array length is always
+  // BAG_SIZE even if the save predates a capacity change.
+  const bag = emptyBag()
+  for (let i = 0; i < bag.length && i < s.bag.length; i++) {
+    bag[i] = { itemId: s.bag[i].itemId, count: s.bag[i].count }
+  }
+  state.bag = bag
+  state.weaponBonus = s.weaponBonus
+  state.equippedId = s.equippedId
+  state.equippedArmorId = s.equippedArmorId
+  state.armorDamageMult = s.armorDamageMult
+  state.open = false
+  notify()
+}

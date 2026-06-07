@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { isPaused } from './pauseStore'
 import { getPlayer } from './playerStore'
 import { openTree, closeTree, isTreeOpen } from './townHallStore'
+import { getPhase } from './gameStore'
 import { getCastle } from './castleStore'
 import { KEEP_INTERACT, INTERACT_DIST, CITY_WALL_HEIGHT } from './cityPlan'
 import { stoneTexture, woodTexture, shingleTexture, soilTexture } from './textures'
@@ -203,7 +204,8 @@ export function Keep({ position, rotation = 0 }: KeepProps) {
     const dz = p.z - KEEP_INTERACT.z
     const inRange = Math.hypot(dx, dz) < INTERACT_DIST
     inRangeRef.current = inRange
-    if (promptRef.current) promptRef.current.visible = inRange && !isTreeOpen()
+    // Hidden behind the StartScreen (menu): the player boots in range of the keep.
+    if (promptRef.current) promptRef.current.visible = inRange && !isTreeOpen() && getPhase() !== 'menu'
   })
 
   useEffect(() => {

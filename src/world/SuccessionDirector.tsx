@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { subscribePhase, getPhase, type GamePhase } from './gameStore'
-import { createVillager } from './villagerStore'
+import { createVillager, getVillagers } from './villagerStore'
 import { HOUSE_SLOTS, slotGroundY } from './cityPlan'
 import { resetGraves } from './successionStore'
 
@@ -41,8 +41,11 @@ export function SuccessionDirector() {
   const prev = useRef<GamePhase>(getPhase())
   useEffect(() => {
     const unsub = subscribePhase((p) => {
-      // Game start (menu → prep): seed the founding townsfolk.
-      if (prev.current === 'menu' && p === 'prep') {
+      // Game start (menu → prep): seed the founding townsfolk — but ONLY for a
+      // brand-new run. A resumed save (loadGame restores the guards, THEN flips
+      // to 'prep') already has its bloodline, so seeding here would stack 3
+      // phantom heirs onto the roster on every Continue. Skip when guards exist.
+      if (prev.current === 'menu' && p === 'prep' && !getVillagers().some((v) => v.isGuard)) {
         for (let i = 0; i < STARTING_HEIRS; i++) birthVillagerAtDawn()
       }
       // wave → prep means a wave was just cleared: dawn breaks, a child is born.

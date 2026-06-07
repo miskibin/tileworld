@@ -1,6 +1,7 @@
 import { isShopOpen } from './shopStore'
 import { isTreeOpen } from './townHallStore'
 import { isInventoryOpen } from './inventoryStore'
+import { isSettingsOpen } from './settingsStore'
 
 // World runs live by default — the StartScreen is just an overlay, time keeps
 // ticking behind it. Only end screens + an explicit Esc pause freeze the sim
@@ -18,7 +19,7 @@ export function isPaused(): boolean {
  * enemies don't keep attacking and the player can't walk behind an open panel.
  */
 export function isFrozen(): boolean {
-  return paused || isShopOpen() || isTreeOpen() || isInventoryOpen()
+  return paused || isShopOpen() || isTreeOpen() || isInventoryOpen() || isSettingsOpen()
 }
 
 export function setPaused(v: boolean): void {

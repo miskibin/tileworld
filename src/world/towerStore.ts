@@ -73,6 +73,16 @@ export function resetTowers(): void {
   notify()
 }
 
+/** Saveable: only the Tower Mastery flag — per-tower HP is rebuilt full each prep. */
+export function serializeTowers(): { mastery: boolean } {
+  return { mastery: state.mastery }
+}
+
+export function hydrateTowers(s: { mastery: boolean }): void {
+  state.mastery = s.mastery
+  notify()
+}
+
 export function subscribeTowers(fn: (s: TowerState) => void): () => void {
   subs.add(fn)
   fn(state)

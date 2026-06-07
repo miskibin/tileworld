@@ -154,6 +154,57 @@ export function resetVillagers(): void {
   notifyVillagers()
 }
 
+/** The persistent fields of one castle guard (the bloodline lives pool). Transient
+ *  combat/path/state fields are omitted — they re-derive at runtime. */
+export interface GuardSave {
+  x: number
+  y: number
+  z: number
+  facing: number
+  homeX: number
+  homeZ: number
+  gardenX: number
+  gardenZ: number
+  doorX: number
+  doorZ: number
+  seed: number
+  paletteIndex: number
+  recruited: boolean
+}
+
+/** Save only the castle guards — the player-accumulated lives pool that nothing
+ *  re-creates on a fresh mount. Wilderness villagers re-seed deterministically and
+ *  are excluded. */
+export function serializeGuards(): GuardSave[] {
+  return villagers
+    .filter((v) => v.isGuard)
+    .map((v) => ({
+      x: v.x, y: v.y, z: v.z, facing: v.facing,
+      homeX: v.homeX, homeZ: v.homeZ,
+      gardenX: v.gardenX, gardenZ: v.gardenZ,
+      doorX: v.doorX, doorZ: v.doorZ,
+      seed: v.seed, paletteIndex: v.paletteIndex,
+      recruited: v.recruited,
+    }))
+}
+
+/** Re-create saved guards via the normal createVillager path (isGuard re-derives
+ *  from the in-castle home anchor). Called by restore() on a clean roster — from
+ *  the menu (loadGame) or after a remount (RunLoad). */
+export function hydrateGuards(list: GuardSave[]): void {
+  for (const g of list) {
+    const v = createVillager({
+      x: g.x, y: g.y, z: g.z, facing: g.facing,
+      homeX: g.homeX, homeZ: g.homeZ,
+      gardenX: g.gardenX, gardenZ: g.gardenZ,
+      doorX: g.doorX, doorZ: g.doorZ,
+      seed: g.seed, paletteIndex: g.paletteIndex,
+    })
+    v.recruited = g.recruited
+  }
+  notifyVillagers()
+}
+
 export function getVillagers(): VillagerState[] {
   return villagers
 }

@@ -389,9 +389,16 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 32%, rgba(38, 56, 90, 0.55), rgba(5, 8, 16, 0.92));
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  /* Light scrim only behind the card so the live scene reads bright + sharp at
+     the edges (the hero shot), while the title/buttons keep enough contrast. */
+  background: radial-gradient(
+    ellipse 62% 58% at 50% 44%,
+    rgba(6, 10, 20, 0.68) 0%,
+    rgba(6, 10, 20, 0.3) 46%,
+    rgba(6, 10, 20, 0) 74%
+  );
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
   pointer-events: auto;
   z-index: 20;
   animation: fade-in 320ms ease-out;
@@ -521,13 +528,112 @@
   z-index: 1;
 }
 
+/* --- Settings cluster (Audio toggle / Quit) under the Play button --- */
+.start-settings {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  opacity: 0;
+  animation: rise 700ms ease-out 420ms forwards;
+}
+
+.start-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #d6def0;
+  padding: 8px 16px;
+  background: linear-gradient(180deg, rgba(40, 52, 76, 0.78), rgba(24, 32, 50, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: transform 120ms ease, filter 120ms ease, border-color 120ms ease;
+}
+
+.start-opt:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.12);
+  border-color: rgba(130, 162, 234, 0.6);
+}
+
+.start-opt:active {
+  transform: translateY(0);
+}
+
+.start-opt svg {
+  opacity: 0.85;
+}
+
+/* --- Graphics / quality-preset segmented control --- */
+.start-quality {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  opacity: 0;
+  animation: rise 700ms ease-out 480ms forwards;
+}
+
+.start-quality-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+  color: #c79b6a;
+}
+
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  background: rgba(14, 20, 34, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.seg-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #93a1b8;
+  padding: 7px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.seg-btn:hover {
+  color: #d6def0;
+}
+
+.seg-on {
+  color: #fff;
+  background: linear-gradient(180deg, #e0a458 0%, #c8843a 100%);
+  box-shadow: 0 3px 10px rgba(176, 110, 40, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.seg-on:hover {
+  color: #fff;
+}
+
 .start-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 9px 20px;
   max-width: 460px;
-  margin-top: 28px;
+  margin-top: 24px;
   opacity: 0;
   animation: rise 700ms ease-out 440ms forwards;
 }
@@ -1723,4 +1829,346 @@
   height: 100%;
   width: 100%;
   background: linear-gradient(180deg, #ffe27a 0%, #e0a83a 100%);
+}
+
+/* ============================================================================
+   Release menu pass — cinematic start screen (layout B), shared settings panel,
+   system notice, polished end-screen actions. The live world orbits behind the
+   menu (MouseLookCamera handles the camera); these are the DOM overlays.
+   ========================================================================== */
+
+/* Cinematic variant: replace the centered scrim with a corner-anchored one so
+   the island stays bright + crisp, and let the menu sit lower-left. */
+.start-cinematic {
+  align-items: stretch;
+  justify-content: flex-start;
+  background:
+    linear-gradient(105deg, rgba(6, 10, 20, 0.7) 0%, rgba(6, 10, 20, 0.34) 34%, rgba(6, 10, 20, 0) 60%),
+    linear-gradient(0deg, rgba(6, 10, 20, 0.6) 0%, rgba(6, 10, 20, 0) 38%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.start-cinematic::after {
+  box-shadow: inset 0 0 260px 80px rgba(0, 0, 0, 0.55);
+}
+
+/* Cheap static backdrop, only swapped in on 'low' quality so weak GPUs don't
+   render the live scene behind the title. */
+.start-static-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #2f4f70 0%, #5b7d96 32%, #8aa6a0 52%, #7a9a55 66%, #5f7e3f 100%);
+}
+
+.start-menu {
+  position: absolute;
+  left: clamp(36px, 6vw, 110px);
+  bottom: clamp(40px, 9vh, 96px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  z-index: 1;
+  max-width: 360px;
+}
+
+/* Title stacked TILE / WORLD, lower-left. */
+.start-cinematic .start-title {
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(54px, 8vw, 96px);
+  line-height: 0.84;
+  letter-spacing: 0.03em;
+  animation: rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 120ms forwards;
+}
+
+.start-cinematic .start-kicker {
+  animation: rise 600ms ease-out 60ms forwards;
+}
+
+.start-cinematic .start-tagline {
+  margin: 2px 0 6px;
+  animation: rise 700ms ease-out 200ms forwards;
+}
+
+.start-cinematic .start-play {
+  align-self: flex-start;
+  padding: 13px 44px;
+  animation: rise 700ms ease-out 280ms forwards;
+}
+
+.start-difficulty {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  opacity: 0;
+  animation: rise 700ms ease-out 340ms forwards;
+}
+
+.start-diff-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #c79b6a;
+}
+
+.start-actions {
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  animation: rise 700ms ease-out 400ms forwards;
+}
+
+/* Controls legend → faint, compact, bottom-right. */
+.start-cinematic .start-controls {
+  position: absolute;
+  right: clamp(18px, 3vw, 48px);
+  bottom: clamp(18px, 4vh, 44px);
+  left: auto;
+  max-width: 280px;
+  justify-content: flex-end;
+  gap: 6px 14px;
+  margin: 0;
+  opacity: 0;
+  animation: rise 700ms ease-out 520ms forwards;
+}
+.start-cinematic .start-controls .ctrl {
+  opacity: 0.62;
+}
+
+/* --- Shared settings panel (start screen + pause) --- */
+.settings-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 8, 14, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  pointer-events: auto;
+  z-index: 30;
+  animation: fade-in 200ms ease-out;
+}
+
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 320px;
+  padding: 24px 28px 20px;
+  background: rgba(18, 22, 32, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+  animation: pop-in 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.settings-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #f3f3f5;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.settings-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #b9c2d4;
+}
+
+.settings-toggle {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  min-width: 64px;
+  padding: 7px 16px;
+  color: #93a1b8;
+  background: rgba(14, 20, 34, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.settings-toggle:hover {
+  color: #d6def0;
+  border-color: rgba(130, 162, 234, 0.5);
+}
+.settings-toggle.is-on {
+  color: #fff;
+  background: linear-gradient(180deg, #e0a458 0%, #c8843a 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.settings-done {
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 10px 14px;
+  background: #4a6fc8;
+  color: #fff;
+  border: 1px solid #5a7fd6;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+.settings-done:hover {
+  background: #557fde;
+  transform: translateY(-1px);
+}
+
+/* --- End-screen actions (victory + defeat) --- */
+.victory-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  animation: float-up 500ms ease-out 520ms backwards;
+}
+.victory-menu {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 11px 26px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e6e9ef;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transition: background 120ms ease, transform 120ms ease;
+}
+.victory-menu:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px) scale(1.03);
+}
+
+/* --- Pause: destructive + dev button variants --- */
+.pause-btn-danger {
+  background: rgba(150, 54, 54, 0.85);
+  border-color: rgba(220, 90, 90, 0.7);
+  color: #fff;
+}
+.pause-btn-danger:hover {
+  background: rgba(180, 64, 64, 0.95);
+  border-color: rgba(240, 110, 110, 0.85);
+}
+.pause-btn-dev {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* --- System notice (one transient line, top-center) --- */
+.notice {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f3e6c8;
+  background: rgba(18, 22, 32, 0.86);
+  border: 1px solid rgba(224, 164, 88, 0.5);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 25;
+  animation: notice-in 280ms ease-out;
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* --- Loading screen (covers the shader warm-up camera sweep at boot/restart) --- */
+.loading-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 38%, #1c2740 0%, #0c1120 60%, #070a14 100%);
+  pointer-events: auto;
+  z-index: 40;
+  opacity: 1;
+  transition: opacity 480ms ease;
+}
+.loading-screen.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.loading-kicker {
+  font-size: 12px;
+  letter-spacing: 0.46em;
+  text-indent: 0.46em;
+  color: #c79b6a;
+  font-weight: 700;
+}
+
+.loading-title {
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-indent: 0.16em;
+  background: linear-gradient(180deg, #ffffff 0%, #d3e1ff 46%, #8fb0e8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.6));
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  margin-top: 6px;
+  border: 3px solid rgba(199, 155, 106, 0.25);
+  border-top-color: #e0a458;
+  border-radius: 50%;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+.loading-text {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: #9fb0cc;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

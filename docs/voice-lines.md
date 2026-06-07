@@ -34,7 +34,7 @@ leaves the biome mid-line.
 
 | File | Biome | Lyrics |
 |---|---|---|
-| `home.mp3` | grass (castle) | "Home, finally. Safe here. Guess I ring the bell when I'm ready, then they come." |
+| `home.mp3` | grass (castle) | "Home, finally. Safe here. Guess I ring the bell when I'm ready, then they come." (home line: also gated to the prep day — `prepSecondsLeft > 0` — so it never plays at night when the bell can't be rung and the orks have already come) |
 | `forest.mp3` | forest | "Oh, a forest. Looks like good hunting. Might find some apples too. Huh, prisoners. Maybe I can help them." |
 | `desert.mp3` | desert | "Desert, great. It's hot. Something worth hunting out here, I bet. Are those captives? I could get them out." |
 | `snow.mp3` | snow | "Brr, freezing up here. Bet there's beasts to hunt. Maybe loot in the ice. Someone's locked in that cage. Should I free them?" |

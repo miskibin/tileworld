@@ -293,16 +293,32 @@ const PARTS: Record<string, Part[]> = {
 // identical — same material, same shadow casting — only the draw count drops.
 // e.g. tuft (3 cones, one mat) 3→1; cactus (5 body + 3 cap) 8→2; tree 4→4
 // (four distinct mats, already minimal).
+// Kinds whose silhouettes are too small to read as a sun shadow at this map scale.
+// Every scatter kind is one map-wide InstancedMesh with a giant bounding sphere, so
+// the sun shadow pass redraws ALL of their instances every refresh regardless of
+// where the player is — the dominant cost of that pass (draw calls spike ~380→1230,
+// see SunShadow.tsx). These contribute only sub-pixel shadow blobs, so dropping them
+// from the depth map is nearly invisible and cuts the caster count hard. Big
+// silhouettes (tree/birch/deadTree/boulder/cactus/pine) keep casting.
+const NO_SHADOW_KINDS = new Set<string>([
+  'rock', 'tuft',
+  'bush-0', 'bush-1', 'bush-2',
+  'mushroom-0', 'mushroom-1',
+  'flower-0', 'flower-1', 'flower-2', 'flower-3',
+  'iceShard', 'bones', 'reeds',
+])
+
 const mergedPartCache = new Map<string, Part[]>()
 function mergedParts(key: string): Part[] {
   const cached = mergedPartCache.get(key)
   if (cached) return cached
   const raw = PARTS[key]
+  const noShadow = NO_SHADOW_KINDS.has(key)
   const buckets = new Map<string, { geos: THREE.BufferGeometry[]; mat: THREE.Material; castShadow: boolean; tint: boolean }>()
   // Preserve first-seen order so any draw ordering stays stable.
   const order: string[] = []
   for (const part of raw) {
-    const cast = part.castShadow ?? false
+    const cast = noShadow ? false : (part.castShadow ?? false)
     const tint = part.tint ?? false
     // Bucket by material identity (module singletons) + shadow flag + tint flag.
     // Tinted parts must stay separate so per-instance color can be set independently.

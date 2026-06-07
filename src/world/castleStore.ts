@@ -69,6 +69,25 @@ export function resetCastle(): void {
   notify()
 }
 
+/** Saveable: the Reinforced Keep state. HP is not saved — load restores the keep
+ *  to full (dawn). */
+export interface CastleSave {
+  reinforced: boolean
+  maxHp: number
+}
+
+export function serializeCastle(): CastleSave {
+  return { reinforced: state.reinforced, maxHp: state.maxHp }
+}
+
+export function hydrateCastle(s: CastleSave): void {
+  state.reinforced = s.reinforced
+  state.maxHp = s.maxHp
+  state.hp = s.maxHp
+  state.hurtFlashUntil = 0
+  notify()
+}
+
 export function subscribeCastle(fn: (s: CastleState) => void): () => void {
   subs.add(fn)
   fn(state)

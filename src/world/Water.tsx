@@ -7,8 +7,8 @@ import { waterTexture } from './textures'
 import { getDay, sunDirAt } from './timeStore'
 
 // Wide open ocean ring around the island. A big plane fading into the horizon
-// fog reads as the open sea; the margin is generous so the distant mountain
-// backdrop (see DistantMountains) sits well out on the water, not at the edge.
+// fog reads as the open sea; the margin is generous so the sea extends well
+// past the island, not cut off at the coast.
 const W = COLS + 280
 const H = ROWS + 280
 

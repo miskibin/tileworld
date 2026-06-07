@@ -18,6 +18,7 @@ import {
 import { reviveTowers } from './towerStore'
 import { reviveVillagers } from './villagerStore'
 import { isFrozen } from './pauseStore'
+import { getMods } from './difficultyStore'
 import { stepWaveDirector, type WaveAction, type WaveTimers } from './waveLogic'
 
 // Orks enter from a ring around the keep — far enough to read as "incoming",
@@ -110,6 +111,7 @@ export function WaveDirector() {
       now,
       alive,
       skip: consumePrepSkip(),
+      mods: getMods(),
     })
     timers.current = next
     for (const a of actions) applyWaveAction(a)

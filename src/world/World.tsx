@@ -33,6 +33,7 @@ import { HerbPlants } from './HerbPlants'
 import { AppleTrees } from './AppleTrees'
 import { CampCage } from './CampCage'
 import { WarBell } from './WarBell'
+import { MusterYard } from './MusterYard'
 import { Projectiles } from './Projectiles'
 import { Impacts } from './Impacts'
 import { Dust } from './Dust'
@@ -60,6 +61,9 @@ import { DayNight } from './DayNight'
 import { SunShadow } from './SunShadow'
 import { PerfTrace } from './PerfTrace'
 import { QualityToggle } from './QualityToggle'
+import { PerfGovernor } from './PerfGovernor'
+import { AdaptiveResolution } from './AdaptiveResolution'
+import { RunLoad } from './RunLoad'
 import { ShaderWarmup } from './ShaderWarmup'
 import { Cullable } from './Cullable'
 import { getQuality, subscribeQuality } from './qualityStore'
@@ -254,26 +258,59 @@ function DofDriver({ dofRef }: { dofRef: RefObject<DepthOfFieldEffect | null> })
 // re-renders (sunMesh + the two effect refs), so memo skips the re-render and the
 // pipeline builds exactly once. Grade is driven imperatively by ReactiveGrade
 // (refs, per frame), so it updates without any re-render.
+// Two real tiers gate the post stack:
+//   'medium' — Bloom + colour grade + SMAA only. Drops the two priciest passes
+//              (GodRays + DepthOfField), so it post-processes (still looks graded)
+//              but costs a fraction of 'high'. The lighter-but-pretty middle step.
+//   'high'   — full stack: GodRays (lightened to 24 samples) + DoF + the grade.
+// 'low' renders no composer at all (gated at the call site). Conditional effect
+// CHILDREN break react-postprocessing's typing/introspection, so the tier picks a
+// whole composer tree rather than toggling individual passes. A tier switch rebuilds
+// the composer — rare (manual 'G' / menu), so the rebuild cost is irrelevant.
 const PostFX = memo(function PostFX({
   sunMesh,
   vignetteRef,
   hueRef,
+  full,
 }: {
   sunMesh: THREE.Mesh
   vignetteRef: RefObject<VignetteEffect | null>
   hueRef: RefObject<HueSaturationEffect | null>
+  full: boolean
 }) {
   const dofRef = useRef<DepthOfFieldEffect>(null)
+  if (!full) {
+    return (
+      <>
+        <EffectComposer multisampling={0} enableNormalPass={false}>
+          <Bloom
+            mipmapBlur
+            luminanceThreshold={1.0}
+            luminanceSmoothing={0.3}
+            intensity={0.6}
+            kernelSize={KernelSize.MEDIUM}
+          />
+          <HueSaturation ref={hueRef} saturation={gradeTunables.baseSaturation} />
+          <BrightnessContrast brightness={-0.02} contrast={0.12} />
+          <Vignette ref={vignetteRef} offset={0.35} darkness={gradeTunables.baseDarkness} eskil={false} />
+          <SMAA />
+        </EffectComposer>
+        <ReactiveGrade vignette={vignetteRef} hue={hueRef} />
+      </>
+    )
+  }
   return (
     <>
       <EffectComposer multisampling={0} enableNormalPass={false}>
         {/* Volumetric sun shafts from the emissive sun sphere (the priciest pass;
-            low-res march + few samples, blur-smoothed so it still reads). */}
+            low-res march + few samples, blur-smoothed so it still reads). 24
+            samples @ 0.3 res — blur hides the coarser march, ~halves its cost vs
+            the old 36 @ 0.4. */}
         <GodRays
           sun={sunMesh}
           blur
-          samples={36}
-          resolutionScale={0.4}
+          samples={24}
+          resolutionScale={0.3}
           density={0.96}
           decay={0.92}
           weight={0.4}
@@ -464,6 +501,11 @@ export function World() {
             night early, once you're done preparing. */}
         <WarBell position={[WARBELL_POS[0], tileTopY(WARBELL_POS[0], WARBELL_POS[1]), WARBELL_POS[1]]} />
 
+        {/* Muster yards at the gate approaches — practice dummies + a quintain
+            pell (drill the block) + a wayfinder signpost. Fills the bare start
+            view; self-culls per dummy. */}
+        <MusterYard />
+
         {/* Bears — neutral wildlife that maul the player when approached */}
         <Bears />
 
@@ -577,7 +619,7 @@ export function World() {
           typing rejects conditional effect children, and the one-frame delay
           is invisible behind the paused StartScreen. */}
       {sunMesh && !CAPTURE_MODE && quality !== 'low' && (
-        <PostFX sunMesh={sunMesh} vignetteRef={vignetteRef} hueRef={hueRef} />
+        <PostFX sunMesh={sunMesh} vignetteRef={vignetteRef} hueRef={hueRef} full={quality === 'high'} />
       )}
 
       <MouseLookCamera posRef={posRef} />
@@ -587,6 +629,15 @@ export function World() {
           CPU cost. Dev or explicit ?perf only; never ships to players. */}
       {(import.meta.env.DEV || PERF_MODE) && <Perf position="top-left" />}
       <QualityToggle />
+      {/* Adaptive quality: drops one tier if the frame rate is sustained low
+          (once per run, downward only, backs off if the player sets quality). */}
+      <PerfGovernor />
+      {/* Dynamic resolution: scales dpr below 1 under sustained load, restores it
+          when the frame rate recovers. Skipped in capture mode (no composer). */}
+      {!CAPTURE_MODE && <AdaptiveResolution />}
+      {/* Resume-from-dawn: if the defeat screen requested a continue before this
+          remount, restore the checkpoint once the fresh world has settled. */}
+      <RunLoad />
       {(import.meta.env.DEV || PERF_MODE) && <PerfTrace />}
     </>
   )

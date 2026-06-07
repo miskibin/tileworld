@@ -50,3 +50,12 @@ export function resetResources(): void {
   state.stone = 0
   notify()
 }
+
+export function serializeResources(): Resources {
+  return { stone: state.stone }
+}
+
+export function hydrateResources(s: Resources): void {
+  state.stone = s.stone
+  notify()
+}

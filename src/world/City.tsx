@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 import { House } from './House'
-import { Keep, Wall, Tower, Gate, Farm } from './cityModels'
+import { Garden } from './Garden'
+import { Keep, Wall, Tower, Gate } from './cityModels'
 import { getCity, subscribeCity, resetCity, type CityState } from './cityStore'
 import { getTowers, isTowerAlive, subscribeTowers, TOWER_MAX_HP } from './towerStore'
 import { resetUpgrades } from './upgradeStore'
@@ -216,13 +217,13 @@ export function City() {
       {city.towersBuilt &&
         TOWER_SLOTS.map((s, i) => <BuiltTower key={`tower-${i}`} slot={s} index={i} />)}
 
-      {/* Farm */}
+      {/* Farm — the village-style fenced veggie garden (same model the world villages use) */}
       {city.farmBuilt && (
-        <Farm
+        <Garden
           position={[FARM_SLOT.x, slotGroundY(FARM_SLOT.x, FARM_SLOT.z), FARM_SLOT.z]}
           rotation={FARM_SLOT.rotation}
-          w={FARM_SLOT.w}
-          d={FARM_SLOT.d}
+          size={Math.min(FARM_SLOT.w, FARM_SLOT.d) / 2 - 0.2}
+          seed={7}
         />
       )}
     </group>

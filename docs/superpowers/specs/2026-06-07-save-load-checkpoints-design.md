@@ -72,42 +72,46 @@ impacts/dust/orbs/pickups, buffs, screen-grade pulses, graves/soul-wisp.
 one-shot chest becomes re-lootable after a reload. Acceptable for this checkpoint
 model; noted so it is a deliberate omission, not an oversight.
 
-### The villager-roster ordering trap (the one non-obvious risk)
+### Why loading needs no remount (the key simplification)
 
-The castle militia / bloodline lives pool is **entirely player-accumulated** — it grows
-only via Economy-district purchases, camp rescues, trader recruits and succession
-births. Nothing re-creates it on a fresh `<World>` mount. So it must be saved and
-re-created on load.
+The first instinct was to mirror restart: `resetRun()` + `bumpRun()` to remount the
+world, then hydrate. That fights the engine. Several entity views reset their stores on
+**unmount** for HMR / re-mount safety:
 
-`VillagerCrowd` (in `Village.tsx`) calls `resetVillagers()` on **unmount**. `bumpRun()`
-unmounts the old `<World>` (firing that reset) before mounting the fresh one. Therefore
-guard villagers must be re-created **after** the remount, not before it — otherwise the
-old tree's unmount cleanup wipes them.
+- `VillagerCrowd` (`Village.tsx`) → `resetVillagers()`
+- `City.tsx` → `resetCity()`, `resetUpgrades()`, `resetUnlocks()` (and `resetUpgrades`
+  internally calls `resetShopDiscount()`)
+- `Mobs.tsx` → `resetOrks()`, `resetCastle()`, `resetWaves()`, `resetTowers()`,
+  `resetObjectiveTotal()`
+
+`bumpRun()` unmounts the old `<World>`, firing all those resets, and under R3F's
+reconciler those unmount-resets can land *after* a fresh mount effect — so any
+hydrate-after-remount scheme races them and loses city/wave/guards.
+
+The realisation that removes the problem: **Continue is only ever offered on the
+StartScreen (phase `menu`), and whenever the StartScreen is up the world is already
+mounted, clean and seeded** — either a fresh boot, or a Return-to-Menu that already did
+`resetRun()` + `bumpRun()`. So loading doesn't need to reset or remount anything. It
+just restores the stores in place and switches to prep; the live subscriptions
+propagate the restored values to the already-mounted scene (City re-renders houses/walls
+and re-runs its blocker effects keyed on `wallsBuilt`/`towersBuilt`; `createVillager`
+re-adds the guards; HUD panels update). No remount → no teardown → no race.
 
 ### Load flow
 
 ```
-loadGame():
-  1. read + parse the save blob (version-checked)        // saveGame.ts
-  2. resetRun()                                           // clean slate (also wipes villagers)
-  3. hydrate all DATA stores from the blob               // player/resource/inventory/upgrade/
-                                                          //   city/castle/tower/weaponUnlock/shop/wave/difficulty
-  4. stage the guard roster                              // saveGame: stagePendingGuards(list)
-  5. setPhase('prep')
-  6. bumpRun()                                            // remounts <World>; old VillagerCrowd unmount → resetVillagers()
-  -- on the fresh mount --
-  7. <RunLoad> consumes the staged roster and re-creates // createVillager() per saved guard
-     guard villagers (runs after the old unmount)
+loadGame():           // only called from the menu, over a clean mounted world
+  1. read + parse the save blob (version-checked)   // saveGame.ts; bail if absent/invalid
+  2. restore(data)                                  // hydrate every store in place
+  3. setPhase('prep')                               // begin the saved dawn
 ```
 
-`<RunLoad>` is a tiny null-rendering component mounted inside `<World>` (inside the
-runId key). Its mount effect calls `consumePendingGuards()` once and re-creates each
-saved guard via the existing `createVillager`. On a normal New Game / Play Again there
-is no staged roster, so it is a no-op.
-
-Hydration order: `resetRun()` first (everything to defaults), then `hydrate*` overrides
-the saved fields. Data stores are only reset via `resetRun()` (not by any component
-mount/unmount), so the hydrated values survive the remount untouched.
+`restore()` runs **before** `setPhase('prep')`, so the prep-entry autosave that
+`AutoSave` fires captures the restored state, not defaults — no extra "loading" guard
+needed. Player position is **not** restored (the menu world's `Character` already sits
+at the keep spawn); only progression is hydrated, and HP is set to `maxHp` (full on
+load). There is no `<RunLoad>` component and no payload staging — both were part of the
+abandoned remount approach.
 
 ### Autosave
 
@@ -142,19 +146,18 @@ checkpoint persists for a retry).
 ## Files
 
 New:
-- `src/world/saveGame.ts` — compositor + localStorage gateway: `writeSave`, `loadGame`,
-  `hasSave`, `getSaveMeta`, `clearSave`, `stagePendingGuards`/`consumePendingGuards`,
+- `src/world/saveGame.ts` — compositor + localStorage gateway: pure `snapshot()` /
+  `restore(data)`, plus `writeSave`, `loadGame`, `hasSave`, `getSaveMeta`, `clearSave`,
   version constant + storage key.
-- `src/world/RunLoad.tsx` — post-remount guard-roster hydrator (null render).
 - `src/hud/AutoSave.tsx` — phase-subscribed autosave/clear (null render).
 - `src/world/saveGame.test.ts` — round-trip + corrupt/missing-save tests.
 
 Modified (add `serializeX`/`hydrateX`):
 - `playerStore.ts`, `resourceStore.ts`, `inventoryStore.ts`, `upgradeStore.ts`,
   `cityStore.ts`, `castleStore.ts`, `towerStore.ts`, `weaponUnlockStore.ts`,
-  `shopStore.ts`, `waveStore.ts`, `villagerStore.ts` (guard serialize + recreate helper),
-  `difficultyStore.ts` (already self-persists; add serialize/hydrate for the blob).
-- `src/world/World.tsx` — mount `<RunLoad>`.
+  `waveStore.ts`, `villagerStore.ts` (guard serialize + recreate helper).
+  `shopStore.ts` (discount) and `difficultyStore.ts` use their existing getters/setters
+  directly from `saveGame.ts`.
 - `src/hud/Hud.tsx` — mount `<AutoSave>`.
 - `src/hud/StartScreen.tsx` — Continue button.
 

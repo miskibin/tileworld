@@ -102,6 +102,15 @@ export function setTaxOffice(v: boolean): void {
   notify()
 }
 
+export function serializeCity(): CityState {
+  return { ...state }
+}
+
+export function hydrateCity(s: CityState): void {
+  Object.assign(state, s)
+  notify()
+}
+
 export function resetCity(): void {
   state.housesBuilt = 0
   state.wallsBuilt = false

@@ -27,6 +27,24 @@ const MAX_POLAR = Math.PI / 2 - 0.07
 // rest value, which used to strand the camera in a permanent wide-angle "fishbowl".
 const REST_FOV = 32
 
+// ─── Menu (StartScreen) cinematic camera ────────────────────────────────────
+// A dedicated wide vista of the keep (world origin) used ONLY behind the
+// StartScreen (phase 'menu'), so gameplay keeps its tuned over-the-shoulder
+// follow-cam above. World-anchored (not orbiting the player, which jams the lens
+// into the walls/war-bell) with a slow azimuth sway. A wider FOV than gameplay
+// makes it read as a grand landscape. Live-tunable in dev:
+//   window.__mc = { azimuth, polar, dist, fov, tx, ty, tz }  // any subset
+// Hand-tuned to a low, pulled-back vista that looks out across the trees to the
+// distant mountain ring — "forest with a mountain view". Low polar keeps the
+// horizon high in frame.
+const MENU_FOV = 50
+const MENU_TARGET = { x: 6, y: 2.2, z: 3 }
+const MENU_AZIMUTH = -4.91
+const MENU_POLAR = 0.04
+const MENU_DIST = 38
+const MENU_DRIFT = 0.09 // ± radians of slow sway
+const MENU_DRIFT_SPEED = 0.045
+
 /**
  * Over-the-shoulder orbit camera with pointer-lock controls — moving the
  * mouse rotates the view without needing to hold a button. Click the
@@ -116,6 +134,36 @@ export function MouseLookCamera({ posRef }: Props) {
     // even if `isWarming()` is erroneously still true — otherwise a stuck warm-up
     // flag would freeze the camera at the far overview with zoom dead.
     if (isWarming() && getPhase() === 'menu') return
+
+    // Behind the StartScreen: a wide world-anchored vista of the keep instead of
+    // the gameplay follow-cam. Returns early so mouse-look/shake/FOV-kick never
+    // touch the menu shot, and leaves the orbit refs at their gameplay rest values.
+    if (getPhase() === 'menu') {
+      const o = (typeof window !== 'undefined' && (window as { __mc?: Record<string, number> }).__mc) || undefined
+      const t = performance.now() * 0.001
+      const a = (o?.azimuth ?? MENU_AZIMUTH) + Math.sin(t * MENU_DRIFT_SPEED) * MENU_DRIFT
+      const p = o?.polar ?? MENU_POLAR
+      const r = o?.dist ?? MENU_DIST
+      const mx = o?.tx ?? MENU_TARGET.x
+      const my = o?.ty ?? MENU_TARGET.y
+      const mz = o?.tz ?? MENU_TARGET.z
+      camera.position.set(
+        mx + Math.sin(a) * Math.cos(p) * r,
+        my + Math.sin(p) * r,
+        mz + Math.cos(a) * Math.cos(p) * r,
+      )
+      camera.lookAt(mx, my, mz)
+      const mcam = camera as THREE.PerspectiveCamera
+      if (mcam.isPerspectiveCamera) {
+        const fov = o?.fov ?? MENU_FOV
+        if (Math.abs(mcam.fov - fov) > 0.01) {
+          mcam.fov = fov
+          mcam.updateProjectionMatrix()
+        }
+      }
+      return
+    }
+
     const tx = posRef.current.x - CENTER_X
     const ty = posRef.current.y + 1
     const tz = posRef.current.z - CENTER_Z

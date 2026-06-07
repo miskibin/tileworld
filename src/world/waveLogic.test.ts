@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { stepWaveDirector, type WaveTimers } from './waveLogic'
+import { stepWaveDirector, effectiveCount, type WaveTimers } from './waveLogic'
 import { WAVES, PREP_DURATION, type WaveProgress } from './waveStore'
+import { modsFor } from './difficultyStore'
 import type { GamePhase } from './gameStore'
 
 // Pure reducer — no stores, no clock. Drive it with explicit phase/wave/timers
@@ -109,6 +110,59 @@ describe('boss wave', () => {
     const r = step('wave', wave({ index: last, spawned: 0 }), timers(), 0, 0)
     // boss: berserker base hp 306 * hpScale 14 = 4284
     expect(r.actions).toContainEqual({ type: 'spawn', variant: 'berserker', hp: 4284, spawnIndex: 0, waveIndex: last })
+  })
+})
+
+describe('difficulty mods', () => {
+  const easy = modsFor('easy')
+  const hard = modsFor('hard')
+
+  it('defaults to Normal (no scaling) when mods are omitted', () => {
+    // The existing baseline tests already assert Normal numbers; this just pins
+    // that the default path equals the explicit normal preset.
+    const r = stepWaveDirector({
+      phase: 'wave', wave: wave({ index: 0, spawned: 0 }), timers: timers(), now: 0, alive: 0,
+      mods: modsFor('normal'),
+    })
+    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 254 })
+  })
+
+  it('scales the prep day length by prepMul', () => {
+    const r = stepWaveDirector({
+      phase: 'prep', wave: wave({ index: -1 }), timers: timers(), now: 100, alive: 0, mods: easy,
+    })
+    expect(r.timers.prepEndsAt).toBe(100 + PREP_DURATION * easy.prepMul)
+  })
+
+  it('scales ork hp by hpMul (hard = tougher)', () => {
+    // grunt 254 × wave-0 hpScale 1.0 × hard hpMul 1.2 = round(304.8) = 305
+    const r = stepWaveDirector({
+      phase: 'wave', wave: wave({ index: 0, spawned: 0 }), timers: timers(), now: 0, alive: 0, mods: hard,
+    })
+    expect(r.actions[0]).toMatchObject({ variant: 'grunt', hp: 305 })
+  })
+
+  it('scales head-count by countMul and clears against the scaled quota', () => {
+    // Wave 4 (index 3) base count 15; hard ×1.25 = round(18.75) = 19.
+    const idx = 3
+    const scaled = effectiveCount(idx, hard)
+    expect(scaled).toBe(19)
+    // Still spawning at 18/19 → quota not met, no clear even with 0 alive.
+    const notDone = stepWaveDirector({
+      phase: 'wave', wave: wave({ index: idx, spawned: scaled - 1 }), timers: timers({ spawnIndex: scaled - 1 }),
+      now: 99, alive: 0, mods: hard,
+    })
+    expect(notDone.actions.find((a) => a.type === 'setPhase')).toBeUndefined()
+    // At 19/19 with 0 alive → clears to prep.
+    const done = stepWaveDirector({
+      phase: 'wave', wave: wave({ index: idx, spawned: scaled }), timers: timers({ spawnIndex: scaled }),
+      now: 99, alive: 0, mods: hard,
+    })
+    expect(done.actions).toContainEqual({ type: 'setPhase', phase: 'prep' })
+  })
+
+  it('never scales a wave below one ork', () => {
+    expect(effectiveCount(WAVES.length - 1, easy)).toBeGreaterThanOrEqual(1)
   })
 })
 

@@ -2,9 +2,35 @@ import { useEffect, useRef, useState } from 'react'
 import { getPlayer } from '../world/playerStore'
 import { getWave, subscribeWave, requestPrepSkip, type WaveProgress } from '../world/waveStore'
 import { getCastle, subscribeCastle, type CastleState } from '../world/castleStore'
-import { getPhase, subscribePhase, getDefeatReason, type GamePhase } from '../world/gameStore'
+import { getPhase, setPhase, subscribePhase, getDefeatReason, type GamePhase } from '../world/gameStore'
 import { getStandingVillagerCount, subscribeVillagers } from '../world/villagerStore'
+import { resetRun } from '../world/runReset'
+import { bumpRun, requestContinue } from '../world/runStore'
+import { getSaveMeta } from '../world/saveGame'
 import { playVictory } from '../audio/sfx'
+
+// End-screen actions: an in-memory restart (no page reload). resetRun() wipes the
+// run state; setPhase points the fresh world at prep (play) or the title (menu);
+// bumpRun() remounts <World> so every entity re-seeds against the clean stores.
+function playAgain(): void {
+  resetRun()
+  setPhase('prep')
+  bumpRun()
+}
+function returnToMenu(): void {
+  resetRun()
+  setPhase('menu')
+  bumpRun()
+}
+// Resume from the last dawn checkpoint after a defeat. Same clean remount as the
+// others, but requestContinue() tells RunLoad (inside the fresh <World>) to restore
+// the saved run once it has mounted, instead of starting over. Phase stays 'defeat'
+// through the remount — the overlay hides it — until loadGame() switches to prep.
+function continueFromDawn(): void {
+  requestContinue()
+  resetRun()
+  bumpRun()
+}
 
 export function Objective() {
   const [phase, setPhase] = useState<GamePhase>(() => getPhase())
@@ -62,15 +88,23 @@ export function Objective() {
           <span>{p.gold} ★ gold</span>
           <span>{wave.total} waves survived</span>
         </div>
-        <button className="victory-again" onClick={() => location.reload()}>
-          Play Again
-        </button>
+        <div className="victory-actions">
+          <button className="victory-again" onClick={playAgain}>
+            Play Again
+          </button>
+          <button className="victory-menu" onClick={returnToMenu}>
+            Main Menu
+          </button>
+        </div>
       </div>
     )
   }
 
   if (phase === 'defeat') {
     const bloodline = getDefeatReason() === 'bloodline'
+    const p = getPlayer()
+    // The dawn checkpoint survives a defeat, so offer a direct resume to its day.
+    const save = getSaveMeta()
     return (
       <div className="victory-screen defeat-screen">
         <div className="victory-title">
@@ -81,9 +115,24 @@ export function Objective() {
             ? `The last of your line fell with no one left to take up the blade — wave ${Math.max(1, wave.index + 1)} of ${wave.total}.`
             : `You held until wave ${Math.max(1, wave.index + 1)} of ${wave.total}.`}
         </div>
-        <button className="victory-again" onClick={() => location.reload()}>
-          Play Again
-        </button>
+        <div className="victory-stats">
+          <span>Level {p.level}</span>
+          <span>{p.gold} ★ gold</span>
+          <span>Reached wave {Math.max(1, wave.index + 1)} / {wave.total}</span>
+        </div>
+        <div className="victory-actions">
+          {save && (
+            <button className="victory-again" onClick={continueFromDawn}>
+              Resume — Day {save.night}
+            </button>
+          )}
+          <button className={save ? 'victory-menu' : 'victory-again'} onClick={playAgain}>
+            New Game
+          </button>
+          <button className="victory-menu" onClick={returnToMenu}>
+            Main Menu
+          </button>
+        </div>
       </div>
     )
   }

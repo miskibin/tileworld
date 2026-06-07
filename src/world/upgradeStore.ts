@@ -477,7 +477,7 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'ars_axe',
     branch: 'arsenal',
     name: 'Unlock Battle Axe',
-    desc: 'Stocks the Battle Axe (+22 attack) at the wandering merchant.',
+    desc: 'Stocks the Battle Axe (+15 attack) at the wandering merchant.',
     icon: '🪓',
     cost: 50,
     apply() {
@@ -490,7 +490,7 @@ export const UPGRADE_NODES: UpgradeNode[] = [
     id: 'ars_sword',
     branch: 'arsenal',
     name: 'Unlock Golden Blade',
-    desc: 'Stocks the Golden Blade (+30 attack) at the wandering merchant.',
+    desc: 'Stocks the Golden Blade (+21 attack) at the wandering merchant.',
     icon: '🌟',
     cost: 90,
     prereqId: 'ars_axe',
@@ -550,6 +550,19 @@ export function subscribeUpgrades(fn: (ids: ReadonlySet<string>) => void): () =>
   return () => {
     subs.delete(fn)
   }
+}
+
+/** Saveable: the set of purchased node ids. Their EFFECTS are saved separately in
+ *  the stores they mutate (city/castle/player/…), so hydrate only restores the set
+ *  for the tree UI's owned/affordable gating — it must NOT re-run apply(). */
+export function serializeUpgrades(): string[] {
+  return [...purchasedIds]
+}
+
+export function hydrateUpgrades(ids: string[]): void {
+  purchasedIds.clear()
+  for (const id of ids) purchasedIds.add(id)
+  notify()
 }
 
 export function resetUpgrades(): void {
