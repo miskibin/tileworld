@@ -513,10 +513,6 @@ for (const n of UPGRADE_NODES) n.cost = Math.round((n.cost * UPGRADE_COST_SCALE)
 const purchasedIds = new Set<string>()
 const subs = new Set<(ids: ReadonlySet<string>) => void>()
 
-export function getPurchased(): ReadonlySet<string> {
-  return purchasedIds
-}
-
 export function isPurchased(id: string): boolean {
   return purchasedIds.has(id)
 }

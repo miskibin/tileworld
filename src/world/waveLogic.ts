@@ -1,4 +1,4 @@
-import { WAVES, PREP_DURATION, type WaveProgress } from './waveStore'
+import { WAVES, PREP_DURATION, MIN_PREP_SECONDS, type WaveProgress } from './waveStore'
 import { ORK_CONFIG, type OrkVariant } from './orkConfig'
 import type { GamePhase } from './gameStore'
 import type { DiffMods } from './difficultyStore'
@@ -10,6 +10,22 @@ const NORMAL_MODS: DiffMods = { countMul: 1, hpMul: 1, prepMul: 1 }
 /** Orks in wave `i` after the difficulty count multiplier (min 1). */
 export function effectiveCount(i: number, mods: DiffMods = NORMAL_MODS): number {
   return Math.max(1, Math.round(WAVES[i].count * mods.countMul))
+}
+
+// ── Stuck-ork safety net ──────────────────────────────────────────────────────
+// A wave invader can end up on an isolated tile A* can't leave (knocked into a
+// water pocket, or a 1-tile island): it never reaches the keep, so the wave never
+// clears and the only escape is losing the Keep. The director tracks each wave
+// ork's idle time and reaps any that has sat essentially still, far from the keep,
+// past STUCK_TIMEOUT. The SAFE_RANGE gate means an ork legitimately attacking the
+// keep/towers — or the slow high-HP boss parked at the wall — is never caught.
+export const STUCK_TIMEOUT = 20 // sec a far-out ork may sit still before it's culled
+export const STUCK_MOVE_EPS = 0.6 // tiles; movement under this counts as "not moving"
+export const STUCK_SAFE_RANGE = 16 // tiles from the keep within which orks are never culled
+
+/** Should a wave ork at `distToKeep` tiles, idle for `idleSeconds`, be culled? */
+export function isStuckUnreachable(distToKeep: number, idleSeconds: number): boolean {
+  return distToKeep > STUCK_SAFE_RANGE && idleSeconds >= STUCK_TIMEOUT
 }
 
 // Pure decision core for the assault director. WaveDirector.tsx feeds it the
@@ -63,8 +79,15 @@ export function stepWaveDirector(input: WaveStepInput): WaveStepResult {
   const actions: WaveAction[] = []
 
   if (phase === 'prep') {
-    if (timers.prepEndsAt === 0) timers.prepEndsAt = now + PREP_DURATION * mods.prepMul
-    if (skip || now >= timers.prepEndsAt) {
+    const dur = PREP_DURATION * mods.prepMul
+    if (timers.prepEndsAt === 0) timers.prepEndsAt = now + dur
+    // Floor the skip: a war-bell / HUD "begin night" skip is honored only once the
+    // day has run MIN_PREP_SECONDS. This stops a stale or spam-pressed skip landing
+    // on the wave→prep transition frame from collapsing the breather to ~0s.
+    // Natural expiry (now >= prepEndsAt) is never floored. prepEndsAt - dur is when
+    // the day was armed.
+    const skipAllowed = skip === true && now >= timers.prepEndsAt - dur + MIN_PREP_SECONDS
+    if (skipAllowed || now >= timers.prepEndsAt) {
       actions.push({ type: 'beginWave', index: wave.index + 1 })
       timers.spawnIndex = 0
       timers.nextSpawnAt = now

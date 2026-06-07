@@ -4,18 +4,15 @@ import * as THREE from 'three'
  * Day/night clock — a hand-rolled external store, same shape as playerStore /
  * pauseStore. Two update channels (see CLAUDE.md):
  *
- *  - HOT PATH: the world reads `getDay()` (live ref) every frame and the
- *    DayNight driver advances `t` with `advanceDay(dt)`. No notify — advancing
- *    the clock must never re-render React.
+ *  - HOT PATH: the world reads `getDay()` (live ref) every frame; the DayNight
+ *    driver advances `state.t` directly each frame. No notify — advancing the
+ *    clock must never re-render React.
  *  - DISCRETE: the debug panel scrubs/freezes via `setDayTime` / `setDayFrozen`,
  *    which mutate + `notify`. `subscribeDay` is the listener channel (used by
  *    the leva panel to keep its slider in sync with the running clock).
  *
  * `t` ∈ [0,1): fraction through a 24h day. 0 = midnight, 0.5 = noon.
  */
-
-// One full 24h cycle in real seconds (2 minutes).
-export const DAY_LENGTH = 120
 
 // Sun arc: how far south the sun is tilted (vs straight overhead at noon). The
 // east→west sweep is X, height is Y, this constant biases Z so shadows fall
@@ -56,12 +53,6 @@ const nightScratch = new THREE.Vector3()
  *  horizon (dusk through dawn). Allocation-free, safe to call per frame. */
 export function isNight(): boolean {
   return sunDirAt(state.t, nightScratch).y < 0.05
-}
-
-/** Hot path: advance the clock. No notify (would re-render every frame). */
-export function advanceDay(dt: number): void {
-  if (state.frozen) return
-  state.t = (state.t + dt / DAY_LENGTH) % 1
 }
 
 /** Discrete: scrub the clock from the debug panel. */

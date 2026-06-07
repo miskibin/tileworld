@@ -160,6 +160,20 @@ describe('localStorage layer', () => {
     expect(hasSave()).toBe(false)
   })
 
+  it('degrades to no meta (never throws) on a current-version save missing player data', () => {
+    // A partial / old-build blob can pass the version check yet lack player. The
+    // StartScreen renders the Continue button from getSaveMeta, so this must return
+    // null rather than throw and brick the menu.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SAVE_VERSION, data: { waveIndex: 3 } }))
+    expect(() => getSaveMeta()).not.toThrow()
+    expect(getSaveMeta()).toBeNull()
+  })
+
+  it('degrades to no meta on a save missing the wave index', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: SAVE_VERSION, data: { player: { level: 2 } } }))
+    expect(getSaveMeta()).toBeNull()
+  })
+
   it('reports no save when the slot is empty', () => {
     expect(hasSave()).toBe(false)
     expect(getSaveMeta()).toBeNull()

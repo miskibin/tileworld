@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Hulking snow predator. Quadruped built from boxes — bulkier proportions than
 // Wolf: wide torso, thick legs, round head with stubby snout, small ears,
@@ -44,6 +45,7 @@ export function PolarBearView({ state }: { state: AnimalState }) {
     () => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }),
     [],
   )
+  useDisposeOnUnmount(fur, furDark, snoutMat, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

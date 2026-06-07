@@ -54,10 +54,6 @@ export function resetDummies(): void {
   nextId = 0
 }
 
-export function getDummies(): DummyState[] {
-  return dummies
-}
-
 /** Dummies never die, so "alive" is every dummy — named to match the other
  *  hittable stores so the Character swing scan reads uniformly across them. */
 export function getAliveDummies(): DummyState[] {

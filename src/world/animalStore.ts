@@ -115,23 +115,6 @@ export function damageAnimal(a: AnimalState, amount: number, now: number): boole
   return a.hp <= 0
 }
 
-/** Nearest living prey animal (deer/rabbit) to (x,z) within range, or null. */
-export function nearestPrey(x: number, z: number, range: number): AnimalState | null {
-  let best: AnimalState | null = null
-  let bestD = range * range
-  for (let i = 0; i < animals.length; i++) {
-    const a = animals[i]
-    if (a.hp <= 0 || a.faction !== 'prey') continue
-    const dx = a.x - x
-    const dz = a.z - z
-    const d = dx * dx + dz * dz
-    if (d < bestD) {
-      bestD = d
-      best = a
-    }
-  }
-  return best
-}
 
 /** Distance² to the nearest predator animal (wolf) within range, plus the
  * predator position — used by prey to flee. Returns null if none in range. */

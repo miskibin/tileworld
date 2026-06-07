@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Lean grey pack-hunter. Quadruped built from boxes (Bear/Dog conventions):
 // hip-pivot leg groups, a head group, a bushy tail. AI lives in animalAI.
@@ -31,6 +32,7 @@ export function WolfView({ state }: { state: AnimalState }) {
   const furDark = useMemo(() => new THREE.MeshStandardMaterial({ color: FUR_DARK, roughness: 1, flatShading: true }), [])
   const snoutMat = useMemo(() => new THREE.MeshStandardMaterial({ color: SNOUT, roughness: 0.9 }), [])
   const hpFg = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(fur, furDark, snoutMat, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

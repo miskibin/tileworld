@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Swamp ambush predator. Long, low-slung quadruped built from boxes.
 // Palette: dark olive hide, pale belly, ivory teeth, amber eyes.
@@ -31,6 +32,7 @@ export function BogCrocView({ state }: { state: AnimalState }) {
   const dark    = useMemo(() => new THREE.MeshStandardMaterial({ color: DARK,  roughness: 1, flatShading: true }), [])
   const bellyMat= useMemo(() => new THREE.MeshStandardMaterial({ color: BELLY, roughness: 0.9, flatShading: true }), [])
   const hpFg    = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(hide, dark, bellyMat, hpFg)
 
   const g       = useRef<THREE.Group>(null!)
   const head    = useRef<THREE.Group>(null!)

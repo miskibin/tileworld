@@ -1,6 +1,5 @@
 import { memo, useEffect, useState } from 'react'
 import { getOrks, resetOrks, subscribeOrks, type OrkState } from './orkStore'
-import { resetObjectiveTotal } from './objectiveStore'
 import { resetCastle } from './castleStore'
 import { resetWaves } from './waveStore'
 import { resetTowers } from './towerStore'
@@ -25,7 +24,6 @@ export function Mobs() {
       unsub()
       // Reset on unmount so HMR + remount don't double-register.
       resetOrks()
-      resetObjectiveTotal()
       resetCastle()
       resetWaves()
       resetTowers()

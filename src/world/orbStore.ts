@@ -1,4 +1,5 @@
 import { addGold, addXp, getPlayer } from './playerStore'
+import { getPhase } from './gameStore'
 
 // Reward orbs — the little gold/XP motes that burst off a slain creature, hang
 // for a beat, then accelerate into the hero. The accelerating "suck" (not a
@@ -38,6 +39,7 @@ const BURST_DRAG = 3.0
 const SEEK_RESPONSE = 16 // how hard velocity snaps onto the homing line (bigger = snappier)
 
 function grant(o: Orb): void {
+  if (getPhase() === 'defeat') return // run's over — don't tick the defeat screen
   if (o.kind === 'gold') addGold(o.value)
   else addXp(o.value)
 }
@@ -133,8 +135,13 @@ export function stepOrbs(dt: number): void {
       orbs.splice(i, 1)
     }
   }
-  if (goldGain > 0) addGold(goldGain)
-  if (xpGain > 0) addXp(xpGain)
+  // Once the run is lost the reward flow stops — orbs still clear above, but a
+  // straggler must not tick the defeat screen's gold/level up. (Succession keeps
+  // phase 'wave'/'prep', so a kill's XP still pays out onto the heir.)
+  if (getPhase() !== 'defeat') {
+    if (goldGain > 0) addGold(goldGain)
+    if (xpGain > 0) addXp(xpGain)
+  }
 }
 
 export function getOrbs(): Orb[] {

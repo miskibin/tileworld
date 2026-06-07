@@ -98,7 +98,7 @@ function vary(frac = 0.06): number {
 
 // var-2 is the meaty blade-on-flesh impact (used for orks/creatures); var-1 and
 // var-3 are metallic clangs — used both for chipping stone (ore mining) and for a
-// blow ringing off the hero's steel armor (playPlayerHit).
+// blow ringing off the hero's steel armor.
 const FLESH_HIT_CLIP = '/audio/sword-hit-var-2.wav'
 const METALLIC_HIT_CLIPS = [
   '/audio/sword-hit-var-1.wav',
@@ -133,14 +133,6 @@ export function playPick(vol = 1): void {
   if (vol <= 0.02) return
   const clip = METALLIC_HIT_CLIPS[(Math.random() * METALLIC_HIT_CLIPS.length) | 0]
   playSfx(clip, 0.5 * vol, 0.1).catch(() => hitSynth(vol))
-}
-
-/** Hit landing on the HERO — metallic sword-on-armor clang, the same impact the
- *  player hears swinging into a foe, so taking a blow reads as a real strike.
- *  Layered over playHurt's dull thud; synth fallback shares the flesh-hit crack. */
-export function playPlayerHit(): void {
-  const clip = METALLIC_HIT_CLIPS[(Math.random() * METALLIC_HIT_CLIPS.length) | 0]
-  playSfx(clip, 0.5, 0.1).catch(() => hitSynth())
 }
 
 /** Synth fallback for playHit — noise crack + low thud. */
@@ -302,7 +294,6 @@ const ORK_GRUNTS = [
   '/audio/monster-snarl.ogg',
   '/audio/monster-growl.ogg',
 ]
-const ORK_ROARS = ['/audio/ork-roar.ogg', '/audio/monster-roar-big.ogg']
 const BEAR_ROAR = '/audio/bear-roar.mp3'
 const BEAR_GROWL = '/audio/bear-growl.ogg'
 
@@ -318,14 +309,6 @@ export function playOrkGrunt(dist = 0): void {
   if (v <= 0) return
   const f = ORK_GRUNTS[(Math.random() * ORK_GRUNTS.length) | 0]
   playSfx(f, v, 0.14).catch(() => {})
-}
-
-/** Heavier ork roar (e.g. on a charge) — random clip, distance-scaled. */
-export function playOrkRoar(dist = 0): void {
-  const v = volForDist(dist, 0.6)
-  if (v <= 0) return
-  const f = ORK_ROARS[(Math.random() * ORK_ROARS.length) | 0]
-  playSfx(f, v, 0.1).catch(() => {})
 }
 
 /** Bear roar on aggro — distance-scaled, synth fallback. */

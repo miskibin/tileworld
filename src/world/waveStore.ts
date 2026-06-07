@@ -36,6 +36,11 @@ export const WAVES: WaveDef[] = [
 // war bell (WarBell) to summon the night early when you're ready.
 export const PREP_DURATION = 150 // seconds — a "day" to explore + rebuild (2.5 min)
 
+/** Floor on the prep breather: a war-bell / HUD skip is ignored for this many
+ *  seconds after a day begins, so a stale or spam-pressed skip can't collapse the
+ *  day to ~0s right after a wave→prep transition. Well under PREP_DURATION. */
+export const MIN_PREP_SECONDS = 3
+
 /** Gold paid by the Tax Office (Economy upgrade) each time a wave is cleared. */
 export const TAX_STIPEND = 25
 

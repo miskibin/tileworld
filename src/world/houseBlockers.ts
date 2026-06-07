@@ -65,7 +65,3 @@ export function wallBetween(ax: number, az: number, bx: number, bz: number): boo
   }
   return false
 }
-
-export function getHouseBlockers(): HouseBlocker[] {
-  return blockers
-}

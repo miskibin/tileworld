@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Tall deer-like forest grazer. Quadruped built from boxes:
 // long hip-pivot legs, raised neck, branching antlers, short tail. Prey / flees.
@@ -40,6 +41,7 @@ export function ElkView({ state }: { state: AnimalState }) {
   const underside = useMemo(() => new THREE.MeshStandardMaterial({ color: UNDERSIDE, roughness: 1, flatShading: true }), [])
   const antlerMat = useMemo(() => new THREE.MeshStandardMaterial({ color: ANTLER_C, roughness: 0.8 }), [])
   const hpFg = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(coat, coatDark, underside, antlerMat, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

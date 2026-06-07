@@ -57,6 +57,7 @@ import {
   BLOCK_REGEN_DELAY,
   BLOCK_RECOVER_THRESHOLD,
 } from './blockStore'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 const ARMOR = '#d6d8df'
 const ARMOR_LIGHT = '#e6e8ed'
@@ -262,6 +263,7 @@ export function Character({ initial, facing0 = 0, posRef }: CharacterProps) {
   const goldBladeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.8 }), [])
   const axeHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: AXE_STEEL, roughness: 0.45, metalness: 0.6 }), [])
   const stoneHeadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#8a8d92', roughness: 0.95, metalness: 0.05, flatShading: true }), [])
+  useDisposeOnUnmount(armorMat, armorLightMat, armorDarkMat, visorMat, beltMat, bladeMat, hiltMat, gripMat, shieldFaceMat, shieldRimMat, shieldEmblemMat, goldBladeMat, axeHeadMat, stoneHeadMat)
 
   // The held weapon mesh follows the equipped item (hotbar select/E → equip).
   const [equippedId, setEquippedId] = useState<string | null>(getInventory().equippedId)

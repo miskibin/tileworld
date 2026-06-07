@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { spawnOrbs, stepOrbs, getOrbs, resetOrbs } from './orbStore'
 import { resetPlayer, getGold, getPlayer } from './playerStore'
+import { setPhase } from './gameStore'
 
 // The risky part of the reward-orb feature is that gold/XP is no longer granted
 // on the kill — it's deferred to when each orb reaches the hero. These tests pin
@@ -10,6 +11,7 @@ import { resetPlayer, getGold, getPlayer } from './playerStore'
 beforeEach(() => {
   resetPlayer()
   resetOrbs()
+  setPhase('prep') // a live, non-defeat phase
 })
 
 describe('spawnOrbs', () => {
@@ -49,5 +51,18 @@ describe('stepOrbs', () => {
       expect(o.z).toBe(snapshot[i].z)
       expect(o.age).toBe(snapshot[i].age)
     })
+  })
+
+  it('does NOT credit gold/xp once the run is lost (phase defeat)', () => {
+    // A straggler orb landing after the hero falls with no heir must not tick the
+    // defeat screen's gold/level counters up.
+    setPhase('defeat')
+    const g0 = getGold()
+    const xp0 = getPlayer().xp
+    spawnOrbs('gold', 0, 0, 0, 2, 10)
+    spawnOrbs('xp', 0, 0, 0, 2, 8)
+    stepOrbs(2) // past LIFE_CAP → would force-collect if not gated
+    expect(getGold()).toBe(g0)
+    expect(getPlayer().xp).toBe(xp0)
   })
 })

@@ -11,38 +11,17 @@
 // ordering entirely. See docs/superpowers/specs/2026-06-07-save-load-checkpoints-design.md.
 
 import { setPhase } from './gameStore'
-import { serializePlayer, hydratePlayer, type PlayerSave } from './playerStore'
-import { serializeResources, hydrateResources } from './resourceStore'
-import { serializeInventory, hydrateInventory, type InventorySave } from './inventoryStore'
-import { serializeUpgrades, hydrateUpgrades } from './upgradeStore'
-import { serializeUnlocks, hydrateUnlocks } from './weaponUnlockStore'
-import { serializeCity, hydrateCity } from './cityStore'
-import type { CityState } from './cityStore'
-import { serializeCastle, hydrateCastle, type CastleSave } from './castleStore'
-import { serializeTowers, hydrateTowers } from './towerStore'
-import { serializeWave, hydrateWave } from './waveStore'
-import { serializeGuards, hydrateGuards, type GuardSave } from './villagerStore'
-import { getShopDiscount, setShopDiscount } from './shopStore'
-import { getDifficulty, setDifficulty, type Difficulty } from './difficultyStore'
+import type { PlayerSave } from './playerStore'
+import { STORE_REGISTRY } from './storeRegistry'
 
 export const SAVE_VERSION = 1
 export const STORAGE_KEY = 'tileworld.save'
 
-/** The full checkpoint payload — everything a fresh <World> mount cannot reproduce. */
-export interface SaveData {
-  player: PlayerSave
-  resource: { stone: number }
-  inventory: InventorySave
-  upgrades: string[]
-  unlocks: string[]
-  city: CityState
-  castle: CastleSave
-  towerMastery: boolean
-  shopDiscount: number
-  waveIndex: number
-  difficulty: Difficulty
-  guards: GuardSave[]
-}
+/** The checkpoint payload — everything a fresh <World> mount cannot reproduce,
+ *  keyed by each persisted store's registry `key`. Built by snapshot() from the
+ *  registry rather than hand-listed, so a new persisted store can't be forgotten
+ *  here. JSON-roundtripped, so values read back as `unknown`. */
+export type SaveData = Record<string, unknown>
 
 /** A small label for the StartScreen Continue button. */
 export interface SaveMeta {
@@ -54,20 +33,11 @@ export interface SaveMeta {
 
 /** Collect the live state of every persistent store into one JSON-safe payload. */
 export function snapshot(): SaveData {
-  return {
-    player: serializePlayer(),
-    resource: serializeResources(),
-    inventory: serializeInventory(),
-    upgrades: serializeUpgrades(),
-    unlocks: serializeUnlocks(),
-    city: serializeCity(),
-    castle: serializeCastle(),
-    towerMastery: serializeTowers().mastery,
-    shopDiscount: getShopDiscount(),
-    waveIndex: serializeWave().index,
-    difficulty: getDifficulty(),
-    guards: serializeGuards(),
+  const data: SaveData = {}
+  for (const store of STORE_REGISTRY) {
+    if (store.serialize) data[store.key] = store.serialize()
   }
+  return data
 }
 
 /** Apply a payload to the live stores. The caller must guarantee a clean, fully
@@ -75,18 +45,9 @@ export function snapshot(): SaveData {
  *  post-bumpRun remount (RunLoad). restore() does NOT reset stores itself, so it
  *  must never run on top of a live run's leftover state. */
 export function restore(d: SaveData): void {
-  hydratePlayer(d.player)
-  hydrateResources(d.resource)
-  hydrateInventory(d.inventory)
-  hydrateUpgrades(d.upgrades)
-  hydrateUnlocks(d.unlocks)
-  hydrateCity(d.city)
-  hydrateCastle(d.castle)
-  hydrateTowers({ mastery: d.towerMastery })
-  setShopDiscount(d.shopDiscount)
-  hydrateWave({ index: d.waveIndex })
-  setDifficulty(d.difficulty)
-  hydrateGuards(d.guards)
+  for (const store of STORE_REGISTRY) {
+    if (store.hydrate) store.hydrate(d[store.key])
+  }
 }
 
 /** Upcoming night number for the saved wave index (index -1 = night 1). */
@@ -130,7 +91,12 @@ export function hasSave(): boolean {
 export function getSaveMeta(): SaveMeta | null {
   const d = readValidSave()
   if (!d) return null
-  return { night: nightFor(d.waveIndex), level: d.player.level }
+  // A current-version blob can still be partial (older build, interrupted write).
+  // Validate the two fields we read so a bad save degrades to "no save" here rather
+  // than throwing during the StartScreen's Continue-button render and bricking the menu.
+  const player = d.player as PlayerSave | undefined
+  if (!player || typeof player.level !== 'number' || typeof d.waveIndex !== 'number') return null
+  return { night: nightFor(d.waveIndex), level: player.level }
 }
 
 /** Delete the save slot (called on victory). No-op on failure. */

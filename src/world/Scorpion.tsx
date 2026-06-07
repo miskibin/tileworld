@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // LOW and FLAT desert predator. Segmented abdomen, two front claws, six legs
 // (4 animated on lf/rf/lb/rb, 2 static), arcing stinger tail.
@@ -50,6 +51,7 @@ export function ScorpionView({ state }: { state: AnimalState }) {
     () => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }),
     [],
   )
+  useDisposeOnUnmount(carapaceMat, darkMat, clawMat, stingerMat, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

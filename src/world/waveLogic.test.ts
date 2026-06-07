@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { stepWaveDirector, effectiveCount, type WaveTimers } from './waveLogic'
-import { WAVES, PREP_DURATION, type WaveProgress } from './waveStore'
+import {
+  stepWaveDirector,
+  effectiveCount,
+  isStuckUnreachable,
+  STUCK_TIMEOUT,
+  STUCK_SAFE_RANGE,
+  type WaveTimers,
+} from './waveLogic'
+import { WAVES, PREP_DURATION, MIN_PREP_SECONDS, type WaveProgress } from './waveStore'
 import { modsFor } from './difficultyStore'
 import type { GamePhase } from './gameStore'
 
@@ -46,6 +53,41 @@ describe('prep phase', () => {
       { type: 'setPhase', phase: 'wave' },
     ])
     expect(r.timers).toEqual({ prepEndsAt: 0, nextSpawnAt: 112, spawnIndex: 0 })
+  })
+})
+
+describe('prep skip floor', () => {
+  // The war bell / HUD "begin night" skip must not collapse the day to ~0s when a
+  // stale or spam-pressed skip lands right after the wave→prep transition.
+  it('drops a skip on the very first prep frame (stale-flag collapse guard)', () => {
+    const r = stepWaveDirector({
+      phase: 'prep', wave: wave({ index: 0 }), timers: timers(), now: 500, alive: 0, skip: true,
+    })
+    expect(r.actions).toEqual([])
+    expect(r.timers.prepEndsAt).toBe(500 + PREP_DURATION)
+  })
+
+  it('ignores a skip while still inside the minimum-prep floor', () => {
+    const t = timers({ prepEndsAt: 100 + PREP_DURATION }) // armed at t=100
+    const r = stepWaveDirector({
+      phase: 'prep', wave: wave({ index: -1 }), timers: t, now: 100 + MIN_PREP_SECONDS - 0.5, alive: 0, skip: true,
+    })
+    expect(r.actions).toEqual([])
+  })
+
+  it('honors a skip once the floor has passed', () => {
+    const t = timers({ prepEndsAt: 100 + PREP_DURATION }) // armed at t=100
+    const r = stepWaveDirector({
+      phase: 'prep', wave: wave({ index: -1 }), timers: t, now: 100 + MIN_PREP_SECONDS, alive: 0, skip: true,
+    })
+    expect(r.actions).toContainEqual({ type: 'beginWave', index: 0 })
+    expect(r.actions).toContainEqual({ type: 'setPhase', phase: 'wave' })
+  })
+
+  it('natural expiry is never blocked by the skip floor', () => {
+    // prepEndsAt in the past relative to the floor, but the full timer has elapsed.
+    const r = step('prep', wave({ index: -1 }), timers({ prepEndsAt: 112 }), 112, 0) // no skip
+    expect(r.actions).toContainEqual({ type: 'beginWave', index: 0 })
   })
 })
 
@@ -163,6 +205,20 @@ describe('difficulty mods', () => {
 
   it('never scales a wave below one ork', () => {
     expect(effectiveCount(WAVES.length - 1, easy)).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('stuck-ork safety net', () => {
+  it('flags a wave ork far from the keep that has not moved for the timeout', () => {
+    expect(isStuckUnreachable(STUCK_SAFE_RANGE + 1, STUCK_TIMEOUT)).toBe(true)
+  })
+
+  it('never flags an ork inside the safe range (keep attacker / slow boss at the wall)', () => {
+    expect(isStuckUnreachable(STUCK_SAFE_RANGE - 1, STUCK_TIMEOUT + 100)).toBe(false)
+  })
+
+  it('does not flag a far ork still within the idle window', () => {
+    expect(isStuckUnreachable(STUCK_SAFE_RANGE + 50, STUCK_TIMEOUT - 0.1)).toBe(false)
   })
 })
 

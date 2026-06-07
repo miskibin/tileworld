@@ -206,29 +206,6 @@ export function shingleTexture(color: string, repeat = 1): Tex {
   })
 }
 
-// ─── Thatch (golden straw roof) ──────────────────────────────────────────────
-export function thatchTexture(color: string, repeat = 1): Tex {
-  return get(`thatch:${color}:${repeat}`, () => {
-    const p = pad(128)
-    if (!p) return null
-    const { c, ctx } = p
-    ctx.fillStyle = color
-    ctx.fillRect(0, 0, 128, 128)
-    for (let i = 0; i < 900; i++) {
-      const x = Math.random() * 128
-      const y = Math.random() * 128
-      const len = 8 + Math.random() * 16
-      ctx.strokeStyle = shade(color, (Math.random() - 0.5) * 0.3)
-      ctx.lineWidth = 0.8 + Math.random()
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x + (Math.random() - 0.5) * 3, y + len)
-      ctx.stroke()
-    }
-    return finish(c, repeat)
-  })
-}
-
 // ─── Water surface (scrolling ripple/caustic lines) ──────────────────────────
 export function waterTexture(color: string, repeat = 6): Tex {
   return get(`water:${color}:${repeat}`, () => {

@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Compact rock-goat. Quadruped built from boxes — same hip-pivot conventions as
 // Wolf/Deer. Prey: flees threats, never attacks. Palette: cream wool, horn, hoof.
@@ -45,6 +46,7 @@ export function GoatView({ state }: { state: AnimalState }) {
     () => new THREE.MeshStandardMaterial({ color: DARK, roughness: 1, flatShading: true }), [])
   const hpFg = useMemo(
     () => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(wool, woolDark, hpFg)
 
   const g       = useRef<THREE.Group>(null!)
   const head    = useRef<THREE.Group>(null!)

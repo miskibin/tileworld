@@ -31,6 +31,7 @@ import { getTimeScale } from './hitStopStore'
 import { cullVisible, isCulled } from './cull'
 import { mergeParts, type MergedPart } from './mergeParts'
 import { faceCamera } from './faceCamera'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 import { playOrkGrunt } from '../audio/sfx'
 
 const TURN_RATE_FALLBACK = 6
@@ -175,6 +176,7 @@ export function OrkView({ state }: OrkViewProps) {
     () => new THREE.MeshStandardMaterial({ color: FACTION_COLOR[state.faction], roughness: 1 }),
     [state.faction],
   )
+  useDisposeOnUnmount(skinMat, skinDarkMat, factionMat)
 
   const groupRef = useRef<THREE.Group>(null!)
   const bodyRef = useRef<THREE.Group>(null!)

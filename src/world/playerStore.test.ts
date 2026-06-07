@@ -40,10 +40,17 @@ beforeEach(() => {
 })
 
 describe('damagePlayer', () => {
-  it('subtracts hp and arms the hurt flash', () => {
+  it('subtracts hp and arms the hurt flash on the wall clock', () => {
+    // The flash is read by PlayerHud's rAF loop against performance.now(), so it
+    // must be stamped on the wall clock — NOT the sim-clock `now` arg (which the
+    // in-canvas callers pass from the R3F clock). Under the old cross-clock bug
+    // this was `now + 0.35` (= 10.35) and the red overlay never fired.
     damagePlayer(30, 10)
     expect(getPlayer().hp).toBe(PLAYER_MAX_HP - 30)
-    expect(getPlayer().hurtFlashUntil).toBe(10.35)
+    const flash = getPlayer().hurtFlashUntil
+    const wallNow = performance.now() * 0.001
+    expect(flash).toBeGreaterThan(wallNow) // still in the future
+    expect(flash).toBeLessThan(wallNow + 0.4) // ~0.35 ahead, not 10.35
   })
 
   it('clamps hp at 0 and records death', () => {

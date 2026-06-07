@@ -28,7 +28,6 @@ export const PLAYER_MAX_HP = 125
 // (72,58) around base centre (72,54); on the enlarged map the keep sits at the
 // new centre, so spawn re-centres with it.)
 export const PLAYER_SPAWN = { x: 101, y: 1, z: 80 } as const
-export const PLAYER_RESPAWN_DELAY = 2.4
 export const PLAYER_STARTING_GOLD = 30
 
 // Progression tuning
@@ -180,7 +179,11 @@ export function damagePlayer(amount: number, now: number, fromX?: number, fromZ?
   // Red floating damage on the player — distinct from the yellow/white numbers
   // shown over enemies the player hits.
   spawnFloat(`-${Math.round(dmg)}`, '#ff5a4a', state.x, state.y + 2.2, state.z)
-  state.hurtFlashUntil = now + 0.35
+  // Stamp on the wall clock — PlayerHud's rAF loop reads this against
+  // performance.now(), NOT the R3F sim clock the `now` arg carries. (Same pattern
+  // as castleStore's flash.) Using `now` here left the two clocks mismatched, so
+  // `hurtFlashUntil - perfNow` was always negative and the red overlay never fired.
+  state.hurtFlashUntil = performance.now() * 0.001 + 0.35
   playHurt() // dull body-impact thud — always plays so every hit has feedback
   if (state.hp <= 0) {
     state.deadSince = now

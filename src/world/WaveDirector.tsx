@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { createOrk, countAliveWaveOrks, WAVE_FACTION } from './orkStore'
+import { createOrk, countAliveWaveOrks, getOrks, reapOrk, WAVE_FACTION } from './orkStore'
 import { CASTLE_CORE, getCastle, repairCastle } from './castleStore'
 import { findSpawnNear } from './obstacles'
 import { tileAt } from './tileMap'
@@ -19,7 +19,13 @@ import { reviveTowers } from './towerStore'
 import { reviveVillagers } from './villagerStore'
 import { isFrozen } from './pauseStore'
 import { getMods } from './difficultyStore'
-import { stepWaveDirector, type WaveAction, type WaveTimers } from './waveLogic'
+import {
+  stepWaveDirector,
+  isStuckUnreachable,
+  STUCK_MOVE_EPS,
+  type WaveAction,
+  type WaveTimers,
+} from './waveLogic'
 
 // Orks enter from a ring around the keep — far enough to read as "incoming",
 // close enough to stay inside the player's cull radius while they defend.
@@ -82,6 +88,8 @@ function applyWaveAction(a: WaveAction): void {
  */
 export function WaveDirector() {
   const timers = useRef<WaveTimers>({ prepEndsAt: 0, nextSpawnAt: 0, spawnIndex: 0 })
+  // Per-wave-ork idle tracking for the stuck safety net (id → last-moved pos + time).
+  const stuckTrack = useRef<Map<number, { x: number; z: number; since: number }>>(new Map())
 
   // Each time we enter prep, rebuild the downed defenders for the next wave.
   useEffect(
@@ -115,6 +123,38 @@ export function WaveDirector() {
     })
     timers.current = next
     for (const a of actions) applyWaveAction(a)
+
+    // Safety net: cull any night-wave ork stranded far from the keep and motionless
+    // past the timeout (e.g. knocked onto an isolated tile A* can't leave). Without
+    // this the wave never clears and the only way out is losing the Keep. Reaping
+    // drops the alive count so the director's normal clear path then advances.
+    if (getPhase() === 'wave') {
+      const track = stuckTrack.current
+      const toReap: number[] = []
+      for (const o of getOrks()) {
+        if (o.hp <= 0 || o.home !== null) continue // night invaders only (camps have home)
+        const rec = track.get(o.id)
+        if (!rec) {
+          track.set(o.id, { x: o.x, z: o.z, since: now })
+          continue
+        }
+        if (Math.hypot(o.x - rec.x, o.z - rec.z) > STUCK_MOVE_EPS) {
+          rec.x = o.x // moved → reset the idle clock
+          rec.z = o.z
+          rec.since = now
+          continue
+        }
+        const distKeep = Math.hypot(o.x - CASTLE_CORE.x, o.z - CASTLE_CORE.z)
+        if (isStuckUnreachable(distKeep, now - rec.since)) toReap.push(o.id)
+      }
+      // Reap after the scan so the splice doesn't disturb the iteration above.
+      for (const id of toReap) {
+        reapOrk(id)
+        track.delete(id)
+      }
+    } else if (stuckTrack.current.size > 0) {
+      stuckTrack.current.clear() // between waves: forget all idle tracking
+    }
 
     // Publish the prep countdown + run the keep's slow self-repair.
     if (getPhase() === 'prep') {

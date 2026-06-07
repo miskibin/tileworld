@@ -368,7 +368,11 @@ export function World() {
 
   return (
     <>
-      <DebugBindings onLights={setLights} />
+      {/* Dev-only: its useControls() calls auto-inject the leva panel, so mounting
+          it in prod would show the debug overlay. All values it pushes (lights, fog
+          density, the live-holder tunables) already default identically without it,
+          so the prod scene is unchanged. */}
+      {import.meta.env.DEV && <DebugBindings onLights={setLights} />}
 
       {/* Day/night cycle: owns the sky dome, the sun glow sphere, the moon, the
           star field and the position-independent fill lights, and animates them

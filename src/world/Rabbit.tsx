@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Tiny round ambient prey. Hops when moving; ears twitch when calm.
 
@@ -30,6 +31,7 @@ export function RabbitView({ state }: { state: AnimalState }) {
   const fur = useMemo(() => new THREE.MeshStandardMaterial({ color: FUR, roughness: 1, flatShading: true }), [])
   const furDark = useMemo(() => new THREE.MeshStandardMaterial({ color: FUR_DARK, roughness: 1, flatShading: true }), [])
   const hpFg = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(fur, furDark, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

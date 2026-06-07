@@ -31,10 +31,6 @@ export function resetBridges(): void {
   bridges.length = 0
 }
 
-export function getBridges(): BridgeSpan[] {
-  return bridges
-}
-
 /**
  * Returns the bridge span the (x, z) point lies on, or null.
  * Bridge is treated as a rectangle aligned with its axis from→to.

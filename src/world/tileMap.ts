@@ -207,13 +207,6 @@ function isDeliberateLake(x: number, z: number): boolean {
   return dx * dx + dz * dz < 1
 }
 
-export function getRiverX(z: number): number {
-  return riverX(z)
-}
-export function getRiverZ(x: number): number {
-  return riverZ(x)
-}
-
 // FIVE large, distinct biome regions — one per quadrant around the centred
 // castle, each well beyond the flat-grass safe-zone:
 //   SNOW   NW — a TALL icy massif (mountain, big white peak)

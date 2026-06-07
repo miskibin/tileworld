@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { COLS, ROWS, CENTER_X, CENTER_Z } from './tileMap'
+import { COLS, ROWS } from './tileMap'
 import { isPaused } from './pauseStore'
 import { waterTexture } from './textures'
 import { getDay, sunDirAt } from './timeStore'
@@ -157,10 +157,3 @@ export function WaterFloor() {
     </mesh>
   )
 }
-
-// Re-export for World.tsx convenience.
-export const WATER_CENTER: [number, number, number] = [
-  -CENTER_X + COLS / 2,
-  0,
-  -CENTER_Z + ROWS / 2,
-]

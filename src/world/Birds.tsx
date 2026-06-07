@@ -2,7 +2,6 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { isPaused } from './pauseStore'
-import { CENTER_X, CENTER_Z } from './tileMap'
 
 /**
  * Shared per-bird state — exposed for the cat to read so it can stalk
@@ -115,6 +114,3 @@ export function Birds() {
 
   return <instancedMesh ref={ref} args={[BIRD_GEO, BIRD_MAT, TOTAL]} castShadow />
 }
-
-// Re-export CENTER consts so other components can convert grid → world.
-export const _birdsCenter = { x: CENTER_X, z: CENTER_Z }

@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Bulky, low-slung tank with a shoulder hump, tusks, and a bristle ridge.
 // Neutral until provoked, then charges and gores (lunge on attackPhase).
@@ -34,6 +35,7 @@ export function BoarView({ state }: { state: AnimalState }) {
   const hide = useMemo(() => new THREE.MeshStandardMaterial({ color: HIDE, roughness: 1, flatShading: true }), [])
   const hideDark = useMemo(() => new THREE.MeshStandardMaterial({ color: HIDE_DARK, roughness: 1, flatShading: true }), [])
   const hpFg = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(hide, hideDark, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)

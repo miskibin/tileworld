@@ -7,6 +7,7 @@ import { ANIMAL_CONFIG } from './animalConfig'
 import { stepAnimalAI } from './animalAI'
 import { isFrozen } from './pauseStore'
 import { cullVisible, isCulled } from './cull'
+import { useDisposeOnUnmount } from './useDisposeOnUnmount'
 
 // Tall, slender grazer on long thin legs. Skittish — bolts from threats.
 
@@ -31,6 +32,7 @@ export function DeerView({ state }: { state: AnimalState }) {
   const coat = useMemo(() => new THREE.MeshStandardMaterial({ color: COAT, roughness: 1, flatShading: true }), [])
   const coatDark = useMemo(() => new THREE.MeshStandardMaterial({ color: COAT_DARK, roughness: 1, flatShading: true }), [])
   const hpFg = useMemo(() => new THREE.MeshBasicMaterial({ color: '#d63a3a', toneMapped: false }), [])
+  useDisposeOnUnmount(coat, coatDark, hpFg)
 
   const g = useRef<THREE.Group>(null!)
   const head = useRef<THREE.Group>(null!)
