@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { asset } from '../asset'
 
 let listener: THREE.AudioListener | null = null
 let enabled = true
@@ -62,10 +63,14 @@ export function setEnabled(v: boolean): void {
 
 /** True once a buffer for this url has been requested (and likely loaded). */
 export function hasBuffer(url: string): boolean {
-  return buffers.has(url)
+  return buffers.has(asset(url))
 }
 
 export function loadBuffer(url: string): Promise<AudioBuffer> {
+  // Resolve against the deploy base so absolute "/audio/.." paths work under a
+  // sub-path (GitHub Pages /tileworld/). The base-resolved url is the cache key,
+  // so hasBuffer() must apply the same transform.
+  url = asset(url)
   let p = buffers.get(url)
   if (!p) {
     const loader = new THREE.AudioLoader()

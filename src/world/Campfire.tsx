@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { PositionalAudio, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
+import { asset } from '../asset'
 
 interface CampfireProps {
   position: [number, number, number]
@@ -133,7 +134,7 @@ export function Campfire({ position, seed = 0 }: CampfireProps) {
       />
       {audioEnabled && (
         <PositionalAudio
-          url="/audio/campfire-loop.mp3"
+          url={asset('/audio/campfire-loop.mp3')}
           autoplay
           loop
           distance={2.5}

@@ -14,6 +14,7 @@ import {
 } from '@react-three/postprocessing'
 import { KernelSize, BlendFunction, VignetteEffect, HueSaturationEffect, DepthOfFieldEffect } from 'postprocessing'
 import { Perf } from 'r3f-perf'
+import { asset } from '../asset'
 import { SoundScape } from '../audio/SoundScape'
 import { useAudioEnabled } from '../audio/useAudioEnabled'
 import { Terrain } from './Terrain'
@@ -387,7 +388,7 @@ export function World() {
           so the HDRI fetch/parse can't blank the whole scene on first load —
           the world renders immediately and the IBL pops in when ready. */}
       <Suspense fallback={null}>
-        <Environment files="/hdri/sunset_1k.hdr" environmentIntensity={0.55} />
+        <Environment files={asset('/hdri/sunset_1k.hdr')} environmentIntensity={0.55} />
       </Suspense>
 
       {/* Day fog — exponential falloff; colour is animated by the day/night
@@ -589,7 +590,7 @@ export function World() {
           <>
             {WATER_EDGES.map(([wx, wz], i) => (
               <group key={`water${i}`} position={[wx, 0.5, wz]}>
-                <PositionalAudio url="/audio/water-loop.mp3" autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
+                <PositionalAudio url={asset('/audio/water-loop.mp3')} autoplay loop distance={18} ref={(a) => { a?.setVolume(0.04) }} />
               </group>
             ))}
           </>
