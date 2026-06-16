@@ -1,10 +1,55 @@
 # tileworld
 
+> [!IMPORTANT]
+> **This is the original three.js / TypeScript prototype. The game has since been ported to Rust, and _all active development now happens there_ — as a new game called **Warbell**.**
+>
+> - ▶️ **Play this original in your browser:** **https://miskibin.github.io/tileworld/**
+> - 🦀 **Warbell — the current Rust / Bevy game:** **[play & download](https://miskibin.github.io/warbell-game/)** · **[warbell-game repo](https://github.com/miskibin/warbell-game)**
+>
+> Everything below documents this original TS version. It still runs and plays fine — it's just no longer where the game grows. See the [side-by-side comparison](#threejs-original--rust-rebuild) below.
+
 A single-player 3D action-RPG that runs entirely in the browser — explore a procedurally generated island, drive back the orks, and grow your castle. No backend, no install beyond `npm`.
 
 ![TileWorld — exploring the forest](docs/screenshots/forest.png)
 
 Built with **React 19 + react-three-fiber + three.js + TypeScript + Vite**. The map, scattered props, mobs, and most sound effects are generated deterministically at runtime. Days are a free-roam prep window — mine, forage, hunt, and rescue across the biomes — then ring the war bell and hold the castle through the night.
+
+## three.js original → Rust rebuild
+
+Same game, rebuilt in **Bevy + Rust** as **[Warbell](https://miskibin.github.io/warbell-game/)** — chasing lighting, density, and combat fidelity the browser couldn't reach. **This repo (three.js)** on the left, **Warbell (Rust)** on the right.
+
+<table>
+  <tr><td colspan="2" align="center"><sub><b>Forest</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/forest.png" alt="Forest — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/forest-biome.png" alt="Forest — Warbell (Rust)"></td>
+  </tr>
+  <tr><td colspan="2" align="center"><sub><b>Desert</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/desert.png" alt="Desert — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/desert-biome.png" alt="Desert — Warbell (Rust)"></td>
+  </tr>
+  <tr><td colspan="2" align="center"><sub><b>Snowfields</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/snow.png" alt="Snow — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/snow-biome.png" alt="Snow — Warbell (Rust)"></td>
+  </tr>
+  <tr><td colspan="2" align="center"><sub><b>Rock highlands</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/rock.png" alt="Rock — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/rock-biome.png" alt="Rock — Warbell (Rust)"></td>
+  </tr>
+  <tr><td colspan="2" align="center"><sub><b>Swamp</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/swamp.png" alt="Swamp — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/swamp-fortress.png" alt="Swamp — Warbell (Rust)"></td>
+  </tr>
+  <tr><td colspan="2" align="center"><sub><b>The keep</b></sub></td></tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/castle.png" alt="Keep — three.js original"></td>
+    <td width="50%"><img src="https://miskibin.github.io/warbell-game/screenshots/castle-after.png" alt="Keep — Warbell (Rust)"></td>
+  </tr>
+</table>
 
 ## Run it
 
