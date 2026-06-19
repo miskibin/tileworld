@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "shot": "node scripts/screenshot.mjs",
+    "shot:hero": "node scripts/shot-hero-model.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "inspect": "node --import ./scripts/inspect-register.mjs --import tsx scripts/inspect-model.tsx",
