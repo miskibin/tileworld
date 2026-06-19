@@ -23,7 +23,7 @@ function StudioScene() {
   return (
     <Canvas
       shadows
-      camera={{ position: [3.2, 1.75, 4.25], fov: 34, near: 0.1, far: 20 }}
+      camera={{ position: [-3.2, 1.75, 4.25], fov: 34, near: 0.1, far: 20 }}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
       onCreated={({ camera }) => {
         camera.lookAt(0, 1.25, 0)
@@ -39,7 +39,7 @@ function StudioScene() {
         shadow-mapSize-height={2048}
       />
       <directionalLight position={[-4, 2.8, 2.5]} intensity={0.85} />
-      <group position={[0, -0.01, 0]} rotation={[0, -0.22, 0]}>
+      <group position={[0, -0.01, 0]} rotation={[0, 0.16, 0]}>
         <HeroKnight />
       </group>
       <ContactShadows position={[0, 0.002, 0]} opacity={0.35} scale={5} blur={2.4} far={2.8} />

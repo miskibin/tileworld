@@ -251,7 +251,7 @@ function Arm({ side }: { side: -1 | 1 }) {
 
 function Sword() {
   return (
-    <group position={[0.78, 0.77, 0.2]} rotation={[0.15, 0, -0.42]}>
+    <group position={[0.78, 0.77, 0.2]} rotation={[0.15, 0, -0.95]}>
       <Part geometry={SWORD_POMMEL_GEO} material={armorEdgeMat} position={[0, 0.17, 0]} />
       <Part geometry={SWORD_GRIP_GEO} material={leatherDarkMat} position={[0, 0.02, 0]} />
       <Part geometry={SWORD_GUARD_GEO} material={armorEdgeMat} position={[0, -0.15, 0]} />
