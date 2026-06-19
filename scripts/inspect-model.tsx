@@ -59,6 +59,7 @@ import { HerbModel } from '../src/world/HerbPlants'
 import { AppleModel } from '../src/world/AppleTrees'
 import { TrainingDummy } from '../src/world/TrainingDummy'
 import { Signpost } from '../src/world/Signpost'
+import { HeroKnight } from '../src/world/HeroKnight'
 
 // Character is loaded lazily/tolerantly: it transitively imports a number of
 // gameplay stores, and if any of those is mid-refactor (a dangling import) a
@@ -124,6 +125,7 @@ const REGISTRY: Record<string, () => React.ReactElement> = {
   TrainingDummy: () => <TrainingDummy position={[0, 0, 0]} />,
   TrainingDummyPell: () => <TrainingDummy position={[0, 0, 0]} isPell />,
   Signpost: () => <Signpost position={[0, 0, 0]} />,
+  HeroKnight: () => <HeroKnight position={[0, 0, 0]} />,
   Villager: () => (
     <VillagerView
       state={createVillager({
